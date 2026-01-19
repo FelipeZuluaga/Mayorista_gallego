@@ -1,0 +1,35 @@
+/* */
+import { Link } from "react-router-dom";
+import { modulesByRole } from "../routes/modules";
+import * as LucideIcons from "lucide-react";
+
+function Dashboard() {
+    const user = JSON.parse(localStorage.getItem("user"));
+    const userRole = user?.role?.toUpperCase();
+    const menuItems = modulesByRole[userRole] || [];
+
+    return (
+        <div className="admin-cards">
+            {menuItems.map((item, index) => {
+                const IconComponent = LucideIcons[item.iconName];
+
+                return (
+                    <Link to={item.path} key={index} className="admin-card-link">
+                        <div className="admin-card">
+                            <div className="card-icon-wrapper" style={{ color: '#9b111e' }}>
+                                {IconComponent && <IconComponent size={40} strokeWidth={1.5} />}
+                            </div>
+                            <h3>{item.title}</h3>
+                            <p>Gestionar sección</p>
+                            <div className="card-badge" style={{ marginTop: '10px', fontSize: '0.7rem', color: '#9b111e', fontWeight: 'bold' }}>
+                                ACCEDER
+                            </div>
+                        </div>
+                    </Link>
+                );
+            })}
+        </div>
+    );
+}
+
+export default Dashboard;
