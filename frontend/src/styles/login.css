@@ -1,0 +1,234 @@
+:root {
+    --primary-color: #9b111e; /* Rojo borgoña más elegante */
+    --primary-hover: #7a0d18;
+    --text-dark: #2d3436;
+    --text-light: #636e72;
+    --bg-gray: #f8f9fa;
+    --white: #ffffff;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-gray);
+}
+
+.login-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.main-container {
+    display: flex;
+    flex: 1;
+}
+
+/* IZQUIERDA: Estilo Impactante */
+.left-section {
+    flex: 1.2;
+    position: relative;
+    background: url('/fondo-alimentos.jpg') no-repeat center center / cover;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+}
+
+.overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, rgba(155, 17, 30, 0.8) 0%, rgba(0, 0, 0, 0.6) 100%);
+}
+
+.left-content {
+    position: relative;
+    z-index: 2;
+    color: white;
+    max-width: 500px;
+}
+
+.left-content h1 {
+    font-size: 3.5rem;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.left-content h1 span {
+    color: #ffda79; /* Un toque de dorado para resaltar */
+}
+
+.divider {
+    width: 60px;
+    height: 4px;
+    background: #ffda79;
+    margin: 25px 0;
+}
+
+/* DERECHA: Formulario Limpio */
+.login-section {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+}
+
+.login-container {
+    background: var(--white);
+    padding: 50px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    width: 100%;
+    max-width: 450px;
+}
+
+.brand-header {
+    text-align: center;
+    margin-bottom: 35px;
+}
+
+.login-logo {
+    width: 120px;
+    height: auto;
+    margin-bottom: 20px;
+}
+
+.brand-header h2 {
+    color: var(--text-dark);
+    font-size: 1.8rem;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    color: var(--text-light);
+    font-size: 0.95rem;
+}
+
+/* Form Groups e Inputs */
+.form-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 8px;
+}
+
+select, input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+select:focus, input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(155, 17, 30, 0.1);
+}
+
+.btn-login {
+    width: 100%;
+    padding: 15px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: transform 0.2s, background 0.3s;
+}
+
+.btn-login:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-2px);
+}
+
+.login-footer-links {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.login-footer-links a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* FOOTER */
+.footer {
+    background: #2d3436;
+    color: #dfe6e9;
+    padding: 20px 40px;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    font-size: 0.85rem;
+}
+
+.footer-links a {
+    color: white;
+    text-decoration: none;
+    margin-left: 20px;
+    opacity: 0.7;
+}
+
+.footer-links a:hover {
+    opacity: 1;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+    .main-container { flex-direction: column; }
+    .left-section { height: 300px; padding: 30px; }
+    .left-content h1 { font-size: 2.2rem; }
+    .footer-content { flex-direction: column; gap: 15px; text-align: center; }
+}
+/* Contenedor del ícono */
+.floating-icon {
+    display: inline-block;
+    margin-bottom: 20px;
+    color: #ffda79; /* El color dorado que ya usas */
+    animation: float 4s ease-in-out infinite; /* Animación de flotación */
+    transition: transform 0.3s ease, color 0.3s ease;
+    cursor: default;
+}
+
+/* Efecto interactivo al pasar el mouse */
+.floating-icon:hover {
+    transform: scale(1.2) rotate(5deg);
+    color: #ffffff;
+}
+
+/* Definición de la animación suave */
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-20px); /* Sube 20 pixeles */
+    }
+    100% {
+        transform: translateY(0px);
+    }
+}

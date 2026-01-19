@@ -1,0 +1,433 @@
+import { useEffect, useState } from "react";
+import { inventoryService } from "../services/inventoryService";
+import { alertSuccess, alertError, alertConfirm } from "../services/alertService";
+import { Trash2, Edit3, Barcode, Boxes, Tag, DollarSign, AlertTriangle } from "lucide-react";
+import "../styles/inventory.css";
+
+const CUSTOMER_TYPES = [
+    { id: 1, label: "Socio" },
+    { id: 2, label: "No socio" },
+    { id: 3, label: "Cliente" },
+    { id: 4, label: "Despacho mayorista" },
+];
+
+export default function InventoryPage() {
+    const [products, setProducts] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [showModal, setShowModal] = useState(false);
+    const [editingProduct, setEditingProduct] = useState(null);
+
+    const [currentTypeIndex, setCurrentTypeIndex] = useState(0);
+
+    const [form, setForm] = useState({
+        barcode: "",
+        name: "",
+        stock: "",
+        category_id: "",
+        prices: { 1: "", 2: "", 3: "", 4: "" },
+    });
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    useEffect(() => {
+        if (products.length > 0) {
+            const timer = setInterval(() => {
+                setCurrentTypeIndex((prev) => (prev + 1) % CUSTOMER_TYPES.length);
+            }, 3000);
+            return () => clearInterval(timer);
+        }
+    }, [products]);
+
+    const loadData = async () => {
+        try {
+            const [prodData, catData] = await Promise.all([
+                inventoryService.getProducts(),
+                inventoryService.getCategories()
+            ]);
+            setProducts(prodData || []);
+            setCategories(catData || []);
+        } catch (err) {
+            alertError("Error de Conexión", "No se pudo sincronizar con la base de datos.");
+        }
+    };
+
+    const getPrice = (prices, id) => prices?.find(p => p.customer_type_id === id)?.unit_price || 0;
+
+    const calculateGrandTotal = (typeId) => {
+        return products.reduce((acc, p) => {
+            const price = getPrice(p.prices, typeId);
+            return acc + (Number(p.stock) * Number(price));
+        }, 0);
+    };
+
+    const productsInCriticalStock = products.filter(p => Number(p.stock) < 10).length;
+    const currentType = CUSTOMER_TYPES[currentTypeIndex];
+    const currentTotalValue = calculateGrandTotal(currentType.id);
+    // Suma todas las existencias de todos los productos
+    const totalStockUnits = products.reduce((acc, p) => acc + (Number(p.stock) || 0), 0);
+    
+
+    const handleDelete = async (id) => {
+        const result = await alertConfirm(
+            "¿Eliminar producto?",
+            "Esta acción no se puede deshacer y borrará todos los precios asociados."
+        );
+
+        if (result.isConfirmed) {
+            try {
+                // Limpiamos el ID antes de enviar
+                const cleanId = String(id).split(':')[0];
+                await inventoryService.deleteProduct(cleanId);
+                alertSuccess("Eliminado", "El producto ha sido quitado del inventario.");
+                loadData();
+            } catch (err) {
+                alertError("Error", "No se pudo eliminar el producto seleccionado.");
+            }
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!form.category_id) return alertError("Faltan datos", "Por favor selecciona una categoría.");
+
+        try {
+            setLoading(true);
+            const payload = {
+                ...form,
+                stock: Math.floor(Number(form.stock)),
+                category_id: Number(form.category_id),
+                prices: CUSTOMER_TYPES.map(c => ({
+                    customer_type_id: c.id,
+                    unit_price: Math.trunc(Number(form.prices[c.id]) || 0)
+                }))
+            };
+
+            await inventoryService.createProduct(payload);
+            alertSuccess("¡Éxito!", "Producto registrado correctamente.");
+            resetForm();
+            loadData();
+        } catch (err) {
+            alertError("Error al guardar", "Verifica los datos e intenta nuevamente.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleUpdate = async () => {
+        // VALIDACIÓN CRÍTICA: Evita el error de Foreign Key (category_id = 0)
+        if (!form.category_id || form.category_id === "0") {
+            return alertError("Error de Categoría", "Selecciona una categoría válida antes de guardar.");
+        }
+
+        try {
+            const cleanId = String(editingProduct.id).split(':')[0];
+
+            const payload = {
+                name: form.name.trim(),
+                stock: Math.floor(Number(form.stock)) || 0,
+                category_id: Number(form.category_id),
+                prices: CUSTOMER_TYPES.map((c) => ({
+                    customer_type_id: c.id,
+                    unit_price: Math.trunc(Number(form.prices[c.id]) || 0),
+                })),
+            };
+
+            await inventoryService.updateProduct(cleanId, payload);
+
+            alertSuccess("¡Actualizado!", "Los cambios se guardaron correctamente.");
+            setShowModal(false);
+            setEditingProduct(null);
+            resetForm();
+            loadData();
+
+        } catch (err) {
+            console.error("Error en la actualización:", err);
+            alertError("Error de Servidor", "No se pudo actualizar. Verifica la conexión con el backend.");
+        }
+    };
+
+    const openEditModal = (p) => {
+        const pricesObj = { 1: "", 2: "", 3: "", 4: "" };
+        p.prices?.forEach(pr => {
+            pricesObj[pr.customer_type_id] = Math.trunc(pr.unit_price);
+        });
+
+        setEditingProduct(p);
+        setForm({
+            barcode: p.barcode,
+            name: p.name,
+            stock: p.stock,
+            // Buscamos el ID de la categoría comparando el nombre o usando el id directo si existe
+            category_id: categories.find(c => c.name === p.category)?.id || "",
+            prices: pricesObj,
+        });
+        setShowModal(true);
+    };
+
+    const resetForm = () => {
+        setForm({
+            barcode: "", name: "", stock: "", category_id: "",
+            prices: { 1: "", 2: "", 3: "", 4: "" },
+        });
+        setEditingProduct(null);
+    };
+
+    return (
+        <div className="inv-page full-layout">
+            <div className="module-intro">
+                <h1>Inventario General</h1>
+                <p>Gestión de stock y valorización en tiempo real.</p>
+            </div>
+
+            <div className="summary-cards">
+                <div className="s-card socio carousel-card">
+                    <div className="s-icon"><DollarSign size={22} /></div>
+                    <div className="s-info carousel-info">
+                        <label>Inversión Total ({currentType.label})</label>
+                        <div className="carousel-container">
+                            <span key={currentType.id} className="price-display fade-in">
+                                ${currentTotalValue.toLocaleString()}
+                            </span>
+                        </div>
+                        <div className="carousel-dots">
+                            {CUSTOMER_TYPES.map((_, idx) => (
+                                <div key={idx} className={`dot ${idx === currentTypeIndex ? 'active' : ''}`} />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="s-card total-items">
+                    <div className="s-icon"><Boxes size={22} /></div>
+                    <div className="s-info">
+                        <label>Total Existencias (Unidades)</label>
+                        {/* Usamos totalStockUnits en lugar de products.length */}
+                        <span style={{ color: totalStockUnits === 0 ? 'var(--primary)' : 'inherit' }}>
+                            {totalStockUnits.toLocaleString()}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="s-card alerts">
+                    <div className="s-icon"><AlertTriangle size={22} /></div>
+                    <div className="s-info">
+                        <label>Stock Crítico</label>
+                        <span>{productsInCriticalStock}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="inv-card full-width-card">
+                <form className="inv-form" onSubmit={handleSubmit}>
+                    <div className="form-grid">
+                        <div className="input-group">
+                            <label><Barcode size={14} /> Código de barras</label>
+                            <input
+                                value={form.barcode}
+                                onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="input-group">
+                            <label>Nombre del Producto</label>
+                            <input
+                                value={form.name}
+                                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="input-group">
+                            <label><Boxes size={14} /> Existencias</label>
+                            <input
+                                type="number"
+                                value={form.stock}
+                                onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="input-group">
+                            <label><Tag size={14} /> Categoría</label>
+                            <select
+                                value={form.category_id}
+                                onChange={(e) => setForm({ ...form, category_id: e.target.value })}
+                                required
+                            >
+                                <option value="">Seleccione...</option>
+                                {categories.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <h3 className="section-title">Precios de Venta Unitarios</h3>
+                    <div className="prices-grid">
+                        {CUSTOMER_TYPES.map((c) => (
+                            <div key={c.id} className="price-card">
+                                <label>{c.label}</label>
+                                <div className="input-with-icon">
+                                    <span>$</span>
+                                    <input
+                                        type="number"
+                                        value={form.prices[c.id]}
+                                        onChange={(e) => setForm({
+                                            ...form,
+                                            prices: { ...form.prices, [c.id]: e.target.value },
+                                        })}
+                                        required
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="form-actions">
+                        <button type="submit" className="btn-primary-main" disabled={loading}>
+                            {loading ? "Registrando..." : "Añadir al Inventario"}
+                        </button>
+                    </div>
+                </form>
+
+                <div className="table-container-fixed">
+                    <table className="inv-table no-scroll">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Producto</th>
+                                <th>Stock</th>
+                                <th>Categoría</th>
+                                <th>Socio</th>
+                                <th>No Socio</th>
+                                <th>Cliente</th>
+                                <th>May.</th>
+                                <th className="col-total">T. Socio</th>
+                                <th className="col-total">T. N.Socio</th>
+                                <th className="col-total">T. Cliente</th>
+                                <th className="col-total">T. May.</th>
+                                <th className="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {products.map((p) => (
+                                <tr key={p.id}>
+                                    <td className="font-mono">{p.barcode}</td>
+                                    <td className="font-bold">{p.name}</td>
+                                    <td>
+                                        <span className={`badge-stock ${Number(p.stock) < 10 ? 'stock-low' : ''}`}>
+                                            {p.stock}
+                                        </span>
+                                    </td>
+                                    <td>{p.category}</td>
+                                    {CUSTOMER_TYPES.map(c => (
+                                        <td key={`price-${p.id}-${c.id}`}>
+                                            ${Math.trunc(getPrice(p.prices, c.id)).toLocaleString()}
+                                        </td>
+                                    ))}
+                                    {CUSTOMER_TYPES.map(c => (
+                                        <td key={`total-${p.id}-${c.id}`} className="col-total">
+                                            <strong>
+                                                ${Math.trunc(getPrice(p.prices, c.id) * p.stock).toLocaleString()}
+                                            </strong>
+                                        </td>
+                                    ))}
+                                    <td className="text-center">
+                                        <div className="action-group">
+                                            <button className="btn-edit" onClick={() => openEditModal(p)}>
+                                                <Edit3 size={16} />
+                                            </button>
+                                            <button className="btn-delete" onClick={() => handleDelete(p.id)}>
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {showModal && (
+                <div className="modal-overlay">
+                    <div className="modal-content fade-in">
+                        <div className="modal-header">
+                            <div>
+                                <h2>Actualizar Información</h2>
+                                <p className="modal-subtitle">Modificando: <strong>{editingProduct?.name}</strong></p>
+                            </div>
+                            <button className="close-x" onClick={() => setShowModal(false)}>&times;</button>
+                        </div>
+
+                        <div className="modal-body">
+                            <div className="modal-form-grid">
+                                <div className="input-group">
+                                    <label><Barcode size={14} /> Código (Solo lectura)</label>
+                                    <input value={form.barcode} disabled className="input-disabled" />
+                                </div>
+                                <div className="input-group">
+                                    <label>Nombre del Producto</label>
+                                    <input
+                                        value={form.name}
+                                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                                    />
+                                </div>
+                                <div className="input-group">
+                                    <label><Boxes size={14} /> Stock Disponible</label>
+                                    <input
+                                        type="number"
+                                        value={form.stock}
+                                        onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                                    />
+                                </div>
+                                <div className="input-group">
+                                    <label><Tag size={14} /> Categoría</label>
+                                    <select
+                                        value={form.category_id}
+                                        onChange={(e) => setForm({ ...form, category_id: e.target.value })}
+                                    >
+                                        <option value="">Seleccione una categoría</option>
+                                        {categories.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <h3 className="section-title">Ajustar Precios Unitarios</h3>
+                            <div className="modal-prices-grid">
+                                {CUSTOMER_TYPES.map(c => (
+                                    <div key={c.id} className="price-card">
+                                        <label>{c.label}</label>
+                                        <div className="input-with-icon">
+                                            <span>$</span>
+                                            <input
+                                                type="number"
+                                                value={form.prices[c.id]}
+                                                onChange={(e) => setForm({
+                                                    ...form,
+                                                    prices: { ...form.prices, [c.id]: e.target.value }
+                                                })}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="modal-footer">
+                            <button className="btn-modal-cancel" onClick={() => setShowModal(false)}>
+                                Cancelar
+                            </button>
+                            <button className="btn-modal-save" onClick={handleUpdate}>
+                                Actualizar Producto
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
