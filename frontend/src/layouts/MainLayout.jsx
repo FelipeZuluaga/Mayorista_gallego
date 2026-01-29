@@ -1,7 +1,7 @@
 import { useNavigate, NavLink } from "react-router-dom";
 import { LogOut, User, Package, Users, ClipboardList, LayoutDashboard, Truck } from "lucide-react";
 import logo from "../assets/logo.jpeg";
-import "../styles/Dashboard.css";
+import "../styles/dashboard.css";
 import Footer from "../components/footer";
 
 function MainLayout({ children }) {
