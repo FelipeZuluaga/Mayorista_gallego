@@ -1,38 +1,37 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "../styles/login.css";
+import "../styles/Login.css";
 import logo from "../assets/logo.jpeg";
-import { Truck } from 'lucide-react'; // Importamos el ícono
+import { Truck } from 'lucide-react'; 
 import Footer from "../components/footer";
-// Importamos el servicio que creamos anteriormente
 import { loginUser } from "../services/authService";
-// Si usas SweetAlert2 o similar para estos servicios:
 import { alertSuccess, alertError, alertWarning } from "../services/alertService";
 
 function Login() {
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState("");
+  // Cambiado de email a userId para usar el código único
+  const [userId, setUserId] = useState(""); 
   const [password, setPassword] = useState("");
   const [roleId, setRoleId] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e) => {
-    e.preventDefault(); // Evita recarga de página
+    e.preventDefault(); 
 
-    if (!email || !password || !roleId) {
-      alertWarning("Campos incompletos", "Por favor completa todos los campos.");
+    // Validación actualizada para usar userId
+    if (!userId || !password || !roleId) {
+      alertWarning("Campos incompletos", "Por favor ingresa tu código, contraseña y selecciona un rol.");
       return;
     }
 
     try {
       setLoading(true);
 
-      // Llamada al servicio de Axios
-      const data = await loginUser(email, password, roleId);
+      // Enviamos el userId (ID único) al servicio de autenticación
+      const data = await loginUser(userId, password, roleId);
 
       if (data.success) {
-        // Guardamos en localStorage
         localStorage.setItem("user", JSON.stringify(data.user));
 
         await alertSuccess(
@@ -43,22 +42,20 @@ function Login() {
         redirectByRole(data.user.role);
       }
     } catch (error) {
-      // Usamos el mensaje que viene del backend ("Credenciales incorrectas", etc.)
-      alertError("Error de acceso", error.message || "Error al conectar con el servidor");
+      alertError("Error de acceso", error.message || "Código o contraseña incorrectos");
     } finally {
       setLoading(false);
     }
   };
 
   const redirectByRole = (role) => {
-    // Normalizamos a mayúsculas por si el backend varía
     const userRole = role.toUpperCase();
 
     switch (userRole) {
       case "ADMINISTRADOR":
       case "SOCIO":
       case "NO_SOCIO":
-       case "DESPACHADOR":
+      case "DESPACHADOR":
         navigate("/dashboard");
         break;
       default:
@@ -73,7 +70,6 @@ function Login() {
         <div className="left-section">
           <div className="overlay"></div>
           <div className="left-content">
-            {/* Ícono animado */}
             <div className="floating-icon">
               <Truck size={80} strokeWidth={1.5} />
             </div>
@@ -91,7 +87,7 @@ function Login() {
             <div className="brand-header">
               <img src={logo} alt="Logo" className="login-logo" />
               <h2>Bienvenido de nuevo</h2>
-              <p className="subtitle">Ingresa tus credenciales para continuar</p>
+              <p className="subtitle">Ingresa tu código único para continuar</p>
             </div>
 
             <form onSubmit={handleLogin}>
@@ -107,12 +103,13 @@ function Login() {
               </div>
 
               <div className="form-group">
-                <label>Correo Electrónico</label>
+                {/* Cambiado de Correo Electrónico a Código de Usuario */}
+                <label>Código de Usuario (ID)</label>
                 <input
-                  type="email"
-                  placeholder="ejemplo@correo.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text" 
+                  placeholder="Ej: 102030"
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
                   required
                 />
               </div>
@@ -132,15 +129,11 @@ function Login() {
                 {loading ? "Ingresando..." : "Iniciar Sesión"}
               </button>
             </form>
-
-            <div className="login-footer-links">
-              <a href="#">¿Olvidaste tu contraseña?</a>
-            </div>
           </div>
         </div>
       </div>
 
-      <Footer /> {/* Usamos el componente centralizado */}
+      <Footer />
     </div>
   );
 }
