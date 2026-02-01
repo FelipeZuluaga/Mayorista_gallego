@@ -1,57 +1,186 @@
 import { useEffect, useState, useMemo } from "react";
 import { orderService } from "../services/orderService";
-import { alertError } from "../services/alertService";
+import { inventoryService } from "../services/inventoryService";
+import { alertError, alertSuccess, alertConfirm } from "../services/alertService";
 import {
-    ClipboardList, Search, DollarSign, ShoppingBag,
-    Users, Calendar, User as UserIcon, X, Eye, Clock, Package, TrendingUp
+    ClipboardList, ShoppingBag,
+    X, Eye, Edit3, Save, Trash2, Plus, Minus,
 } from "lucide-react";
 import "../styles/inventory.css";
 
 export default function PedidosPage() {
     const [orders, setOrders] = useState([]);
+    const [allProducts, setAllProducts] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState("");
 
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [orderItems, setOrderItems] = useState([]);
-    const [loadingDetail, setLoadingDetail] = useState(false);
+
+    // ESTADOS DE EDICIÓN
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingOrder, setEditingOrder] = useState(null);
+    const [editForm, setEditForm] = useState({
+        seller_name: "",
+        items: []
+    });
 
     const user = JSON.parse(localStorage.getItem("user"));
+    const canManage = ["ADMINISTRADOR", "DESPACHADOR"].includes(user?.role?.toUpperCase());
 
-    useEffect(() => { loadOrders(); }, []);
+    useEffect(() => {
+        loadOrders();
+        loadProducts();
+    }, []);
 
     const loadOrders = async () => {
         try {
             setLoading(true);
             const data = await orderService.getOrdersHistory(user);
             setOrders(data || []);
-        } catch (err) { alertError("Error", "No se pudieron cargar los pedidos."); }
+        } catch (err) { alertError("Error", "No se cargaron los pedidos."); }
         finally { setLoading(false); }
+    };
+
+    const loadProducts = async () => {
+        try {
+            const data = await inventoryService.getProducts();
+            setAllProducts(data || []);
+        } catch (err) {
+            console.error("Error cargando productos", err);
+        }
     };
 
     const handleViewDetail = async (order) => {
         setSelectedOrder(order);
-        setLoadingDetail(true);
         try {
             const res = await orderService.getOrderDetail(order.id);
-            setOrderItems(res);
+            setOrderItems(res || []);
         } catch (err) { alertError("Error", "No se pudo cargar el detalle."); }
-        finally { setLoadingDetail(false); }
     };
 
-    // --- CÁLCULO DE MÉTRICAS ---
-    const stats = useMemo(() => {
-        const total = orders.length;
-        const totalMoney = orders.reduce((acc, o) => acc + Number(o.total_amount || 0), 0);
-        const pending = orders.filter(o => o.status === 'PENDIENTE' || o.status === 'DESPACHADO').length;
-        const uniqueSellers = new Set(orders.map(o => o.seller_name)).size;
-        return { total, totalMoney, pending, uniqueSellers };
-    }, [orders]);
+    // --- Función para abrir el modal de edición ---
+    const handleOpenEdit = async (order) => {
+        try {
+            const detail = await orderService.getOrderDetail(order.id);
 
-    const filteredOrders = orders.filter(o =>
-        o.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        o.id.toString().includes(searchTerm)
-    );
+            setEditingOrder(order);
+            setEditForm({
+                seller_name: order.seller_name || "",
+                customer_type_id: order.customer_type_id,
+                items: detail.map(i => ({
+                    product_id: i.product_id,
+                    // BUSCAMOS EL NOMBRE: Intentamos varias opciones según lo que envíe el SQL
+                    product_name: i.product_name || i.name || "Producto desconocido",
+                    quantity: Number(i.quantity),
+                    unit_price: Number(i.unit_price)
+                }))
+            });
+            setIsEditModalOpen(true);
+        } catch (err) {
+            alertError("Error", "No se pudo cargar el detalle.");
+        }
+    };
+    const handleUpdateQty = (index, delta) => {
+        const newItems = [...editForm.items];
+        const newQty = newItems[index].quantity + delta;
+        if (newQty > 0) {
+            newItems[index].quantity = newQty;
+            setEditForm({ ...editForm, items: newItems });
+        }
+    };
+
+    const handleRemoveItem = (index) => {
+        const newItems = editForm.items.filter((_, i) => i !== index);
+        setEditForm({ ...editForm, items: newItems });
+    };
+
+    const handleAddItem = (productId) => {
+        const prod = allProducts.find(p => p.id === parseInt(productId));
+        if (!prod) return;
+
+        if (editForm.items.find(i => i.product_id === prod.id)) {
+            return alertError("Aviso", "El producto ya está en el pedido.");
+        }
+
+        setEditForm({
+            ...editForm,
+            items: [...editForm.items, {
+                product_id: prod.id,
+                product_name: prod.name,
+                quantity: 1,
+                unit_price: 0
+            }]
+        });
+    };
+
+    // --- Función para guardar los cambios ---
+    const handleSaveEdit = async () => {
+        const itemsValidos = editForm.items
+            .filter(it => it.product_id && !isNaN(it.product_id))
+            .map(it => ({
+                product_id: Number(it.product_id),
+                quantity: Number(it.quantity)
+            }));
+
+        if (itemsValidos.length === 0) {
+            return alertError("Error", "El pedido no tiene productos válidos.");
+        }
+        const confirm = await alertConfirm("¿Actualizar pedido?", "Se ajustará el stock automáticamente.");
+        if (confirm.isConfirmed) {
+            try {
+                const payload = {
+                    seller_name: editForm.seller_name,
+                    customer_type_id: editingOrder.customer_type_id,
+                    items: itemsValidos
+                };
+
+                await orderService.updateOrderFull(editingOrder.id, payload);
+
+                alertSuccess("Éxito", "Pedido actualizado correctamente.");
+                setIsEditModalOpen(false);
+                loadOrders(); // Recargar la lista
+            } catch (err) {
+                alertError("Error al guardar", err);
+            }
+        }
+    };
+
+    const handleDeleteOrder = async (order) => {
+        const confirm = await alertConfirm("¿Eliminar pedido?", "Esta acción devolverá todos los productos al inventario.");
+        if (confirm.isConfirmed) {
+            try {
+                await orderService.deleteOrder(order.id);
+                alertSuccess("Eliminado", "El pedido fue borrado y el stock restaurado.");
+                loadOrders();
+            } catch (err) { alertError("Error", err); }
+        }
+    };
+
+    // 1. PRIMERO: Definir los pedidos filtrados (Seguridad + Búsqueda)
+    const filteredOrders = useMemo(() => {
+        // Si el backend ya hizo el trabajo de filtrar por user_id para el despachador,
+        // aquí solo dejamos pasar los resultados.
+        let baseOrders = orders;
+
+        // Solo aplicamos filtro extra si NO es admin ni despachador
+        // (Ajusta según tu variable canManage)
+        if (user?.role !== 'ADMINISTRADOR' && user?.role !== 'DESPACHADOR') {
+            baseOrders = orders.filter(o => Number(o.seller_name) === Number(user.id));
+        }
+
+        return baseOrders.filter(o =>
+            o.seller_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            o.id.toString().includes(searchTerm)
+        );
+    }, [orders, searchTerm, user]);
+
+    // 2. SEGUNDO: Definir las estadísticas (Dependen de filteredOrders)
+    const stats = useMemo(() => {
+        const total = filteredOrders.length;
+        const totalMoney = filteredOrders.reduce((acc, o) => acc + Number(o.total_amount || 0), 0);
+        const uniqueSellers = new Set(filteredOrders.map(o => o.seller_name)).size;
+        return { total, totalMoney, uniqueSellers };
+    }, [filteredOrders]);
 
     if (loading) return <div className="inv-page">Cargando panel de control...</div>;
 
@@ -64,135 +193,90 @@ export default function PedidosPage() {
                     </div>
                     <div>
                         <h1 style={{ margin: 0, fontSize: '1.8rem' }}>Panel de Pedidos</h1>
-                        <p style={{ margin: 0, opacity: 0.8 }}>Monitoreo de actividad y recaudación en tiempo real</p>
+                        <p style={{ margin: 0, opacity: 0.8 }}>Gestión integral de despachos e inventario</p>
                     </div>
                 </div>
             </div>
 
-            {/* SECCIÓN DE MÉTRICAS PROFESIONALES */}
             <div className="inventory-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                
                 <div className="stat-card" style={{ borderLeft: '5px solid #6366f1' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                            <span className="stat-label" style={{ color: '#64748b', fontWeight: '600', fontSize: '0.85rem' }}>TOTAL ÓRDENES</span>
-                            <h2 className="stat-value" style={{ fontSize: '2rem', margin: '5px 0' }}>{stats.total}</h2>
-                        </div>
-                        <div style={{ background: '#e0e7ff', color: '#6366f1', padding: '10px', borderRadius: '10px' }}>
-                            <ShoppingBag size={22} />
-                        </div>
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: '#10b981', marginTop: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <TrendingUp size={14} /> <span>Pedidos registrados</span>
-                    </div>
+                    <span className="stat-label">TOTAL ÓRDENES</span>
+                    <h2 className="stat-value">{stats.total}</h2>
                 </div>
-
                 <div className="stat-card" style={{ borderLeft: '5px solid #10b981' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                            <span className="stat-label" style={{ color: '#64748b', fontWeight: '600', fontSize: '0.85rem' }}>VOLUMEN VENTAS</span>
-                            <h2 className="stat-value" style={{ fontSize: '2rem', margin: '5px 0' }}>${stats.totalMoney.toLocaleString()}</h2>
-                        </div>
-                        <div style={{ background: '#dcfce7', color: '#10b981', padding: '10px', borderRadius: '10px' }}>
-                            <DollarSign size={22} />
-                        </div>
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '10px' }}>
-                        Ingresos proyectados
-                    </div>
+                    <span className="stat-label">VOLUMEN VENTAS</span>
+                    <h2 className="stat-value">${stats.totalMoney.toLocaleString()}</h2>
                 </div>
-
-                {user.role === "ADMINISTRADOR" ? (
-                    <div className="stat-card" style={{ borderLeft: '5px solid #f59e0b' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <div>
-                                <span className="stat-label" style={{ color: '#64748b', fontWeight: '600', fontSize: '0.85rem' }}>FUERZA VENTAS</span>
-                                <h2 className="stat-value" style={{ fontSize: '2rem', margin: '5px 0' }}>{stats.uniqueSellers}</h2>
-                            </div>
-                            <div style={{ background: '#fef3c7', color: '#f59e0b', padding: '10px', borderRadius: '10px' }}>
-                                <Users size={22} />
-                            </div>
-                        </div>
-                        <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '10px' }}>
-                            Vendedores activos
-                        </div>
-                    </div>
-                ) : (
-                    <div className="stat-card" style={{ borderLeft: '5px solid #ef4444' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <div>
-                                <span className="stat-label" style={{ color: '#64748b', fontWeight: '600', fontSize: '0.85rem' }}>POR LIQUIDAR</span>
-                                <h2 className="stat-value" style={{ fontSize: '2rem', margin: '5px 0' }}>{stats.pending}</h2>
-                            </div>
-                            <div style={{ background: '#fee2e2', color: '#ef4444', padding: '10px', borderRadius: '10px' }}>
-                                <Clock size={22} />
-                            </div>
-                        </div>
-                        <div style={{ fontSize: '0.8rem', color: '#ef4444', marginTop: '10px' }}>
-                            Atención requerida
-                        </div>
-                    </div>
-                )}
+                <div className="stat-card" style={{ borderLeft: '5px solid #f59e0b' }}>
+                    <span className="stat-label">RECEPTORES</span>
+                    <h2 className="stat-value">{stats.uniqueSellers}</h2>
+                </div>
             </div>
 
-            {/* TABLA REESTILIZADA */}
-            <div className="inv-card" style={{ border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}>
-                <div className="card-header" style={{ padding: '20px', borderBottom: '1px solid #f1f5f9' }}>
-                    <div className="search-box" style={{ maxWidth: '400px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                        <Search size={18} color="#94a3b8" />
-                        <input
-                            type="text"
-                            placeholder="Buscar cliente, ID o estado..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{ background: 'transparent' }}
-                        />
-                    </div>
-                </div>
+            <div className="inv-card">
 
                 <div style={{ overflowX: 'auto' }}>
                     <table className="inv-table">
-                        <thead style={{ background: '#f8fafc' }}>
+                        <thead>
                             <tr>
-                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase' }}>ID Pedido</th>
-                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase' }}>Fecha Registro</th>
-                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase' }}>Cliente</th>
-                                {user.role === "ADMINISTRADOR" && <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase' }}>Vendedor</th>}
-                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'right' }}>Total</th>
-                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'center' }}>Estado</th>
-                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'center' }}>Gestión</th>
+                                <th>ID Pedido</th>
+                                <th>Fecha</th>
+                                <th>Vendedor / Receptor</th>
+
+                                {/* 1. Columnas extra SOLO para el Administrador */}
+                                {user?.role === 'ADMINISTRADOR' && (
+                                    <>
+                                        <th>Despachador</th>
+                                        <th>Tipo Cliente</th>
+                                    </>
+                                )}
+
+                                <th style={{ textAlign: 'right' }}>Total</th>
+                                <th style={{ textAlign: 'center' }}>Estado</th>
+                                <th style={{ textAlign: 'center' }}>Gestión</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredOrders.map(o => (
-                                <tr key={o.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <tr key={o.id}>
                                     <td className="font-bold" style={{ color: '#6366f1' }}>#{o.id}</td>
-                                    <td style={{ color: '#64748b' }}>{new Date(o.created_at).toLocaleDateString()}</td>
-                                    <td style={{ fontWeight: '500' }}>{o.customer_name}</td>
-                                    {user.role === "ADMINISTRADOR" && <td>{o.seller_name}</td>}
-                                    <td style={{ textAlign: 'right', fontWeight: '700', color: '#1e293b' }}>
+                                    <td>{new Date(o.created_at).toLocaleDateString()}</td>
+                                    <td style={{ fontWeight: '500' }}>{o.seller_name}</td>
+
+                                    {/* 2. Datos extra SOLO para el Administrador */}
+                                    {user?.role === 'ADMINISTRADOR' && (
+                                        <>
+                                            <td style={{ color: '#4b5563' }}>{o.dispatcher_name || 'N/A'}</td>
+                                            <td>
+                                                <span style={{ fontSize: '0.85em', padding: '2px 8px', borderRadius: '12px', background: '#f3f4f6' }}>
+                                                    {o.customer_type_name || 'General'}
+                                                </span>
+                                            </td>
+                                        </>
+                                    )}
+
+                                    <td style={{ textAlign: 'right', fontWeight: '700' }}>
                                         ${Number(o.total_amount).toLocaleString()}
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
-                                        <span style={{
-                                            padding: '4px 12px',
-                                            borderRadius: '20px',
-                                            fontSize: '0.75rem',
-                                            fontWeight: '600',
-                                            background: o.status === 'PAGADO' ? '#dcfce7' : '#fee2e2',
-                                            color: o.status === 'PAGADO' ? '#15803d' : '#b91c1c'
-                                        }}>
+                                        <span className="badge-stock" style={{ background: '#dcfce7', color: '#15803d' }}>
                                             {o.status}
                                         </span>
                                     </td>
-                                    <td style={{ textAlign: 'center' }}>
-                                        <button 
-                                            className="btn-edit" 
-                                            onClick={() => handleViewDetail(o)}
-                                            style={{ padding: '6px 12px', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                                        >
-                                            <Eye size={14} /> Detalles
+                                    <td style={{ textAlign: 'center', display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                        <button className="btn-edit" onClick={() => handleViewDetail(o)} title="Ver Detalle">
+                                            <Eye size={14} />
                                         </button>
+                                        {canManage && (
+                                            <>
+                                                <button className="btn-edit" style={{ background: '#f59e0b', color: 'white' }} onClick={() => handleOpenEdit(o)} title="Editar Pedido">
+                                                    <Edit3 size={14} />
+                                                </button>
+                                                <button className="btn-edit" style={{ background: '#ef4444', color: 'white' }} onClick={() => handleDeleteOrder(o)} title="Eliminar">
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
@@ -201,47 +285,164 @@ export default function PedidosPage() {
                 </div>
             </div>
 
-            {/* MODAL DETALLE (Simplificado y Moderno) */}
+            {/* MODAL EDITAR */}
+            {isEditModalOpen && (
+                <div className="modal-overlay">
+                    <div className="modal-content" style={{ maxWidth: '700px', borderRadius: '16px' }}>
+                        <div className="modal-header">
+                            <h2>Editar Pedido #{editingOrder.id}</h2>
+                            <button onClick={() => setIsEditModalOpen(false)}><X /></button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="input-group" style={{ marginBottom: '20px' }}>
+                                <label style={{ fontWeight: '600', display: 'block', marginBottom: '8px' }}>Nombre del Receptor</label>
+                                <input
+                                    className="input"
+                                    value={editForm.seller_name}
+                                    onChange={(e) => setEditForm({ ...editForm, seller_name: e.target.value })}
+                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                                />
+                            </div>
+
+                            <h4 style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <ShoppingBag size={18} /> Productos en el Pedido
+                            </h4>
+
+                            <div style={{ maxHeight: '250px', overflowY: 'auto', border: '1px solid #f1f5f9', borderRadius: '12px', padding: '5px' }}>
+                                {editForm.items.map((item, idx) => (
+                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
+                                        <div style={{ flex: 2 }}>
+                                            <p style={{ margin: 0, fontWeight: '600', fontSize: '0.95rem' }}>{item.product_name}</p>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, justifyContent: 'center' }}>
+                                            <button onClick={() => handleUpdateQty(idx, -1)} style={{ padding: '4px', background: '#f1f5f9', borderRadius: '6px' }}><Minus size={14} /></button>
+                                            <span style={{ fontWeight: 'bold', minWidth: '25px', textAlign: 'center' }}>{item.quantity}</span>
+                                            <button onClick={() => handleUpdateQty(idx, 1)} style={{ padding: '4px', background: '#f1f5f9', borderRadius: '6px' }}><Plus size={14} /></button>
+                                        </div>
+                                        <button onClick={() => handleRemoveItem(idx)} style={{ color: '#ef4444', padding: '8px' }}>
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div style={{ marginTop: '20px', padding: '15px', background: '#f8fafc', borderRadius: '12px' }}>
+                                <label style={{ fontWeight: '600', display: 'block', marginBottom: '8px' }}>Agregar Nuevo Producto</label>
+                                <select
+                                    className="input"
+                                    onChange={(e) => handleAddItem(e.target.value)}
+                                    defaultValue=""
+                                    style={{ width: '100%', padding: '10px', borderRadius: '8px' }}
+                                >
+                                    <option value="" disabled>Seleccione para añadir...</option>
+                                    {allProducts.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock})</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div style={{ marginTop: '25px', display: 'flex', justifyContent: 'flex-end' }}>
+                                <button className="btn-primary-main" onClick={handleSaveEdit} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px' }}>
+                                    <Save size={18} /> Guardar Cambios
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL DETALLE */}
             {selectedOrder && (
                 <div className="modal-overlay">
-                    <div className="modal-content" style={{ borderRadius: '16px', maxWidth: '800px' }}>
-                        <div className="modal-header" style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <h2>Orden de Despacho #{selectedOrder.id}</h2>
-                            <button className="close-btn" onClick={() => setSelectedOrder(null)}><X /></button>
-                        </div>
-                        
-                        <div style={{ padding: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', background: '#f8fafc', margin: '20px', borderRadius: '12px' }}>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold' }}>Cliente</label>
-                                <span style={{ fontWeight: '600', fontSize: '1.1rem' }}>{selectedOrder.customer_name}</span>
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold' }}>Vendedor Responsable</label>
-                                <span style={{ fontWeight: '600', fontSize: '1.1rem' }}>{selectedOrder.seller_name}</span>
-                            </div>
+                    <div className="modal-content" style={{ borderRadius: '16px', maxWidth: '650px', width: '90%' }}>
+                        <div className="modal-header" style={{ borderBottom: '1px solid #e2e8f0', padding: '20px' }}>
+                            <h2 style={{ margin: 0, color: '#1e293b' }}>Orden #{selectedOrder.id}</h2>
+                            <button
+                                onClick={() => setSelectedOrder(null)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                            >
+                                <X size={24} />
+                            </button>
                         </div>
 
-                        <div style={{ padding: '0 20px 20px' }}>
-                            <table className="inv-table">
-                                <thead style={{ background: '#fff' }}>
-                                    <tr>
-                                        <th>Producto</th>
-                                        <th style={{ textAlign: 'center' }}>Cant.</th>
-                                        <th style={{ textAlign: 'right' }}>Subtotal</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {orderItems.map((item, idx) => (
-                                        <tr key={idx}>
-                                            <td>{item.product_name}</td>
-                                            <td style={{ textAlign: 'center' }}>{item.quantity}</td>
-                                            <td style={{ textAlign: 'right', fontWeight: '600' }}>${Number(item.total_price).toLocaleString()}</td>
+                        <div className="modal-body" style={{ padding: '25px' }}>
+                            {/* Info del Cliente y Fecha */}
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                marginBottom: '25px',
+                                padding: '18px',
+                                background: '#f8fafc',
+                                borderRadius: '12px',
+                                border: '1px solid #e2e8f0'
+                            }}>
+                                <div>
+                                    <p style={{ margin: '0 0 5px 0', fontSize: '0.75rem', fontWeight: 'bold', color: '#94a3b8', letterSpacing: '0.05em' }}>RECEPTOR / VENDEDOR</p>
+                                    <p style={{ margin: 0, fontWeight: '700', fontSize: '1.1rem', color: '#1e293b' }}>
+                                        {selectedOrder.seller_name || 'Sin nombre'}
+                                    </p>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                    <p style={{ margin: '0 0 5px 0', fontSize: '0.75rem', fontWeight: 'bold', color: '#94a3b8', letterSpacing: '0.05em' }}>FECHA DEL PEDIDO</p>
+                                    <p style={{ margin: 0, fontWeight: '600', color: '#334155' }}>
+                                        {selectedOrder.created_at
+                                            ? new Date(selectedOrder.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                                            : '10/02/2026' /* Fecha de ejemplo si no viene de la DB */}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Tabla de Productos */}
+                            <div style={{ overflowX: 'auto' }}>
+                                <table className="inv-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
+                                            <th style={{ textAlign: 'left', padding: '12px 8px', color: '#64748b', fontSize: '0.85rem' }}>Producto</th>
+                                            <th style={{ textAlign: 'center', padding: '12px 8px', color: '#64748b', fontSize: '0.85rem' }}>Cant.</th>
+                                            <th style={{ textAlign: 'right', padding: '12px 8px', color: '#64748b', fontSize: '0.85rem' }}>Precio Unit.</th>
+                                            <th style={{ textAlign: 'right', padding: '12px 8px', color: '#64748b', fontSize: '0.85rem' }}>Subtotal</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                            <div style={{ marginTop: '20px', textAlign: 'right', paddingTop: '20px', borderTop: '2px solid #f1f5f9' }}>
-                                <span style={{ fontSize: '1.2rem', fontWeight: '800' }}>Total: ${Number(selectedOrder.total_amount).toLocaleString()}</span>
+                                    </thead>
+                                    <tbody>
+                                        {orderItems.map((item, idx) => {
+                                            // Forzamos conversión a número para evitar el $NaN
+                                            const price = Number(item.unit_price || 0);
+                                            const qty = Number(item.quantity || 0);
+                                            const subtotal = price * qty;
+
+                                            return (
+                                                <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                                    <td style={{ padding: '14px 8px', fontSize: '0.95rem', color: '#334155' }}>{item.product_name}</td>
+                                                    <td style={{ textAlign: 'center', padding: '14px 8px', fontWeight: '500' }}>{qty}</td>
+                                                    <td style={{ textAlign: 'right', padding: '14px 8px', color: '#64748b' }}>
+                                                        ${price.toLocaleString('es-CO')}
+                                                    </td>
+                                                    <td style={{ textAlign: 'right', padding: '14px 8px', fontWeight: '700', color: '#1e293b' }}>
+                                                        ${subtotal.toLocaleString('es-CO')}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Total Final */}
+                            <div style={{
+                                marginTop: '25px',
+                                textAlign: 'right',
+                                borderTop: '3px solid #f1f5f9',
+                                paddingTop: '20px'
+                            }}>
+                                <p style={{ margin: '0 0 5px 0', fontSize: '0.9rem', color: '#64748b', fontWeight: '600' }}>TOTAL A PAGAR</p>
+                                <span style={{
+                                    fontSize: '1.8rem',
+                                    fontWeight: '900',
+                                    color: '#b91c1c', // Rojo elegante para el total
+                                    display: 'block'
+                                }}>
+                                    ${Number(selectedOrder.total_amount || 0).toLocaleString('es-CO')}
+                                </span>
                             </div>
                         </div>
                     </div>

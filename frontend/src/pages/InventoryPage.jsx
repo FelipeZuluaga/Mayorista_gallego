@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { inventoryService } from "../services/inventoryService";
 import { alertSuccess, alertError, alertConfirm } from "../services/alertService";
-import { Trash2, Edit3, Barcode, Boxes, Tag, DollarSign, AlertTriangle } from "lucide-react";
+import { Trash2, Edit3, Barcode, Boxes, Tag, DollarSign, AlertTriangle, Search } from "lucide-react";
 import "../styles/inventory.css";
 
 const CUSTOMER_TYPES = [
-    { id: 1, label: "Socio" },
-    { id: 2, label: "No socio" },
-    { id: 3, label: "Cliente" },
+    { id: 2, label: "Socio" },
+    { id: 3, label: "No socio" },
+    { id: 1, label: "Cliente" },
     { id: 4, label: "Despacho mayorista" },
 ];
 
@@ -18,6 +18,8 @@ export default function InventoryPage() {
     const [showModal, setShowModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
 
+    // Estado para el buscador
+    const [searchTerm, setSearchTerm] = useState("");
     const [currentTypeIndex, setCurrentTypeIndex] = useState(0);
 
     const [form, setForm] = useState({
@@ -25,7 +27,7 @@ export default function InventoryPage() {
         name: "",
         stock: "",
         category_id: "",
-        prices: { 1: "", 2: "", 3: "", 4: "" },
+        prices: { 1: "", 2: "", 3: "", 4: "" }, // Los IDs 1, 2, 3 y 4 deben estar presentes
     });
 
     useEffect(() => {
@@ -54,6 +56,12 @@ export default function InventoryPage() {
         }
     };
 
+    // Lógica de filtrado de productos
+    const filteredProducts = products.filter((p) =>
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.barcode.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     const getPrice = (prices, id) => prices?.find(p => p.customer_type_id === id)?.unit_price || 0;
 
     const calculateGrandTotal = (typeId) => {
@@ -66,9 +74,8 @@ export default function InventoryPage() {
     const productsInCriticalStock = products.filter(p => Number(p.stock) < 10).length;
     const currentType = CUSTOMER_TYPES[currentTypeIndex];
     const currentTotalValue = calculateGrandTotal(currentType.id);
-    // Suma todas las existencias de todos los productos
     const totalStockUnits = products.reduce((acc, p) => acc + (Number(p.stock) || 0), 0);
-    
+
 
     const handleDelete = async (id) => {
         const result = await alertConfirm(
@@ -78,7 +85,6 @@ export default function InventoryPage() {
 
         if (result.isConfirmed) {
             try {
-                // Limpiamos el ID antes de enviar
                 const cleanId = String(id).split(':')[0];
                 await inventoryService.deleteProduct(cleanId);
                 alertSuccess("Eliminado", "El producto ha sido quitado del inventario.");
@@ -117,14 +123,12 @@ export default function InventoryPage() {
     };
 
     const handleUpdate = async () => {
-        // VALIDACIÓN CRÍTICA: Evita el error de Foreign Key (category_id = 0)
         if (!form.category_id || form.category_id === "0") {
             return alertError("Error de Categoría", "Selecciona una categoría válida antes de guardar.");
         }
 
         try {
             const cleanId = String(editingProduct.id).split(':')[0];
-
             const payload = {
                 name: form.name.trim(),
                 stock: Math.floor(Number(form.stock)) || 0,
@@ -136,13 +140,11 @@ export default function InventoryPage() {
             };
 
             await inventoryService.updateProduct(cleanId, payload);
-
             alertSuccess("¡Actualizado!", "Los cambios se guardaron correctamente.");
             setShowModal(false);
             setEditingProduct(null);
             resetForm();
             loadData();
-
         } catch (err) {
             console.error("Error en la actualización:", err);
             alertError("Error de Servidor", "No se pudo actualizar. Verifica la conexión con el backend.");
@@ -159,8 +161,7 @@ export default function InventoryPage() {
         setForm({
             barcode: p.barcode,
             name: p.name,
-            stock: p.stock,
-            // Buscamos el ID de la categoría comparando el nombre o usando el id directo si existe
+            stock: 0, // Iniciamos en 0 para que el usuario sume
             category_id: categories.find(c => c.name === p.category)?.id || "",
             prices: pricesObj,
         });
@@ -204,7 +205,6 @@ export default function InventoryPage() {
                     <div className="s-icon"><Boxes size={22} /></div>
                     <div className="s-info">
                         <label>Total Existencias (Unidades)</label>
-                        {/* Usamos totalStockUnits en lugar de products.length */}
                         <span style={{ color: totalStockUnits === 0 ? 'var(--primary)' : 'inherit' }}>
                             {totalStockUnits.toLocaleString()}
                         </span>
@@ -283,6 +283,20 @@ export default function InventoryPage() {
                             </div>
                         ))}
                     </div>
+                    {/* --- SECCIÓN DEL BUSCADOR --- */}
+                    <div className="search-bar-container">
+                        <div className="input-group" style={{ maxWidth: '500px', margin: '0 auto' }}>
+                            <label style={{ display: 'flex', gap: '8px', marginBottom: '8px', fontWeight: 'bold' }}>
+                                <Search size={18} /> Buscar en el inventario
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Escribe el nombre o código del producto..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </div>
 
                     <div className="form-actions">
                         <button type="submit" className="btn-primary-main" disabled={loading}>
@@ -290,6 +304,8 @@ export default function InventoryPage() {
                         </button>
                     </div>
                 </form>
+
+
 
                 <div className="table-container-fixed">
                     <table className="inv-table no-scroll">
@@ -311,7 +327,8 @@ export default function InventoryPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {products.map((p) => (
+                            {/* Se reemplaza products por filteredProducts */}
+                            {filteredProducts.map((p) => (
                                 <tr key={p.id}>
                                     <td className="font-mono">{p.barcode}</td>
                                     <td className="font-bold">{p.name}</td>
@@ -345,6 +362,14 @@ export default function InventoryPage() {
                                     </td>
                                 </tr>
                             ))}
+                            {/* Mensaje si no hay resultados */}
+                            {filteredProducts.length === 0 && (
+                                <tr>
+                                    <td colSpan="13" style={{ textAlign: 'center', padding: '30px', color: '#666' }}>
+                                        No se encontraron productos que coincidan con "{searchTerm}"
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -375,12 +400,14 @@ export default function InventoryPage() {
                                     />
                                 </div>
                                 <div className="input-group">
-                                    <label><Boxes size={14} /> Stock Disponible</label>
+                                    <label><Boxes size={14} /> Añadir al Stock (Ingreso)</label>
                                     <input
                                         type="number"
+                                        placeholder="Ej: 10"
                                         value={form.stock}
                                         onChange={(e) => setForm({ ...form, stock: e.target.value })}
                                     />
+                                    <small>El valor ingresado se sumará al actual ({editingProduct?.stock})</small>
                                 </div>
                                 <div className="input-group">
                                     <label><Tag size={14} /> Categoría</label>
