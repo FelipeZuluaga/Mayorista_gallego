@@ -12,6 +12,7 @@ export default function PedidosPage() {
     const [orders, setOrders] = useState([]);
     const [allProducts, setAllProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState("");
 
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [orderItems, setOrderItems] = useState([]);
@@ -80,6 +81,7 @@ export default function PedidosPage() {
             alertError("Error", "No se pudo cargar el detalle.");
         }
     };
+
     const handleUpdateQty = (index, delta) => {
         const newItems = [...editForm.items];
         const newQty = newItems[index].quantity + delta;
@@ -156,32 +158,100 @@ export default function PedidosPage() {
         }
     };
 
-    // 1. PRIMERO: Definir los pedidos filtrados (Seguridad + Búsqueda)
+    const [filters, setFilters] = useState({
+        fecha: "",
+        tipoCliente: "",
+        vendedor: "",
+        despachador: ""
+    });
     const filteredOrders = useMemo(() => {
-        // Si el backend ya hizo el trabajo de filtrar por user_id para el despachador,
-        // aquí solo dejamos pasar los resultados.
         let baseOrders = orders;
 
-        // Solo aplicamos filtro extra si NO es admin ni despachador
-        // (Ajusta según tu variable canManage)
         if (user?.role !== 'ADMINISTRADOR' && user?.role !== 'DESPACHADOR') {
             baseOrders = orders.filter(o => Number(o.seller_name) === Number(user.id));
         }
 
-        return baseOrders.filter(o =>
-            o.seller_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            o.id.toString().includes(searchTerm)
-        );
-    }, [orders, searchTerm, user]);
+        return baseOrders.filter(o => {
+            const matchesSearch = o.seller_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                o.id.toString().includes(searchTerm);
 
+            // Ajuste de Fecha: Asegurar formato YYYY-MM-DD
+            const orderDate = new Date(o.created_at).toISOString().split('T')[0];
+            const matchesFecha = !filters.fecha || orderDate === filters.fecha;
+
+            // Ajuste Tipo Cliente: Comparación insensible a mayúsculas/minúsculas
+            const matchesTipo = !filters.tipoCliente ||
+                o.customer_type_name?.toLowerCase() === filters.tipoCliente.toLowerCase();
+
+            const matchesVendedor = !filters.vendedor || o.seller_name?.toLowerCase().includes(filters.vendedor.toLowerCase());
+            const matchesDespachador = !filters.despachador || o.dispatcher_name?.toLowerCase().includes(filters.despachador.toLowerCase());
+
+            if (user?.role === 'ADMINISTRADOR') {
+                return matchesSearch && matchesFecha && matchesTipo && matchesVendedor && matchesDespachador;
+            } else if (user?.role === 'DESPACHADOR') {
+                return matchesSearch && matchesFecha && matchesTipo && matchesVendedor;
+            } else {
+                return matchesSearch && matchesFecha;
+            }
+        });
+    }, [orders, searchTerm, user, filters]);
+    // Usamos los nombres exactos que aparecen en tu captura de base de datos
+    const pedidosSocio = filteredOrders.filter(o =>
+        o.customer_type_name?.toUpperCase() === 'SOCIO'
+    );
+
+    const pedidosNoSocio = filteredOrders.filter(o =>
+        o.customer_type_name?.toUpperCase() === 'NO_SOCIO'
+    );
+
+    // Opcional: Si quieres sumar también los que dicen "CLIENTE" o "DESPACHO_MAYOR" 
+    // a alguna métrica, puedes agregarlos aquí.
     // 2. SEGUNDO: Definir las estadísticas (Dependen de filteredOrders)
     const stats = useMemo(() => {
-        const total = filteredOrders.length;
-        const totalMoney = filteredOrders.reduce((acc, o) => acc + Number(o.total_amount || 0), 0);
-        const uniqueSellers = new Set(filteredOrders.map(o => o.seller_name)).size;
-        return { total, totalMoney, uniqueSellers };
-    }, [filteredOrders]);
+        const role = user?.role?.toUpperCase();
+        const totalPedidos = filteredOrders.length;
+        const totalDinero = filteredOrders.reduce((acc, o) => acc + Number(o.total_amount || 0), 0);
+        const pedidosSocio = filteredOrders.filter(o => o.customer_type_name?.toUpperCase() === 'SOCIO').length;
+        const pedidosNoSocio = filteredOrders.filter(o => o.customer_type_name?.toUpperCase() === 'NO_SOCIO').length;
 
+        const config = {
+            ADMINISTRADOR: [
+                { label: "TOTAL PEDIDOS", value: totalPedidos, color: "#6366f1", icon: <ClipboardList size={20} />, sub: "Operaciones totales" },
+                { label: "TOTAL DESPACHADO", value: `$${totalDinero.toLocaleString()}`, color: "#10b981", icon: <ShoppingBag size={20} />, sub: "Dinero ingresado" },
+                { label: "TOTAL SOCIO", value: pedidosSocio, color: "#f59e0b", icon: <Plus size={20} />, sub: "Pedidos generales" },
+                { label: "TOTAL NO SOCIO", value: pedidosNoSocio, color: "#ef4444", icon: <Minus size={20} />, sub: "Pedidos generales" }
+            ],
+            DESPACHADOR: [
+                { label: "PEDIDOS DESPACHADOS", value: totalPedidos, color: "#6366f1", icon: <ClipboardList size={20} />, sub: "Listos para entrega" },
+                { label: "VOLUMEN DESPACHO", value: `$${totalDinero.toLocaleString()}`, color: "#10b981", icon: <ShoppingBag size={20} />, sub: "Valor mercancía" }
+            ],
+            DEFAULT: [
+                { label: "MIS PEDIDOS", value: totalPedidos, color: "#6366f1", icon: <ClipboardList size={20} />, sub: "Historial personal" }
+            ]
+        };
+
+        return config[role] || config.DEFAULT;
+    }, [filteredOrders, user]);
+    // LÓGICA DE TÍTULOS DINÁMICOS
+    const pageHeader = useMemo(() => {
+        switch (user?.role?.toUpperCase()) {
+            case 'ADMINISTRADOR':
+                return {
+                    title: "Panel de Control Global",
+                    subtitle: "Supervisión total de ventas, despachos y stock"
+                };
+            case 'DESPACHADOR':
+                return {
+                    title: "Gestión de Despachos",
+                    subtitle: "Control de salida de mercancía y pedidos activos"
+                };
+            default:
+                return {
+                    title: "Mis Pedidos Realizados",
+                    subtitle: "Historial personal de ventas y seguimiento"
+                };
+        }
+    }, [user]);
     if (loading) return <div className="inv-page">Cargando panel de control...</div>;
 
     return (
@@ -192,27 +262,150 @@ export default function PedidosPage() {
                         <ClipboardList size={28} />
                     </div>
                     <div>
-                        <h1 style={{ margin: 0, fontSize: '1.8rem' }}>Panel de Pedidos</h1>
-                        <p style={{ margin: 0, opacity: 0.8 }}>Gestión integral de despachos e inventario</p>
+                        {/* APLICACIÓN DE TÍTULOS DINÁMICOS */}
+                        <h1 style={{ margin: 0, fontSize: '1.8rem' }}>{pageHeader.title}</h1>
+                        <p style={{ margin: 0, opacity: 0.8 }}>{pageHeader.subtitle}</p>
                     </div>
                 </div>
             </div>
 
-            <div className="inventory-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                <div className="stat-card" style={{ borderLeft: '5px solid #6366f1' }}>
-                    <span className="stat-label">TOTAL ÓRDENES</span>
-                    <h2 className="stat-value">{stats.total}</h2>
-                </div>
-                <div className="stat-card" style={{ borderLeft: '5px solid #10b981' }}>
-                    <span className="stat-label">VOLUMEN VENTAS</span>
-                    <h2 className="stat-value">${stats.totalMoney.toLocaleString()}</h2>
-                </div>
-                <div className="stat-card" style={{ borderLeft: '5px solid #f59e0b' }}>
-                    <span className="stat-label">RECEPTORES</span>
-                    <h2 className="stat-value">{stats.uniqueSellers}</h2>
+            <div className="inventory-stats" style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '20px',
+                marginBottom: '30px'
+            }}>
+                {stats.map((stat, index) => (
+                    <div key={index} style={{
+                        background: 'white',
+                        padding: '20px',
+                        borderRadius: '16px',
+                        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                        borderLeft: `5px solid ${stat.color}`,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        position: 'relative'
+                    }}>
+                        <div>
+                            <span style={{
+                                fontSize: '0.75rem',
+                                fontWeight: '700',
+                                color: '#64748b',
+                                display: 'block',
+                                marginBottom: '8px',
+                                letterSpacing: '0.05em'
+                            }}>
+                                {stat.label}
+                            </span>
+                            <h2 style={{
+                                margin: 0,
+                                fontSize: '1.6rem',
+                                fontWeight: '800',
+                                color: '#1e293b'
+                            }}>
+                                {stat.value}
+                            </h2>
+                            <p style={{
+                                margin: '5px 0 0 0',
+                                fontSize: '0.7rem',
+                                color: stat.color,
+                                fontWeight: '600',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                            }}>
+                                {stat.sub}
+                            </p>
+                        </div>
+
+                        {/* Círculo del Icono */}
+                        <div style={{
+                            background: `${stat.color}15`, // Color con 15% opacidad
+                            color: stat.color,
+                            padding: '10px',
+                            borderRadius: '12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            {stat.icon}
+                        </div>
+                    </div>
+                ))}
+            </div>
+            {/* SECCIÓN DE FILTROS DINÁMICOS */}
+            <div className="inv-card" style={{ marginBottom: '20px', padding: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
+
+                    {/* FECHA */}
+                    <div className="filter-group">
+                        <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b' }}>FECHA</label>
+                        <input
+                            type="date"
+                            className="input"
+                            style={{ width: '100%', marginTop: '5px' }}
+                            value={filters.fecha} // IMPORTANTE
+                            onChange={(e) => setFilters({ ...filters, fecha: e.target.value })}
+                        />
+                    </div>
+
+                    {(user?.role === 'ADMINISTRADOR' || user?.role === 'DESPACHADOR') && (
+                        <>
+                            {/* TIPO CLIENTE */}
+                            <div className="filter-group">
+                                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b' }}>TIPO CLIENTE</label>
+                                <select
+                                    className="input"
+                                    style={{ width: '100%', marginTop: '5px' }}
+                                    value={filters.tipoCliente} // IMPORTANTE
+                                    onChange={(e) => setFilters({ ...filters, tipoCliente: e.target.value })}
+                                >
+                                    <option value="">Todos</option>
+                                    <option value="SOCIO">Socio</option>
+                                    <option value="NO_SOCIO">No Socio</option>
+                                </select>
+                            </div>
+                            {/* VENDEDOR */}
+                            <div className="filter-group">
+                                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b' }}>VENDEDOR</label>
+                                <input
+                                    type="text"
+                                    placeholder="Nombre..."
+                                    className="input"
+                                    style={{ width: '100%', marginTop: '5px' }}
+                                    value={filters.vendedor} // IMPORTANTE
+                                    onChange={(e) => setFilters({ ...filters, vendedor: e.target.value })}
+                                />
+                            </div>
+                        </>
+                    )}
+
+                    {user?.role === 'ADMINISTRADOR' && (
+                        <div className="filter-group">
+                            <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b' }}>DESPACHADOR</label>
+                            <input
+                                type="text"
+                                placeholder="Nombre..."
+                                className="input"
+                                style={{ width: '100%', marginTop: '5px' }}
+                                value={filters.despachador} // IMPORTANTE
+                                onChange={(e) => setFilters({ ...filters, despachador: e.target.value })}
+                            />
+                        </div>
+                    )}
+
+                    <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                        <button
+                            className="btn-edit"
+                            style={{ width: '100%', height: '40px', background: '#f1f5f9', color: '#475569' }}
+                            onClick={() => setFilters({ fecha: "", tipoCliente: "", vendedor: "", despachador: "" })}
+                        >
+                            Limpiar Filtros
+                        </button>
+                    </div>
                 </div>
             </div>
-
             <div className="inv-card">
 
                 <div style={{ overflowX: 'auto' }}>
