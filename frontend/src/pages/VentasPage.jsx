@@ -12,7 +12,6 @@ import {
     Clock,
     BarChart3
 } from "lucide-react";
-import "../styles/inventory.css";
 
 export default function VentasPage() {
     const [pendingOrders, setPendingOrders] = useState([]);
@@ -60,16 +59,16 @@ export default function VentasPage() {
             const items = await orderService.getOrderDetail(order.id);
             setSelectedOrder(order);
             setOrderItems(items);
-            
+
             const initialPrices = {};
             const initialQtys = {};
-            
+
             items.forEach((item, index) => {
                 const uniqueKey = `${item.product_id}-${index}`;
                 initialPrices[uniqueKey] = item.unit_price;
                 initialQtys[uniqueKey] = item.quantity;
             });
-            
+
             setSalePrices(initialPrices);
             setSaleQuantities(initialQtys);
             setAmountPaid(0);
@@ -133,7 +132,7 @@ export default function VentasPage() {
                     product_id: item.product_id,
                     product_name: item.product_name,
                     quantity: Number(saleQuantities[uniqueKey]),
-                    unit_price: Number(salePrices[uniqueKey]), 
+                    unit_price: Number(salePrices[uniqueKey]),
                     total_price: Number(saleQuantities[uniqueKey]) * Number(salePrices[uniqueKey])
                 };
             })
@@ -148,189 +147,283 @@ export default function VentasPage() {
             alertError("Error", "Error al procesar la liquidación.");
         }
     };
+    // Estados adicionales
+    const [clientData, setClientData] = useState({ name: "", address: "", phone: "", status: "VISITADO" });
+    const [salesSession, setSalesSession] = useState([]); // Historial de la ruta actual
+
+    const registrarVentaLocal = () => {
+        // 1. Validaciones básicas
+        if (!clientData.name) return alertError("El nombre del cliente es obligatorio");
+
+        // 2. Crear el objeto de items vendidos en esta parada
+        const itemsVendidos = orderItems.map((item, index) => {
+            const key = `${item.product_id}-${index}`;
+            const qty = Number(saleQuantities[key]) || 0;
+            const price = Number(salePrices[key]) || 0;
+            return { ...item, qty, price, total: qty * price };
+        }).filter(i => i.qty > 0);
+
+        if (itemsVendidos.length === 0 && clientData.status === "VISITADO") {
+            return alertError("No has ingresado productos para vender");
+        }
+
+        // 3. Guardar en la lista temporal de la sesión
+        const nuevaVenta = {
+            cliente: { ...clientData },
+            items: itemsVendidos,
+            total: itemsVendidos.reduce((acc, i) => acc + i.total, 0),
+            hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        setSalesSession([...salesSession, nuevaVenta]);
+
+        // 4. Limpiar formulario para el siguiente cliente
+        setClientData({ name: "", address: "", phone: "", status: "VISITADO" });
+        setSaleQuantities({});
+        alertSuccess(`Registro de ${nuevaVenta.cliente.name} guardado`);
+    };
+
+    const handleVolver = () => {
+        // Si hay algo escrito en las cantidades o ya hay clientes registrados
+        const hayProgreso = Object.keys(saleQuantities).length > 0 || salesSession.length > 0;
+
+        if (hayProgreso) {
+            if (window.confirm("Tienes datos sin guardar en esta ruta. ¿Seguro que quieres salir y perder los cambios?")) {
+                limpiarYSalir();
+            }
+        } else {
+            limpiarYSalir();
+        }
+    };
+
+    const limpiarYSalir = () => {
+        setSelectedOrder(null);
+        setSalesSession([]); // Limpia las ventas del día
+        setSaleQuantities({}); // Limpia lo que estaba escribiendo
+        setClientData({ name: "", address: "", phone: "", status: "VISITADO" });
+    };
 
     if (loading) return <div className="inv-page">Cargando despachos...</div>;
 
     return (
         <div className="inv-page full-layout">
-            <div className="module-intro" style={{ marginBottom: '30px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    <div style={{ background: '#3b82f6', color: 'white', padding: '12px', borderRadius: '12px' }}>
-                        <Truck size={28} />
-                    </div>
-                    <div>
-                        <h1 style={{ margin: 0, fontSize: '1.8rem' }}>Liquidación de Despachos</h1>
-                        <p style={{ margin: 0, opacity: 0.8 }}>Gestione el cobro final de mercancía entregada</p>
-                    </div>
-                </div>
-            </div>
+
 
             {!selectedOrder ? (
-                <>
-                    {/* TARJETAS DE MÉTRICAS */}
-                    <div className="inventory-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                        <div className="stat-card" style={{ borderLeft: '5px solid #3b82f6' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <div>
-                                    <span className="stat-label" style={{ color: '#64748b', fontWeight: '600' }}>DESPACHOS PENDIENTES</span>
-                                    <h2 className="stat-value" style={{ fontSize: '2rem', margin: '5px 0' }}>{stats.count}</h2>
-                                </div>
-                                <div style={{ background: '#dbeafe', color: '#3b82f6', padding: '10px', borderRadius: '10px' }}>
-                                    <Clock size={24} />
-                                </div>
-                            </div>
-                            <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '10px' }}>Órdenes listas para facturar</p>
-                        </div>
+                <div className="ventas-container">
+                    <div className="ventas-header">
+                        <h1>{user.role === 'ADMINISTRADOR' ? 'Control de Despachos' : 'Mis Rutas de Trabajo'}</h1>
+                        <p className="text-muted">
+                            {user.role === 'ADMINISTRADOR' ? 'Gestión global de ventas y vendedores' : 'Listado de entregas para hoy'}
+                        </p>
+                    </div>
 
-                        <div className="stat-card" style={{ borderLeft: '5px solid #10b981' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <div>
-                                    <span className="stat-label" style={{ color: '#64748b', fontWeight: '600' }}>VALOR POR RECAUDAR</span>
-                                    <h2 className="stat-value" style={{ fontSize: '2rem', margin: '5px 0' }}>${stats.totalValue.toLocaleString()}</h2>
-                                </div>
-                                <div style={{ background: '#dcfce7', color: '#10b981', padding: '10px', borderRadius: '10px' }}>
-                                    <BarChart3 size={24} />
-                                </div>
+                    <div className="stats-grid">
+                        <div className="stat-card blue-border">
+                            <div className="stat-icon blue-bg"><Clock size={24} /></div>
+                            <div className="stat-info">
+                                <span className="label">{user.role === 'ADMINISTRADOR' ? 'Despachos Activos' : 'Pendientes'}</span>
+                                <h2 className="value">{stats.count}</h2>
                             </div>
-                            <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '10px' }}>Monto total de mercancía en calle</p>
+                        </div>
+                        <div className="stat-card green-border">
+                            <div className="stat-icon green-bg"><BarChart3 size={24} /></div>
+                            <div className="stat-info">
+                                <span className="label">{user.role === 'ADMINISTRADOR' ? 'Cartera Total' : 'Mi Recaudo'}</span>
+                                <h2 className="value">${stats.totalValue.toLocaleString()}</h2>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="inv-card full-width-card" style={{ border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}>
-                        <div className="card-header" style={{ padding: '20px', borderBottom: '1px solid #f1f5f9' }}>
-                            <h3 style={{ margin: 0 }}>Listado de Despachos en Ruta</h3>
+                    <div className="table-wrapper">
+                        <div className="table-title">
+                            <h3>{user.role === 'ADMINISTRADOR' ? 'Listado General de Vendedores' : 'Rutas Asignadas'}</h3>
                         </div>
-                        <table className="inv-table">
-                            <thead>
-                                <tr style={{ background: '#f8fafc' }}>
-                                    <th>ID</th>
-                                    {user.role === 'ADMINISTRADOR' && <th>Vendedor</th>}
-                                    <th>Cliente</th>
-                                    <th style={{ textAlign: 'right' }}>Total Estimado</th>
-                                    <th style={{ textAlign: 'center' }}>Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {pendingOrders.map(o => (
-                                    <tr key={o.id}>
-                                        <td className="font-bold" style={{ color: '#3b82f6' }}>#{o.id}</td>
-                                        {user.role === 'ADMINISTRADOR' && <td>{o.seller_name}</td>}
-                                        <td style={{ fontWeight: '500' }}>{o.customer_name}</td>
-                                        <td className="col-total" style={{ textAlign: 'right', fontWeight: '700' }}>
-                                            ${Number(o.total_amount).toLocaleString()}
-                                        </td>
-                                        <td style={{ textAlign: 'center' }}>
-                                            <button className="btn-edit" onClick={() => handleSelectOrder(o)} style={{ gap: '8px' }}>
-                                                Liquidar <ArrowRight size={14} />
-                                            </button>
-                                        </td>
+                        <div className="responsive-container">
+                            <table className="ventas-table">
+                                <thead>
+                                    <tr style={{ background: '#f8fafc' }}>
+                                        <th>ID</th>
+                                        {user.role === 'ADMINISTRADOR' && <th>Vendedor</th>}
+                                        <th>Cliente</th>
+                                        <th style={{ textAlign: 'right' }}>Total Estimado</th>
+                                        <th style={{ textAlign: 'center' }}>Acción</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {pendingOrders.map(o => (
+                                        <tr key={o.id}>
+                                            <td><span className="badge-id">#{o.id}</span></td>
+                                            <td className="text-muted">
+                                                {o.created_at ? new Date(o.created_at).toLocaleDateString() : 'N/A'}
+                                            </td>
+                                            {user.role === 'ADMINISTRADOR' && (
+                                                <td className="seller-cell">
+                                                    <div className="user-avatar-mini">
+                                                        <User size={14} /> <span>{o.seller_name}</span>
+                                                    </div>
+                                                </td>
+                                            )}
+                                            <td className="text-right font-bold">
+                                                ${Number(o.total_amount).toLocaleString()}
+                                            </td>
+                                            <td className="text-center">
+                                                <button className="btn-main" onClick={() => handleSelectOrder(o)}>
+                                                    Hacer Venta <ArrowRight size={16} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </>
+                </div>
             ) : (
-                <div className="inv-card full-width-card">
-                    <button onClick={() => setSelectedOrder(null)} className="btn-edit" style={{ marginBottom: '20px', background: '#f1f5f9', color: '#1e293b' }}>
-                        <ChevronLeft size={16} /> Volver a la lista
-                    </button>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', padding: '20px', background: '#f8fafc', borderRadius: '12px', marginBottom: '20px' }}>
-                        <div>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase' }}>Cliente</span>
-                            <div style={{ fontSize: '1.2rem', fontWeight: '600' }}>{selectedOrder.customer_name}</div>
-                        </div>
-                        <div>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase' }}>Vendedor Responsable</span>
-                            <div style={{ fontSize: '1.2rem', fontWeight: '600' }}>{selectedOrder.seller_name}</div>
-                        </div>
+                <div className="order-details-container">
+                    {/* BOTÓN VOLVER Y TÍTULO */}
+                    {/* --- AGREGAR ESTO JUSTO AQUÍ --- */}
+                    <div style={{ marginBottom: '15px' }}>
+                        <button
+                            onClick={handleVolver}
+                            className="btn-back-list"
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                        >
+                            <ChevronLeft size={20} /> Volver a mis rutas
+                        </button>
                     </div>
+                    <div className="vendedores-layout">
+                        {/* COLUMNA IZQUIERDA: STOCK REAL EN CAMIÓN */}
+                        <div className="camion-sidebar">
+                            <h4><Truck size={20} /> STOCK DISPONIBLE</h4>
+                            <div className="stock-list">
+                                {orderItems.map(item => {
+                                    const vendidoTotal = salesSession.reduce((acc, sale) => {
+                                        const prod = sale.items.find(i => i.product_id === item.product_id);
+                                        return acc + (prod ? prod.qty : 0);
+                                    }, 0);
+                                    const disponible = item.quantity - vendidoTotal;
 
-                    <table className="inv-table">
-                        <thead>
-                            <tr style={{ background: '#1e293b', color: '#fff' }}>
-                                <th>Producto / Precio Base</th>
-                                <th style={{ textAlign: 'center' }}>Cant. Vendida</th>
-                                <th style={{ textAlign: 'right' }}>Precio Venta Final</th>
-                                <th style={{ textAlign: 'right' }}>Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {orderItems.map((item, index) => {
-                                const uniqueKey = `${item.product_id}-${index}`;
-                                return (
-                                    <tr key={uniqueKey}>
-                                        <td>
-                                            <div className="font-bold">{item.product_name}</div>
-                                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                                                Base: ${item.unit_price} | Despachado: {item.quantity}
+                                    return (
+                                        <div key={item.product_id} className={`stock-item ${disponible === 0 ? 'exhausted' : ''}`}>
+                                            <span>{item.product_name}</span>
+                                            <div className="qty-badge">
+                                                <strong>{disponible}</strong> <small>und</small>
                                             </div>
-                                        </td>
-                                        <td style={{ textAlign: 'center' }}>
-                                            <input
-                                                type="number"
-                                                className="qty-input"
-                                                style={{ width: '80px', textAlign: 'center' }}
-                                                value={saleQuantities[uniqueKey] ?? ""}
-                                                onChange={(e) => handleQuantityChange(uniqueKey, e.target.value, item.quantity)}
-                                            />
-                                        </td>
-                                        <td>
-                                            <input
-                                                type="number"
-                                                className="qty-input"
-                                                style={{ width: '130px', textAlign: 'right', border: '1px solid #3b82f6', fontWeight: 'bold' }}
-                                                value={salePrices[uniqueKey] ?? ""}
-                                                onChange={(e) => handlePriceChange(uniqueKey, e.target.value)}
-                                                onBlur={(e) => {
-                                                    if (Number(e.target.value) < item.unit_price) {
-                                                        alertError("Precio mínimo", `El precio base es $${item.unit_price}`);
-                                                        handlePriceChange(uniqueKey, item.unit_price);
-                                                    }
-                                                }}
-                                            />
-                                        </td>
-                                        <td className="col-total" style={{ textAlign: 'right', fontWeight: '700' }}>
-                                            ${((Number(saleQuantities[uniqueKey]) || 0) * (Number(salePrices[uniqueKey]) || 0)).toLocaleString()}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                                        </div>
+                                    );
+                                })}
+                            </div>
 
-                    <div className="inv-card" style={{ marginTop: '30px', padding: '30px', background: '#f8fafc', borderTop: '4px solid #3b82f6' }}>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '50px', flexWrap: 'wrap' }}>
-                            <div style={{ textAlign: 'right' }}>
-                                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '700' }}>TOTAL VENTA</span>
-                                <h2 style={{ margin: 0, fontSize: '2rem' }}>${totalSale.toLocaleString()}</h2>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <span style={{ fontSize: '0.85rem', color: '#3b82f6', fontWeight: '700' }}>EFECTIVO RECIBIDO</span>
-                                <input
-                                    type="number"
-                                    className="qty-input"
-                                    style={{ fontSize: '1.5rem', width: '200px', textAlign: 'right', border: '2px solid #3b82f6' }}
-                                    value={amountPaid}
-                                    onChange={(e) => setAmountPaid(Number(e.target.value))}
-                                />
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <span style={{ fontSize: '0.85rem', color: balanceDue > 0 ? '#ef4444' : '#10b981', fontWeight: '700' }}>
-                                    {balanceDue > 0 ? 'SALDO PENDIENTE' : 'PAGADO'}
-                                </span>
-                                <h2 style={{ margin: 0, fontSize: '2rem', color: balanceDue > 0 ? '#ef4444' : '#10b981' }}>
-                                    ${Math.abs(balanceDue).toLocaleString()}
-                                </h2>
+                            {/* HISTORIAL DE VISITAS (Abajo del stock) */}
+                            <div className="visit-history">
+                                <h5>HISTORIAL DE HOY</h5>
+                                {salesSession.map((s, idx) => (
+                                    <div key={idx} className="visit-card">
+                                        <div className="visit-info">
+                                            <strong>{s.cliente.name}</strong>
+                                            <span>{s.cliente.status} - {s.hora}</span>
+                                        </div>
+                                        <div className="visit-amount">${s.total.toLocaleString()}</div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                        <div style={{ marginTop: '30px', textAlign: 'right' }}>
-                            <button className="btn-save" onClick={handleConfirmSale} style={{ padding: '15px 50px', fontSize: '1.2rem' }}>
-                                Finalizar Liquidación
-                            </button>
+
+                        {/* COLUMNA DERECHA: REGISTRO DE VENTA */}
+                        <div className="venta-main">
+                            <div className="client-header-form">
+                                <input
+                                    type="text" placeholder="Nombre del Cliente" className="main-input"
+                                    value={clientData.name} onChange={(e) => setClientData({ ...clientData, name: e.target.value })}
+                                />
+                                <input
+                                    type="text" placeholder="Dirección" className="main-input"
+                                    value={clientData.address} onChange={(e) => setClientData({ ...clientData, address: e.target.value })}
+                                />
+                                <input
+                                    type="text" placeholder="Teléfono" className="main-input"
+                                    value={clientData.phone} onChange={(e) => setClientData({ ...clientData, phone: e.target.value })}
+                                />
+                                <select
+                                    className="status-select"
+                                    value={clientData.status} onChange={(e) => setClientData({ ...clientData, status: e.target.value })}
+                                >
+                                    <option value="VISITADO">VISITADO (Venta)</option>
+                                    <option value="NO VISITADO">NO VISITADO (Cerrado/No estaba)</option>
+                                </select>
+                            </div>
+
+                            <table className="matrix-table">
+                                <thead>
+                                    <tr>
+                                        <th>PRODUCTO</th>
+                                        <th width="100">VENDER</th>
+                                        <th width="150">PRECIO UNIT.</th>
+                                        <th>SUBTOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {orderItems.map((item, index) => {
+                                        const uniqueKey = `${item.product_id}-${index}`;
+                                        const vendidoTotal = salesSession.reduce((acc, sale) => {
+                                            const prod = sale.items.find(i => i.product_id === item.product_id);
+                                            return acc + (prod ? prod.qty : 0);
+                                        }, 0);
+                                        const disponible = item.quantity - vendidoTotal;
+
+                                        return (
+                                            <tr key={uniqueKey}>
+                                                <td>{item.product_name}</td>
+                                                <td>
+                                                    <input
+                                                        type="number"
+                                                        className={`input-cell ${Number(saleQuantities[uniqueKey]) > disponible ? 'error-stock' : ''}`}
+                                                        placeholder="0"
+                                                        max={disponible} // BLOQUEO VISUAL
+                                                        value={saleQuantities[uniqueKey] ?? ""}
+                                                        onChange={(e) => {
+                                                            const val = Number(e.target.value);
+                                                            if (val > disponible) {
+                                                                alertError(`Solo tienes ${disponible} en stock`);
+                                                                return;
+                                                            }
+                                                            handleQuantityChange(uniqueKey, e.target.value, disponible);
+                                                        }}
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <input type="number" className="input-cell price"
+                                                        value={salePrices[uniqueKey] ?? ""}
+                                                        onChange={(e) => handlePriceChange(uniqueKey, e.target.value)}
+                                                    />
+                                                </td>
+                                                <td className="font-bold">
+                                                    ${((Number(saleQuantities[uniqueKey]) || 0) * (Number(salePrices[uniqueKey]) || 0)).toLocaleString()}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+
+                            <div className="action-footer">
+                                <button className="btn-add-client" onClick={registrarVentaLocal}>
+                                    REGISTRAR CLIENTE Y SIGUIENTE
+                                </button>
+
+                                {/* Solo se habilita si ya hay ventas registradas */}
+                                <button
+                                    className="btn-finalizar-ruta"
+                                    disabled={salesSession.length === 0}
+                                    onClick={handleConfirmSale}
+                                >
+                                    FINALIZAR LIQUIDACIÓN DEL DÍA
+                                </button>
+                            </div>
                         </div>
                     </div>
+
                 </div>
             )}
         </div>

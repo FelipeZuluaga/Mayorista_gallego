@@ -9,7 +9,6 @@ import DespachoPage from "./pages/DespachoPage.jsx";
 import PedidosPage from "./pages/PedidosPage.jsx";
 import VentasPage from "./pages/VentasPage.jsx";
 import VentasHistoryPage from "./pages/VentasHistoryPage.jsx";
-
 export default function AppRouter() {
   return (
     <BrowserRouter>

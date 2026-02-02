@@ -1,0 +1,92 @@
+/* FOOTER */
+.footer {
+    background: #2d3436;
+    color: #dfe6e9;
+    padding: 20px 40px;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    font-size: 0.85rem;
+}
+
+.footer-links a {
+    color: white;
+    text-decoration: none;
+    margin-left: 20px;
+    opacity: 0.7;
+}
+
+.footer-links a:hover {
+    opacity: 1;
+}
+.admin-footer {
+    background: var(--dark-footer);
+    color: var(--white);
+    padding: 20px 5%;
+    text-align: center;
+    margin-top: auto; /* Empuja el footer al final */
+}
+
+.footer-content p {
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+/* */
+.admin-container {
+    flex: 1; /* Permite que el contenido crezca y el footer baje */
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 0 20px; /* Margen de seguridad lateral para móviles */
+}
+
+
+/* */
+.admin-footer {
+    background: var(--dark-footer, #2d3436);
+    color: white;
+    padding: 20px 5%;
+    text-align: center;
+    margin-top: auto; /* Empuja el footer al fondo en el layout */
+}
+
+.footer-content p {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    margin-bottom: 10px;
+}
+
+.footer-links {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    font-size: 0.75rem;
+    opacity: 0.6;
+}
+
+.footer-links span {
+    cursor: pointer;
+    transition: opacity 0.3s;
+}
+
+.footer-links span:hover {
+    opacity: 1;
+}
+@media (max-width: 600px) {
+    .footer-content {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+    }
+
+    .footer-links {
+        flex-direction: column;
+        gap: 10px;
+    }
+}

@@ -5,11 +5,11 @@ export const modulesByRole = {
         { title: "Crear pedido", path: "/despacho", iconName: "Truck" },
         { title: "Historial pedidos", path: "/pedidos", iconName: "ClipboardList" },
 
-        { title: "Hacer Ventas", path: "/ventas", iconName: "CircleDollarSign" },
-        { title: "Historial Ventas", path: "/historial-ventas", iconName: "CircleDollarSign" },
+        // --- MEJORADO PARA ADMIN ---
+        { title: "Control de Ventas", path: "/ventas", iconName: "LayoutDashboard" },
+        { title: "Historial Global", path: "/historial-ventas", iconName: "BarChart3" },
         { title: "Devoluciones", path: "/devoluciones", iconName: "RefreshCcw" },
 
-        // Módulos nuevos por separado
         { title: "Liquidación", path: "/liquidacion", iconName: "Calculator" },
         { title: "Pagos", path: "/pagos", iconName: "Wallet" },
     ],
@@ -19,7 +19,9 @@ export const modulesByRole = {
     ],
     SOCIO: [
         { title: "Mis Pedidos", path: "/pedidos", iconName: "ClipboardList" },
-        { title: "Hacer Ventas", path: "/ventas", iconName: "CircleDollarSign" },
+
+
+        { title: "Mi Ruta Diaria", path: "/ventas", iconName: "Navigation" },
         { title: "Mis Ventas", path: "/historial-ventas", iconName: "TrendingUp" },
         { title: "Hacer Devoluciones", path: "/devoluciones", iconName: "RotateCcw" },
     ],

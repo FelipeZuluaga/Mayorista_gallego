@@ -4,7 +4,6 @@ import { inventoryService } from "../services/inventoryService";
 import { orderService } from "../services/orderService";
 import { alertSuccess, alertError, alertConfirm } from "../services/alertService";
 import { Package, User, Truck, ChevronLeft, Search } from "lucide-react";
-import "../styles/inventory.css";
 
 export default function DespachoPage() {
     const navigate = useNavigate();

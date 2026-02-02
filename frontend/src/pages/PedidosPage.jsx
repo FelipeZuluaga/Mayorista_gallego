@@ -6,7 +6,6 @@ import {
     ClipboardList, ShoppingBag,
     X, Eye, Edit3, Save, Trash2, Plus, Minus,
 } from "lucide-react";
-import "../styles/inventory.css";
 
 export default function PedidosPage() {
     const [orders, setOrders] = useState([]);

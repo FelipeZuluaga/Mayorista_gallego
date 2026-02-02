@@ -1,8 +1,9 @@
 import { useNavigate, NavLink } from "react-router-dom";
 import * as Lucide from 'lucide-react';
 import logo from "../assets/logo.jpeg";
-import "../styles/Dashboard.css";
 import Footer from "../components/footer";
+import "../styles/mainLayout.css";
+
 
 function MainLayout({ children }) {
     const user = JSON.parse(localStorage.getItem("user"));
@@ -39,18 +40,19 @@ function MainLayout({ children }) {
         { to: "/historial-ventas", label: "Mis Ventas", icon: <Lucide.TrendingUp size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
         { to: "/devoluciones", label: "Hacer Devoluciones", icon: <Lucide.RotateCcw size={18} />, roles: ["SOCIO", "NO_SOCIO"] }
     ];
-
     return (
         <div className="admin-page">
+
             <header className="admin-header">
-                <div className="header-left" onClick={() => navigate("/dashboard")} style={{ cursor: 'pointer' }}>
+                {/* logo y panel de control y demas*/}
+                <div className="header-left" onClick={() => navigate("/dashboard")}>
                     <img src={logo} alt="Logo" className="header-logo-img" />
                     <div className="header-brand-info">
-                        <h2>Mayorista <span>Gallego</span></h2>
+                        <h2>Mayorista <span>Gallega</span></h2>
                         <p>Panel de Control</p>
                     </div>
                 </div>
-
+                {/* nav-menu */}
                 <nav className="header-nav-menu">
                     {menuOptions.map((option) => (
                         option.roles.includes(userRole) && (
@@ -66,19 +68,15 @@ function MainLayout({ children }) {
                         )
                     ))}
                 </nav>
-
-                <div className="header-right">
-                    <div className="user-info-display">
-                        <div className="user-text-details">
-                            <span className="user-name">{user?.name || "Usuario"} / </span>
-                            <span className="user-role-label">{userRole}</span>
-                        </div>
-                        {/* Corregido: Agregado el prefijo Lucide. */}
-                        <Lucide.User size={18} />
+                <div class="user-profile-section">
+                    <div class="user-info">
+                        <span class="user-name">Administrador</span>
+                        <span class="user-role">ADMINISTRADOR</span>
                     </div>
-                    <button className="logout-action-btn" onClick={handleLogout}>
-                        {/* Corregido: Agregado el prefijo Lucide. */}
-                        <Lucide.LogOut size={18} />
+                    <div class="user-avatar">
+                        <i class="fa-solid fa-circle-user"></i> </div>
+                    <button class="logout-action-btn">
+                        <i class="fa-solid fa-right-from-bracket"></i>
                         <span>Salir</span>
                     </button>
                 </div>
@@ -91,6 +89,7 @@ function MainLayout({ children }) {
             <Footer />
         </div>
     );
+
 }
 
 export default MainLayout;

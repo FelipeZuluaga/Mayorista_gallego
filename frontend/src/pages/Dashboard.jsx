@@ -2,6 +2,7 @@
 import { Link } from "react-router-dom";
 import { modulesByRole } from "../routes/modules";
 import * as LucideIcons from "lucide-react";
+import "../styles/dashboard.css";
 
 function Dashboard() {
     const user = JSON.parse(localStorage.getItem("user"));
@@ -16,7 +17,7 @@ function Dashboard() {
                 return (
                     <Link to={item.path} key={index} className="admin-card-link">
                         <div className="admin-card">
-                            <div className="card-icon-wrapper" style={{ color: '#9b111e' }}>
+                            <div className="card-icon-wrapper">
                                 {IconComponent && <IconComponent size={40} strokeWidth={1.5} />}
                             </div>
                             <h3>{item.title}</h3>
