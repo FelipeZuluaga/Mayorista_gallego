@@ -2,11 +2,24 @@ const express = require('express');
 const router = express.Router();
 const orderController = require('../controllers/orderController');
 
-// Definimos la ruta para crear despachos
+// --- RUTAS DE CREACIÓN Y CONSULTA ---
+
+// Crear un nuevo pedido/despacho
 router.post('/create', orderController.createOrder);
 
-// NUEVA: Ruta para obtener pedidos filtrados
+// Obtener historial de pedidos (filtrado por rol en el controlador)
 router.get('/history', orderController.getOrdersByRole);
-// backend/routes/inventory.js (o el archivo de rutas que estés usando)
+
+// Obtener los productos (ítems) específicos de un pedido
 router.get('/detail/:id', orderController.getOrderDetail);
+
+// --- RUTAS DE ACTUALIZACIÓN Y BORRADO ---
+
+// ACTUALIZACIÓN COMPLETA: Maneja stock, precios y edición dinámica de ítems
+// Esta es la que corregimos para evitar el error de "reading stock of undefined"
+router.put('/update-full/:id', orderController.updateOrderItems); 
+
+// ELIMINACIÓN: Borra el pedido y restaura el stock al inventario
+router.delete('/delete/:id', orderController.deleteOrder);
+
 module.exports = router;

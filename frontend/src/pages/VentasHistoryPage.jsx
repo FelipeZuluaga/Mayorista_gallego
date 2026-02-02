@@ -12,7 +12,6 @@ import {
     CheckCircle,
     ArrowUpRight
 } from "lucide-react";
-import "../styles/inventory.css";
 
 export default function VentasHistoryPage() {
     const [sales, setSales] = useState([]);

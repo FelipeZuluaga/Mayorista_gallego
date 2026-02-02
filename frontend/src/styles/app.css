@@ -1,0 +1,36 @@
+:root {
+    /* Paleta de Colores Corporativa */
+    --primary-color: #9b111e;      /* Rojo Gallego */
+    --primary-hover: #7a0d18;
+    --accent-color: #ffda79;       /* Dorado de resalte */
+    --white: #ffffff;
+    --bg-gray: #f8f9fa;            /* Gris claro para el fondo de la app */
+    
+    /* Colores de Texto */
+    --text-dark: #2d3436;          /* Títulos y textos importantes */
+    --text-light: #636e72;         /* Subtítulos y descripciones */
+    --text-muted: #dfe6e9;
+
+    /* Sistema de Formas y Sombras */
+    --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.08);
+    --radius-lg: 20px;             /* Para tarjetas y contenedores grandes */
+    --radius-md: 10px;             /* Para botones, inputs y menús */
+    
+    /* Tipografía */
+    --font-main: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.05); /* Sombra más sutil */
+}
+/* Agrega esto al final de app.css */
+html, body {
+    overflow-x: hidden; /* Evita el scroll horizontal molesto en móviles */
+    width: 100%;
+}
+
+.admin-container {
+    flex: 1;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px; /* Evita que el contenido toque los bordes del móvil */
+    box-sizing: border-box; /* Fundamental para que el padding no rompa el ancho */
+}

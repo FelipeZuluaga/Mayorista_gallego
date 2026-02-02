@@ -1,0 +1,169 @@
+.admin-header {
+    background: var(--primary-color);
+    padding: 20px 5%; /* Aumentamos el padding vertical de 10px a 20px */
+    display: flex;
+    justify-content: flex-start; /* Alinea los elementos al inicio */
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    color: var(--white);
+    flex-wrap: wrap; /* Permite que los elementos se acomoden si la pantalla se achica */
+}
+.header-brand {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+.header-logo-img {
+    width: 60px; height: 60px;
+    object-fit: contain;
+    background: white;
+    border-radius: 50%;
+    padding: 5px;
+}
+
+/* Navegación del Header */
+.header-nav-menu {
+    display: flex;
+    gap: 15px; /* Más espacio entre iconos */
+    align-items: center;
+    background: rgba(0, 0, 0, 0.1); /* Un fondo sutil para agrupar el menú */
+    padding: 10px 20px;
+    border-radius: 50px; /* Estilo de "píldora" más moderno */
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    transition: all 0.3s ease;
+}
+
+.nav-item.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--accent-color);
+    font-weight: 700;
+}
+
+/* Botón Salir */
+.logout-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: 1px solid var(--white);
+    color: var(--white);
+    padding: 6px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+/* Para tablets y móviles */
+@media (max-width: 1024px) {
+    .header-nav-menu {
+        display: none; /* Escondemos el menú horizontal */
+        /* Aquí lo ideal sería implementar un menú hamburguesa con JS */
+    }
+
+    .admin-header {
+        flex-direction: column; /* Apila el logo sobre el menú */
+        padding: 15px;
+        gap: 15px;
+    }
+}
+
+/* Ajustes responsivos para el Header */
+@media (max-width: 1024px) {
+    .admin-header {
+        flex-direction: column; /* Apila el logo sobre el menú */
+        padding: 15px;
+        gap: 15px;
+    }
+
+    .header-nav-menu {
+        display: flex;
+        flex-wrap: wrap; /* Permite que los botones bajen a la siguiente línea si no caben */
+        justify-content: center;
+        gap: 5px;
+    }
+
+    .nav-item {
+        font-size: 0.85rem; /* Achicamos un poco la letra */
+        padding: 6px 10px;
+    }
+}
+
+@media (max-width: 600px) {
+    .header-nav-menu {
+        overflow-x: auto; /* Permite deslizar el menú horizontalmente con el dedo */
+        justify-content: flex-start;
+        width: 100%;
+        padding-bottom: 10px;
+        white-space: nowrap; /* Evita que los iconos se corten */
+    }
+    
+    .header-logo-img {
+        width: 50px; 
+        height: 50px;
+    }
+}
+/* Este es el truco clave */
+.user-profile-section {
+    margin-left: auto; /* Empuja este div y todo lo que tiene dentro a la derecha */
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+/* Evita que el texto se amontone como en tu imagen */
+.user-info {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+}
+
+.user-name {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--white);
+    text-transform: capitalize;
+}
+
+.user-role {
+    font-size: 0.7rem;
+    color: var(--accent-color); /* Usamos el dorado para el rol */
+    letter-spacing: 1px;
+    font-weight: 600;
+}
+
+/* Icono de usuario más grande y limpio */
+.user-avatar {
+    font-size: 1.8rem;
+    color: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+}
+
+/* Rediseño del botón Salir */
+.logout-action-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--white);
+    color: var(--white);
+    padding: 8px 15px;
+    border-radius: 8px; /* Cambiado a 8px para consistencia */
+    font-weight: 600;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.logout-action-btn:hover {
+    background: var(--white);
+    color: var(--primary-color) !important;
+    transform: scale(1.05);
+}
