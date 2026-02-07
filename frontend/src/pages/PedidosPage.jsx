@@ -194,17 +194,7 @@ export default function PedidosPage() {
             }
         });
     }, [orders, searchTerm, user, filters]);
-    // Usamos los nombres exactos que aparecen en tu captura de base de datos
-    const pedidosSocio = filteredOrders.filter(o =>
-        o.customer_type_name?.toUpperCase() === 'SOCIO'
-    );
-
-    const pedidosNoSocio = filteredOrders.filter(o =>
-        o.customer_type_name?.toUpperCase() === 'NO_SOCIO'
-    );
-
-    // Opcional: Si quieres sumar también los que dicen "CLIENTE" o "DESPACHO_MAYOR" 
-    // a alguna métrica, puedes agregarlos aquí.
+   
     // 2. SEGUNDO: Definir las estadísticas (Dependen de filteredOrders)
     const stats = useMemo(() => {
         const role = user?.role?.toUpperCase();
@@ -335,7 +325,7 @@ export default function PedidosPage() {
             </div>
             {/* SECCIÓN DE FILTROS DINÁMICOS */}
             <div className="inv-card" style={{ marginBottom: '20px', padding: '20px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '80px' }}>
 
                     {/* FECHA */}
                     <div className="filter-group">

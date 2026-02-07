@@ -125,7 +125,7 @@ function Login() {
                 />
               </div>
 
-              <button type="submit" className="btn-login" disabled={loading}>
+              <button class="btn btn-primary" disabled={loading}>
                 {loading ? "Ingresando..." : "Iniciar Sesión"}
               </button>
             </form>

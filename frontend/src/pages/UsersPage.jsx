@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Trash2, UserPlus, RefreshCcw, ShieldCheck } from "lucide-react";
-// Importación de tu arquitectura
+import { Trash2, UserPlus, ShieldCheck } from "lucide-react";
 import { userService } from "../services/userService";
 import { alertSuccess, alertError, alertConfirm } from "../services/alertService";
+import "../styles/users.css"; // Nuevo archivo
 
 const ROLES = ["ADMINISTRADOR", "DESPACHADOR", "SOCIO", "NO_SOCIO"];
 
@@ -11,16 +11,14 @@ function UsersPage() {
     const [loading, setLoading] = useState(false);
     const [form, setForm] = useState({ name: "", email: "", password: "", role: "" });
 
-    useEffect(() => {
-        loadUsers();
-    }, []);
+    useEffect(() => { loadUsers(); }, []);
 
     const loadUsers = async () => {
         try {
             const data = await userService.getAll();
             setUsers(data);
         } catch (err) {
-            alertError("Error de Conexión", "No se pudo sincronizar con la base de datos.");
+            alertError("Error", "No se pudo sincronizar la base de datos.");
         }
     };
 
@@ -29,145 +27,91 @@ function UsersPage() {
         setLoading(true);
         try {
             await userService.create(form);
-            alertSuccess("Usuario Creado", `El acceso para ${form.name} ha sido habilitado.`);
+            alertSuccess("¡Listo!", `${form.name} ahora tiene acceso.`);
             setForm({ name: "", email: "", password: "", role: "" });
             loadUsers();
         } catch (err) {
-            alertError("Error al Registrar", err.response?.data?.message || "Verifique los datos.");
-        } finally {
-            setLoading(false);
-        }
+            alertError("Error", "No se pudo registrar.");
+        } finally { setLoading(false); }
     };
 
     const handleDelete = async (id) => {
-        const result = await alertConfirm("¿Eliminar Cuenta?", "El usuario perderá el acceso inmediato al sistema.");
-        
-        if (result.isConfirmed) {
+        const confirmed = await alertConfirm("¿Eliminar usuario?", "Esta acción no se puede deshacer.");
+        if (confirmed) {
             try {
                 await userService.delete(id);
-                alertSuccess("Eliminado", "Registro borrado correctamente.");
+                alertSuccess("Eliminado", "El usuario fue borrado.");
                 loadUsers();
-            } catch (err) {
-                alertError("Error", "No se pudo procesar la eliminación.");
-            }
+            } catch (err) { alertError("Error", "No se pudo eliminar."); }
         }
     };
 
     return (
-        <div className="users-module-container">
-            <div className="module-intro">
-                <h1>Gestión de Usuarios</h1>
-                <p>Administra los permisos y perfiles de <strong>Mayorista Gallego</strong>.</p>
-            </div>
-
-            <div className="users-grid-layout">
-                {/* COLUMNA IZQUIERDA: REGISTRO */}
-                <aside className="form-column">
-                    <div className="admin-card">
-                        <div className="card-icon-wrapper">
-                            <UserPlus size={28} />
-                        </div>
-                        <h3>Nuevo Perfil</h3>
-                        <form onSubmit={handleSubmit} className="module-form">
-                            <div className="input-field">
-                                <label>Nombre Completo</label>
-                                <input 
-                                    type="text"
-                                    placeholder="Ej: Juan Pérez" 
-                                    value={form.name} 
-                                    onChange={(e) => setForm({ ...form, name: e.target.value })} 
-                                    required 
-                                />
-                            </div>
-                            <div className="input-field">
-                                <label>Correo Electrónico</label>
-                                <input 
-                                    type="email" 
-                                    placeholder="correo@empresa.com" 
-                                    value={form.email} 
-                                    onChange={(e) => setForm({ ...form, email: e.target.value })} 
-                                    required 
-                                />
-                            </div>
-                            <div className="input-field">
-                                <label>Contraseña Temporal</label>
-                                <input 
-                                    type="password" 
-                                    placeholder="********" 
-                                    value={form.password} 
-                                    onChange={(e) => setForm({ ...form, password: e.target.value })} 
-                                    required 
-                                />
-                            </div>
-                            <div className="input-field">
-                                <label>Rol del Sistema</label>
-                                <select 
-                                    value={form.role} 
-                                    onChange={(e) => setForm({ ...form, role: e.target.value })} 
-                                    required
-                                >
-                                    <option value="">Seleccione...</option>
-                                    {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-                                </select>
-                            </div>
-                            <button type="submit" className="action-btn-primary" disabled={loading}>
-                                {loading ? <RefreshCcw className="spin-icon" size={18} /> : "Crear Usuario"}
-                            </button>
-                        </form>
+        <div className="users-layout">
+            {/* PANEL IZQUIERDO: Formulario */}
+            <aside className="user-form-card">
+                <h2><UserPlus size={20} /> Nuevo Acceso</h2>
+                <form onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <label>Nombre Completo</label>
+                        <input type="text" value={form.name} required
+                            onChange={(e) => setForm({ ...form, name: e.target.value })} />
                     </div>
-                </aside>
-
-                {/* COLUMNA DERECHA: TABLA */}
-                <main className="table-column">
-                    <div className="admin-card table-container-card">
-                        <div className="table-responsive">
-                            <table className="custom-table">
-                                <thead>
-                                    <tr>
-                                        <th>Colaborador</th>
-                                        <th>Nivel de Acceso</th>
-                                        <th style={{textAlign: 'center'}}>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {users.length > 0 ? (
-                                        users.map((u) => (
-                                            <tr key={u.id}>
-                                                <td>
-                                                    <div className="user-info-td">
-                                                        <span className="u-name">{u.name}</span>
-                                                        <span className="u-email">{u.email}</span>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span className={`badge-role ${u.role?.toLowerCase()}`}>
-                                                        <ShieldCheck size={12} style={{marginRight: '4px'}} />
-                                                        {u.role}
-                                                    </span>
-                                                </td>
-                                                <td style={{textAlign: 'center'}}>
-                                                    <button 
-                                                        className="btn-icon-delete" 
-                                                        onClick={() => handleDelete(u.id)}
-                                                    >
-                                                        <Trash2 size={20} />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan="3" style={{textAlign: 'center', padding: '50px', color: '#999'}}>
-                                                No se encontraron usuarios en la base de datos.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                    <div className="form-group">
+                        <label>Código de Usuario (Email/ID)</label>
+                        <input type="text" value={form.email} required
+                            onChange={(e) => setForm({ ...form, email: e.target.value })} />
                     </div>
-                </main>
-            </div>
+                    <div className="form-group">
+                        <label>Contraseña Temporal</label>
+                        <input type="password" value={form.password} required
+                            onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                    </div>
+                    <div className="form-group">
+                        <label>Rol de Sistema</label>
+                        <select value={form.role} required
+                            onChange={(e) => setForm({ ...form, role: e.target.value })}>
+                            <option value="">Seleccionar...</option>
+                            {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                    </div>
+                    <button type="submit" className="btn btn-primary" style={{width: '100%', marginTop: '10px'}} disabled={loading}>
+                        <ShieldCheck size={18} />
+                        {loading ? "Registrando..." : "Crear Usuario"}
+                    </button>
+                </form>
+            </aside>
+
+            {/* PANEL DERECHO: Tabla */}
+            <section className="users-table-container">
+                <table className="mg-table">
+                    <thead>
+                        <tr>
+                            <th>Usuario / Código</th>
+                            <th>Rol Asignado</th>
+                            <th style={{textAlign: 'center'}}>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {users.length > 0 ? users.map((u) => (
+                            <tr key={u.id}>
+                                <td>
+                                    <strong>{u.name}</strong>
+                                    <div style={{fontSize: '0.75rem', color: 'var(--text-light)'}}>{u.email}</div>
+                                </td>
+                                <td><span className="role-badge">{u.role}</span></td>
+                                <td style={{textAlign: 'center'}}>
+                                    <button className="btn-icon-delete" onClick={() => handleDelete(u.id)}>
+                                        <Trash2 size={18} />
+                                    </button>
+                                </td>
+                            </tr>
+                        )) : (
+                            <tr><td colSpan="3" className="text-center">No hay usuarios registrados.</td></tr>
+                        )}
+                    </tbody>
+                </table>
+            </section>
         </div>
     );
 }
