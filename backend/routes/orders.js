@@ -21,5 +21,4 @@ router.put('/update-full/:id', orderController.updateOrderItems);
 
 // ELIMINACIÓN: Borra el pedido y restaura el stock al inventario
 router.delete('/delete/:id', orderController.deleteOrder);
-
 module.exports = router;

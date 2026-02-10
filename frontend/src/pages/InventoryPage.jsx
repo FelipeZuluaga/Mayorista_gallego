@@ -34,14 +34,12 @@ export default function InventoryPage() {
         loadData();
     }, []);
 
+    // Y asegúrate de llamar a resetForm o cargar el código al montar el componente
     useEffect(() => {
-        if (products.length > 0) {
-            const timer = setInterval(() => {
-                setCurrentTypeIndex((prev) => (prev + 1) % CUSTOMER_TYPES.length);
-            }, 3000);
-            return () => clearInterval(timer);
+        if (products.length >= 0) {
+            setForm(prev => ({ ...prev, barcode: generateNextBarcode() }));
         }
-    }, [products]);
+    }, [products]); // Se recalcula si la lista de productos cambia
 
     const loadData = async () => {
         try {
@@ -94,7 +92,16 @@ export default function InventoryPage() {
             }
         }
     };
+    // Función para generar el siguiente código
+    const generateNextBarcode = () => {
+        if (products.length === 0) return "1000";
 
+        // Extraemos los códigos, convertimos a número y buscamos el mayor
+        const codes = products.map(p => parseInt(p.barcode)).filter(n => !isNaN(n));
+        const maxCode = codes.length > 0 ? Math.max(...codes) : 999;
+
+        return String(maxCode + 1);
+    };
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!form.category_id) return alertError("Faltan datos", "Por favor selecciona una categoría.");
@@ -170,7 +177,7 @@ export default function InventoryPage() {
 
     const resetForm = () => {
         setForm({
-            barcode: "", name: "", stock: "", category_id: "",
+            barcode: generateNextBarcode(), name: "", stock: "", category_id: "",
             prices: { 1: "", 2: "", 3: "", 4: "" },
         });
         setEditingProduct(null);
@@ -223,12 +230,13 @@ export default function InventoryPage() {
             <div className="inv-card full-width-card">
                 <form className="inv-form" onSubmit={handleSubmit}>
                     <div className="form-grid">
-                        <div className="input-group">
-                            <label><Barcode size={14} /> Código de barras</label>
+                        <div className="input-group barcode-group">
+                            <label><Barcode size={14} /> Código de barras (Automático)</label>
                             <input
                                 value={form.barcode}
-                                onChange={(e) => setForm({ ...form, barcode: e.target.value })}
-                                required
+                                readOnly
+                                className="input-barcode-auto"
+                                title={form.barcode} // Esto permite ver el código completo al pasar el mouse
                             />
                         </div>
                         <div className="input-group">

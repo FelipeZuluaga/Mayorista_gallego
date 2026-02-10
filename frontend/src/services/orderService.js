@@ -11,7 +11,7 @@ export const orderService = {
 
     /**
      * Obtener el historial de pedidos filtrado según el rol del usuario logueado.
-     */
+    */ 
     getOrdersHistory: async (userData) => {
         try {
             const response = await api.get("/orders/history", {
@@ -26,7 +26,6 @@ export const orderService = {
             throw error.response?.data?.message || "Error al obtener historial";
         }
     },
-
     /**
      * Obtener el detalle de productos (ítems) de un pedido específico por su ID.
      */

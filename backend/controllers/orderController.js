@@ -7,7 +7,10 @@ const createOrder = async (req, res) => {
 
     try {
         await connection.beginTransaction();
-
+        // --- NUEVA LÓGICA: Obtener el nombre real del vendedor ---
+        // receptor_name viene como el ID (ej: 15023) desde el frontend
+        const [userData] = await connection.query("SELECT name FROM users WHERE id = ?", [receptor_name]);
+        const realSellerName = userData.length > 0 ? userData[0].name : 'Desconocido';
         let totalOrderAmount = 0;
         const processedItems = [];
 
@@ -34,7 +37,7 @@ const createOrder = async (req, res) => {
         const [orderRes] = await connection.query(
             `INSERT INTO orders (user_id, seller_name, customer_type_id, total_amount, status, created_at) 
              VALUES (?, ?, ?, ?, 'DESPACHADO', NOW())`,
-            [user_id, receptor_name, customer_type_id, totalOrderAmount]
+            [user_id, realSellerName, customer_type_id, totalOrderAmount]
         );
 
         const orderId = orderRes.insertId;
@@ -65,7 +68,6 @@ const createOrder = async (req, res) => {
 const getOrdersByRole = async (req, res) => {
     const { user_id, role } = req.query;
     try {
-        // Seleccionamos campos de orders y nombres de las tablas relacionadas
         let query = `
             SELECT o.*, 
                    u.name as dispatcher_name, 
@@ -79,17 +81,18 @@ const getOrdersByRole = async (req, res) => {
         if (role === 'ADMINISTRADOR') {
             query += " ORDER BY o.created_at DESC";
         } else if (role === 'DESPACHADOR') {
+            // El despachador (ID 4444 en tu imagen) solo ve lo que él procesó
             query += " WHERE o.user_id = ? ORDER BY o.created_at DESC";
             params = [user_id];
         } else {
-            query += " WHERE o.seller_name = ? ORDER BY o.created_at DESC";
+            // Si es un Socio/No Socio viendo sus propios pedidos
+            query += " WHERE o.seller_name = (SELECT name FROM users WHERE id = ?) ORDER BY o.created_at DESC";
             params = [user_id];
         }
 
         const [orders] = await db.query(query, params);
         res.json(orders);
     } catch (error) {
-        console.error(error);
         res.status(500).json({ success: false, message: "Error al cargar pedidos" });
     }
 };

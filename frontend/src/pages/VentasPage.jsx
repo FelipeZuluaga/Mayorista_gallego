@@ -3,28 +3,44 @@ import { orderService } from "../services/orderService";
 import { saleService } from "../services/saleService";
 import { alertSuccess, alertError } from "../services/alertService";
 import {
-    DollarSign,
     ArrowRight,
     ChevronLeft,
     User,
-    Package,
     Truck,
     Clock,
     BarChart3
 } from "lucide-react";
 
 export default function VentasPage() {
+    // --- ESTADOS ---
     const [pendingOrders, setPendingOrders] = useState([]);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [orderItems, setOrderItems] = useState([]);
-
-    const [salePrices, setSalePrices] = useState({});
-    const [saleQuantities, setSaleQuantities] = useState({});
-    const [amountPaid, setAmountPaid] = useState(0);
     const [loading, setLoading] = useState(true);
 
-    const user = JSON.parse(localStorage.getItem("user"));
+    // Estados para la venta actual (por cliente)
+    const [salePrices, setSalePrices] = useState({});
+    const [saleQuantities, setSaleQuantities] = useState({});
+    const [clientData, setClientData] = useState({
+        name: "",
+        address: "",
+        phone: "",
+        status: "VISITADO",
+        location_type: "Local",
+        amount_paid: ""
+    });
 
+    // Sesión de la ruta (acumulado de clientes)
+    const [salesSession, setSalesSession] = useState([]);
+
+    // Filtros y UI
+    const [diaSeleccionado, setDiaSeleccionado] = useState(new Date().getDay());
+    const [filtros, setFiltros] = useState({ id: "", vendedor: "", tipoCliente: "" });
+
+    const user = JSON.parse(localStorage.getItem("user"));
+    const DIAS_SEMANA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+    // --- EFECTOS ---
     useEffect(() => {
         loadPendingOrders();
     }, []);
@@ -38,7 +54,6 @@ export default function VentasPage() {
                 name: user.role === 'ADMINISTRADOR' ? "" : user.name
             };
             const data = await orderService.getOrdersHistory(queryParams);
-            // Solo mostramos lo que ya salió del almacén (DESPACHADO) pero no se ha cobrado
             setPendingOrders(data.filter(o => o.status === "DESPACHADO"));
         } catch (err) {
             alertError("Error", "No se pudieron cargar los despachos.");
@@ -47,13 +62,27 @@ export default function VentasPage() {
         }
     };
 
-    // --- ESTADÍSTICAS PARA EL DASHBOARD DE LIQUIDACIÓN ---
-    const stats = useMemo(() => {
-        const count = pendingOrders.length;
-        const totalValue = pendingOrders.reduce((acc, o) => acc + Number(o.total_amount || 0), 0);
-        return { count, totalValue };
-    }, [pendingOrders]);
+    // --- LÓGICA DE FILTRADO ---
+    const ordenesFiltradas = useMemo(() => {
+        return pendingOrders.filter(order => {
+            if (!order.created_at) return false;
+            const fechaOrden = new Date(order.created_at);
+            const coincideDia = fechaOrden.getDay() === diaSeleccionado;
+            const coincideId = order.id.toString().includes(filtros.id);
+            const coincideVendedor = order.seller_name.toLowerCase().includes(filtros.vendedor.toLowerCase());
+            const coincideTipo = order.customer_type_name.toLowerCase().includes(filtros.tipoCliente.toLowerCase());
+            return coincideDia && coincideId && coincideVendedor && coincideTipo;
+        });
+    }, [pendingOrders, diaSeleccionado, filtros]);
 
+    const stats = useMemo(() => {
+        return {
+            count: ordenesFiltradas.length,
+            totalValue: ordenesFiltradas.reduce((acc, o) => acc + Number(o.total_amount || 0), 0)
+        };
+    }, [ordenesFiltradas]);
+
+    // --- MANEJO DE SELECCIÓN Y VENTAS ---
     const handleSelectOrder = async (order) => {
         try {
             const items = await orderService.getOrderDetail(order.id);
@@ -61,101 +90,34 @@ export default function VentasPage() {
             setOrderItems(items);
 
             const initialPrices = {};
-            const initialQtys = {};
-
             items.forEach((item, index) => {
                 const uniqueKey = `${item.product_id}-${index}`;
                 initialPrices[uniqueKey] = item.unit_price;
-                initialQtys[uniqueKey] = item.quantity;
             });
-
             setSalePrices(initialPrices);
-            setSaleQuantities(initialQtys);
-            setAmountPaid(0);
+            setSaleQuantities({});
         } catch (err) {
             alertError("Error", "No se pudo cargar el detalle del despacho.");
         }
     };
 
-    const handlePriceChange = (uniqueKey, newValue) => {
-        const val = newValue === "" ? "" : Number(newValue);
-        setSalePrices(prev => ({ ...prev, [uniqueKey]: val }));
-    };
-
-    const handleQuantityChange = (uniqueKey, newValue, maxQty) => {
+    const handleQuantityChange = (uniqueKey, newValue, disponible) => {
         if (newValue === "") {
             setSaleQuantities(prev => ({ ...prev, [uniqueKey]: "" }));
             return;
         }
         const val = Number(newValue);
-        if (val > maxQty) {
-            alertError("Límite excedido", `Solo se despacharon ${maxQty} unidades.`);
-            setSaleQuantities(prev => ({ ...prev, [uniqueKey]: maxQty }));
-        } else if (val < 0) {
-            setSaleQuantities(prev => ({ ...prev, [uniqueKey]: 0 }));
+        if (val > disponible) {
+            alertError(`Solo tienes ${disponible} en stock`);
+            setSaleQuantities(prev => ({ ...prev, [uniqueKey]: disponible }));
         } else {
             setSaleQuantities(prev => ({ ...prev, [uniqueKey]: val }));
         }
     };
 
-    const totalSale = useMemo(() => {
-        return orderItems.reduce((acc, item, index) => {
-            const uniqueKey = `${item.product_id}-${index}`;
-            const qty = Number(saleQuantities[uniqueKey]) || 0;
-            const price = Number(salePrices[uniqueKey]) || 0;
-            return acc + (qty * price);
-        }, 0);
-    }, [salePrices, saleQuantities, orderItems]);
-
-    const balanceDue = totalSale - amountPaid;
-
-    const handleConfirmSale = async () => {
-        for (let i = 0; i < orderItems.length; i++) {
-            const item = orderItems[i];
-            const uniqueKey = `${item.product_id}-${i}`;
-            const currentPrice = Number(salePrices[uniqueKey]);
-            if (currentPrice < item.unit_price) {
-                alertError("Precio Insuficiente", `${item.product_name} no puede venderse bajo costo base.`);
-                return;
-            }
-        }
-
-        const saleData = {
-            order_id: selectedOrder.id,
-            seller_name: selectedOrder.seller_name.trim(),
-            customer_name: selectedOrder.customer_name,
-            total_amount: totalSale,
-            amount_paid: amountPaid,
-            items: orderItems.map((item, index) => {
-                const uniqueKey = `${item.product_id}-${index}`;
-                return {
-                    product_id: item.product_id,
-                    product_name: item.product_name,
-                    quantity: Number(saleQuantities[uniqueKey]),
-                    unit_price: Number(salePrices[uniqueKey]),
-                    total_price: Number(saleQuantities[uniqueKey]) * Number(salePrices[uniqueKey])
-                };
-            })
-        };
-
-        try {
-            await saleService.createSale(saleData);
-            alertSuccess("Completado", "Venta liquidada con éxito.");
-            setSelectedOrder(null);
-            loadPendingOrders();
-        } catch (err) {
-            alertError("Error", "Error al procesar la liquidación.");
-        }
-    };
-    // Estados adicionales
-    const [clientData, setClientData] = useState({ name: "", address: "", phone: "", status: "VISITADO" });
-    const [salesSession, setSalesSession] = useState([]); // Historial de la ruta actual
-
     const registrarVentaLocal = () => {
-        // 1. Validaciones básicas
-        if (!clientData.name) return alertError("El nombre del cliente es obligatorio");
+        if (!clientData.name) return alertError("Error", "El nombre del cliente es obligatorio");
 
-        // 2. Crear el objeto de items vendidos en esta parada
         const itemsVendidos = orderItems.map((item, index) => {
             const key = `${item.product_id}-${index}`;
             const qty = Number(saleQuantities[key]) || 0;
@@ -163,32 +125,73 @@ export default function VentasPage() {
             return { ...item, qty, price, total: qty * price };
         }).filter(i => i.qty > 0);
 
-        if (itemsVendidos.length === 0 && clientData.status === "VISITADO") {
-            return alertError("No has ingresado productos para vender");
+        if (itemsVendidos.length === 0 && clientData.status !== "LLESO") {
+            return alertError("Error", "Debes ingresar al menos un producto o marcar como LLESO");
         }
 
-        // 3. Guardar en la lista temporal de la sesión
+        const totalVenta = itemsVendidos.reduce((acc, i) => acc + i.total, 0);
+        const abonoEntregado = clientData.amount_paid === "" ? totalVenta : Number(clientData.amount_paid);
+
         const nuevaVenta = {
             cliente: { ...clientData },
             items: itemsVendidos,
-            total: itemsVendidos.reduce((acc, i) => acc + i.total, 0),
+            total: totalVenta,
+            pagado: isNaN(abonoEntregado) ? 0 : abonoEntregado,
             hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
         setSalesSession([...salesSession, nuevaVenta]);
-
-        // 4. Limpiar formulario para el siguiente cliente
-        setClientData({ name: "", address: "", phone: "", status: "VISITADO" });
+        // Reset campos
+        setClientData({ name: "", address: "", phone: "", status: "VISITADO", location_type: "Local", amount_paid: "" });
         setSaleQuantities({});
-        alertSuccess(`Registro de ${nuevaVenta.cliente.name} guardado`);
+    };
+
+    const handleConfirmSale = async () => {
+        setLoading(true);
+        try {
+            const payload = {
+                order_id: selectedOrder.id,
+                sales: salesSession.map(v => ({
+                    seller_name: selectedOrder.seller_name,
+                    customer_name: v.cliente.name,
+                    customer_address: v.cliente.address,
+                    customer_phone: v.cliente.phone,
+                    location_type: v.cliente.location_type,
+                    visit_status: v.cliente.status,
+                    total_amount: v.total,
+                    amount_paid: v.pagado,
+                    items: v.items.map(i => ({
+                        product_id: i.product_id,
+                        product_name: i.product_name,
+                        quantity: i.qty,
+                        unit_price: i.price,
+                        total_price: i.total
+                    }))
+                }))
+            };
+
+            await saleService.createSale(payload);
+            alertSuccess("Ruta Sincronizada", "Liquidación registrada exitosamente.");
+            limpiarYSalir();
+            loadPendingOrders();
+        } catch (err) {
+            alertError("Error", "No se pudo sincronizar la liquidación.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const limpiarYSalir = () => {
+        setSelectedOrder(null);
+        setSalesSession([]);
+        setSaleQuantities({});
+        setClientData({ name: "", address: "", phone: "", status: "VISITADO", location_type: "Local", amount_paid: "" });
     };
 
     const handleVolver = () => {
-        // Si hay algo escrito en las cantidades o ya hay clientes registrados
-        const hayProgreso = Object.keys(saleQuantities).length > 0 || salesSession.length > 0;
-
+        const hayProgreso = Object.keys(saleQuantities).some(k => saleQuantities[k] > 0) || salesSession.length > 0;
         if (hayProgreso) {
-            if (window.confirm("Tienes datos sin guardar en esta ruta. ¿Seguro que quieres salir y perder los cambios?")) {
+            if (window.confirm("Tienes datos sin guardar. ¿Seguro que quieres salir?")) {
                 limpiarYSalir();
             }
         } else {
@@ -196,128 +199,113 @@ export default function VentasPage() {
         }
     };
 
-    const limpiarYSalir = () => {
-        setSelectedOrder(null);
-        setSalesSession([]); // Limpia las ventas del día
-        setSaleQuantities({}); // Limpia lo que estaba escribiendo
-        setClientData({ name: "", address: "", phone: "", status: "VISITADO" });
-    };
+    // --- RENDERS AUXILIARES ---
+    if (loading) return <div className="inv-page">Cargando...</div>;
 
-    if (loading) return <div className="inv-page">Cargando despachos...</div>;
+    const formatFechaConDia = (fechaStr) => {
+        const fecha = new Date(fechaStr);
+        return fecha.toLocaleDateString('es-ES', { 
+            day: '2-digit', month: '2-digit', year: 'numeric', weekday: 'long' 
+        }).toUpperCase();
+    };
 
     return (
         <div className="inv-page full-layout">
-
-
             {!selectedOrder ? (
+                /* VISTA: LISTADO DE RUTAS */
                 <div className="ventas-container">
                     <div className="ventas-header">
-                        <h1>{user.role === 'ADMINISTRADOR' ? 'Control de Despachos' : 'Mis Rutas de Trabajo'}</h1>
-                        <p className="text-muted">
-                            {user.role === 'ADMINISTRADOR' ? 'Gestión global de ventas y vendedores' : 'Listado de entregas para hoy'}
-                        </p>
+                        <h1>{user.role === 'ADMINISTRADOR' ? 'Control de Ventas' : 'Mis Rutas de Trabajo'}</h1>
+                    </div>
+
+                    <div className="dias-selector-container">
+                        {DIAS_SEMANA.map((dia, index) => (
+                            <button
+                                key={dia}
+                                onClick={() => setDiaSeleccionado(index)}
+                                className={`btn-dia ${diaSeleccionado === index ? 'active' : ''}`}
+                            >
+                                {dia}
+                            </button>
+                        ))}
                     </div>
 
                     <div className="stats-grid">
                         <div className="stat-card blue-border">
-                            <div className="stat-icon blue-bg"><Clock size={24} /></div>
+                            <Clock size={24} />
                             <div className="stat-info">
-                                <span className="label">{user.role === 'ADMINISTRADOR' ? 'Despachos Activos' : 'Pendientes'}</span>
+                                <span className="label">Rutas</span>
                                 <h2 className="value">{stats.count}</h2>
                             </div>
                         </div>
                         <div className="stat-card green-border">
-                            <div className="stat-icon green-bg"><BarChart3 size={24} /></div>
+                            <BarChart3 size={24} />
                             <div className="stat-info">
-                                <span className="label">{user.role === 'ADMINISTRADOR' ? 'Cartera Total' : 'Mi Recaudo'}</span>
+                                <span className="label">Total Estimado</span>
                                 <h2 className="value">${stats.totalValue.toLocaleString()}</h2>
                             </div>
                         </div>
                     </div>
 
                     <div className="table-wrapper">
-                        <div className="table-title">
-                            <h3>{user.role === 'ADMINISTRADOR' ? 'Listado General de Vendedores' : 'Rutas Asignadas'}</h3>
-                        </div>
-                        <div className="responsive-container">
-                            <table className="ventas-table">
-                                <thead>
-                                    <tr style={{ background: '#f8fafc' }}>
-                                        <th>ID</th>
-                                        {user.role === 'ADMINISTRADOR' && <th>Vendedor</th>}
-                                        <th>Cliente</th>
-                                        <th style={{ textAlign: 'right' }}>Total Estimado</th>
-                                        <th style={{ textAlign: 'center' }}>Acción</th>
+                        {/* Filtros aquí... */}
+                        <table className="ventas-table">
+                            <thead>
+                                <tr style={{ background: '#be2b48', color: 'white' }}>
+                                    <th>ID</th>
+                                    <th>Fecha</th>
+                                    {user.role === 'ADMINISTRADOR' && <th>Vendedor</th>}
+                                    <th style={{ textAlign: 'right' }}>Total</th>
+                                    <th style={{ textAlign: 'center' }}>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {ordenesFiltradas.map(o => (
+                                    <tr key={o.id}>
+                                        <td><span className="badge-id">#{o.id}</span></td>
+                                        <td>{formatFechaConDia(o.created_at)}</td>
+                                        {user.role === 'ADMINISTRADOR' && <td>{o.seller_name}</td>}
+                                        <td className="text-right font-bold">${Number(o.total_amount).toLocaleString()}</td>
+                                        <td className="text-center">
+                                            <button className="btn-action-outline" onClick={() => handleSelectOrder(o)}>
+                                                Hacer Venta <ArrowRight size={16} />
+                                            </button>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    {pendingOrders.map(o => (
-                                        <tr key={o.id}>
-                                            <td><span className="badge-id">#{o.id}</span></td>
-                                            <td className="text-muted">
-                                                {o.created_at ? new Date(o.created_at).toLocaleDateString() : 'N/A'}
-                                            </td>
-                                            {user.role === 'ADMINISTRADOR' && (
-                                                <td className="seller-cell">
-                                                    <div className="user-avatar-mini">
-                                                        <User size={14} /> <span>{o.seller_name}</span>
-                                                    </div>
-                                                </td>
-                                            )}
-                                            <td className="text-right font-bold">
-                                                ${Number(o.total_amount).toLocaleString()}
-                                            </td>
-                                            <td className="text-center">
-                                                <button className="btn-main" onClick={() => handleSelectOrder(o)}>
-                                                    Hacer Venta <ArrowRight size={16} />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             ) : (
+                /* VISTA: LIQUIDACIÓN DE RUTA (DETALLE) */
                 <div className="order-details-container">
-                    {/* BOTÓN VOLVER Y TÍTULO */}
-                    {/* --- AGREGAR ESTO JUSTO AQUÍ --- */}
-                    <div style={{ marginBottom: '15px' }}>
-                        <button
-                            onClick={handleVolver}
-                            className="btn-back-list"
-                            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                        >
-                            <ChevronLeft size={20} /> Volver a mis rutas
-                        </button>
-                    </div>
+                    <button onClick={handleVolver} className="btn-back-list">
+                        <ChevronLeft size={20} /> Volver a mis rutas
+                    </button>
+
                     <div className="vendedores-layout">
-                        {/* COLUMNA IZQUIERDA: STOCK REAL EN CAMIÓN */}
+                        {/* Sidebar: Stock en Camión */}
                         <div className="camion-sidebar">
                             <h4><Truck size={20} /> STOCK DISPONIBLE</h4>
                             <div className="stock-list">
                                 {orderItems.map(item => {
-                                    const vendidoTotal = salesSession.reduce((acc, sale) => {
+                                    const vendido = salesSession.reduce((acc, sale) => {
                                         const prod = sale.items.find(i => i.product_id === item.product_id);
                                         return acc + (prod ? prod.qty : 0);
                                     }, 0);
-                                    const disponible = item.quantity - vendidoTotal;
-
+                                    const disponible = item.quantity - vendido;
                                     return (
                                         <div key={item.product_id} className={`stock-item ${disponible === 0 ? 'exhausted' : ''}`}>
                                             <span>{item.product_name}</span>
-                                            <div className="qty-badge">
-                                                <strong>{disponible}</strong> <small>und</small>
-                                            </div>
+                                            <div className="qty-badge"><strong>{disponible}</strong></div>
                                         </div>
                                     );
                                 })}
                             </div>
-
-                            {/* HISTORIAL DE VISITAS (Abajo del stock) */}
+                            
                             <div className="visit-history">
-                                <h5>HISTORIAL DE HOY</h5>
+                                <h5>HISTORIAL DE HOY ({salesSession.length})</h5>
                                 {salesSession.map((s, idx) => (
                                     <div key={idx} className="visit-card">
                                         <div className="visit-info">
@@ -330,76 +318,55 @@ export default function VentasPage() {
                             </div>
                         </div>
 
-                        {/* COLUMNA DERECHA: REGISTRO DE VENTA */}
+                        {/* Formulario de Venta */}
                         <div className="venta-main">
                             <div className="client-header-form">
-                                <input
-                                    type="text" placeholder="Nombre del Cliente" className="main-input"
-                                    value={clientData.name} onChange={(e) => setClientData({ ...clientData, name: e.target.value })}
-                                />
-                                <input
-                                    type="text" placeholder="Dirección" className="main-input"
-                                    value={clientData.address} onChange={(e) => setClientData({ ...clientData, address: e.target.value })}
-                                />
-                                <input
-                                    type="text" placeholder="Teléfono" className="main-input"
-                                    value={clientData.phone} onChange={(e) => setClientData({ ...clientData, phone: e.target.value })}
-                                />
-                                <select
-                                    className="status-select"
-                                    value={clientData.status} onChange={(e) => setClientData({ ...clientData, status: e.target.value })}
-                                >
-                                    <option value="VISITADO">VISITADO (Venta)</option>
-                                    <option value="NO VISITADO">NO VISITADO (Cerrado/No estaba)</option>
+                                <input type="text" placeholder="Cliente" value={clientData.name} onChange={e => setClientData({...clientData, name: e.target.value})} className="main-input" />
+                                <input type="text" placeholder="Dirección" value={clientData.address} onChange={e => setClientData({...clientData, address: e.target.value})} className="main-input" />
+                                <select value={clientData.status} onChange={e => setClientData({...clientData, status: e.target.value})} className="status-select">
+                                    <option value="VISITADO">VISITADO</option>
+                                    <option value="REPASO">REPASO</option>
+                                    <option value="LLESO">LLESO</option>
                                 </select>
+                                <input type="number" placeholder="Abonó $" value={clientData.amount_paid} onChange={e => setClientData({...clientData, amount_paid: e.target.value})} className="main-input highlight-money" />
                             </div>
 
                             <table className="matrix-table">
                                 <thead>
                                     <tr>
                                         <th>PRODUCTO</th>
-                                        <th width="100">VENDER</th>
-                                        <th width="150">PRECIO UNIT.</th>
-                                        <th>SUBTOTAL</th>
+                                        <th width="100">CANT.</th>
+                                        <th width="120">PRECIO</th>
+                                        <th>TOTAL</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {orderItems.map((item, index) => {
-                                        const uniqueKey = `${item.product_id}-${index}`;
-                                        const vendidoTotal = salesSession.reduce((acc, sale) => {
-                                            const prod = sale.items.find(i => i.product_id === item.product_id);
-                                            return acc + (prod ? prod.qty : 0);
-                                        }, 0);
-                                        const disponible = item.quantity - vendidoTotal;
+                                        const key = `${item.product_id}-${index}`;
+                                        const vendido = salesSession.reduce((acc, s) => acc + (s.items.find(i => i.product_id === item.product_id)?.qty || 0), 0);
+                                        const disponible = item.quantity - vendido;
 
                                         return (
-                                            <tr key={uniqueKey}>
+                                            <tr key={key}>
                                                 <td>{item.product_name}</td>
                                                 <td>
-                                                    <input
-                                                        type="number"
-                                                        className={`input-cell ${Number(saleQuantities[uniqueKey]) > disponible ? 'error-stock' : ''}`}
-                                                        placeholder="0"
-                                                        max={disponible} // BLOQUEO VISUAL
-                                                        value={saleQuantities[uniqueKey] ?? ""}
-                                                        onChange={(e) => {
-                                                            const val = Number(e.target.value);
-                                                            if (val > disponible) {
-                                                                alertError(`Solo tienes ${disponible} en stock`);
-                                                                return;
-                                                            }
-                                                            handleQuantityChange(uniqueKey, e.target.value, disponible);
-                                                        }}
+                                                    <input 
+                                                        type="number" 
+                                                        value={saleQuantities[key] ?? ""} 
+                                                        onChange={e => handleQuantityChange(key, e.target.value, disponible)}
+                                                        className="input-cell"
                                                     />
                                                 </td>
                                                 <td>
-                                                    <input type="number" className="input-cell price"
-                                                        value={salePrices[uniqueKey] ?? ""}
-                                                        onChange={(e) => handlePriceChange(uniqueKey, e.target.value)}
+                                                    <input 
+                                                        type="number" 
+                                                        value={salePrices[key] ?? ""} 
+                                                        onChange={e => setSalePrices({...salePrices, [key]: e.target.value})}
+                                                        className="input-cell"
                                                     />
                                                 </td>
                                                 <td className="font-bold">
-                                                    ${((Number(saleQuantities[uniqueKey]) || 0) * (Number(salePrices[uniqueKey]) || 0)).toLocaleString()}
+                                                    ${((Number(saleQuantities[key]) || 0) * (Number(salePrices[key]) || 0)).toLocaleString()}
                                                 </td>
                                             </tr>
                                         );
@@ -411,10 +378,8 @@ export default function VentasPage() {
                                 <button className="btn-add-client" onClick={registrarVentaLocal}>
                                     REGISTRAR CLIENTE Y SIGUIENTE
                                 </button>
-
-                                {/* Solo se habilita si ya hay ventas registradas */}
-                                <button
-                                    className="btn-finalizar-ruta"
+                                <button 
+                                    className="btn-finalizar-ruta" 
                                     disabled={salesSession.length === 0}
                                     onClick={handleConfirmSale}
                                 >
@@ -423,7 +388,6 @@ export default function VentasPage() {
                             </div>
                         </div>
                     </div>
-
                 </div>
             )}
         </div>
