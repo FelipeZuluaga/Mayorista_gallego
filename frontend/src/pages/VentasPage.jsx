@@ -11,6 +11,7 @@ import {
     Clock,
     BarChart3
 } from "lucide-react";
+import "../styles/ventas.css";
 
 export default function VentasPage() {
     const [pendingOrders, setPendingOrders] = useState([]);
@@ -27,17 +28,15 @@ export default function VentasPage() {
     const DIAS_SEMANA = [
         "Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"
     ];
-
-
     // Dentro del componente VentasPage:
     const [diaSeleccionado, setDiaSeleccionado] = useState(new Date().getDay());
-
     // Agrega este nuevo estado para los filtros
     const [filtros, setFiltros] = useState({
         id: "",
         vendedor: "",
         tipoCliente: ""
     });
+
     useEffect(() => {
         loadPendingOrders();
     }, []);
@@ -270,12 +269,11 @@ export default function VentasPage() {
         "LLESO": "#e74c3c"     // Rojo
     };
     return (
-        <div className="inv-page full-layout">
-
-
+        <div>
             {!selectedOrder ? (
-                <div className="ventas-container">
-                    <div className="ventas-header">
+                <div>
+                    {/* --- PRIMERA PARTE TITULOS --- */}
+                    <div>
                         <h1>
                             {user.role === 'ADMINISTRADOR' ? 'Control de Ventas' : 'Mis Rutas de Trabajo'}
                         </h1>
@@ -283,35 +281,19 @@ export default function VentasPage() {
                             {user.role === 'ADMINISTRADOR' ? 'Gestión global de ventas y vendedores' : 'Listado de entregas para hoy'}
                         </p>
                     </div>
-                    <div className="dias-selector-container" style={{
-                        display: 'flex',
-                        gap: '10px',
-                        marginBottom: '20px',
-                        overflowX: 'auto',
-                        padding: '10px 0'
-                    }}>
+                    {/* --- TEMA DE LOS DIAS --- */}
+                    <div className="dias-selector-container">
                         {DIAS_SEMANA.map((dia, index) => (
                             <button
                                 key={dia}
                                 onClick={() => setDiaSeleccionado(index)}
-                                className={`btn-dia ${diaSeleccionado === index ? 'active' : ''}`}
-                                style={{
-                                    padding: '10px 20px',
-                                    borderRadius: '20px',
-                                    border: '1px solid #e2e8f0',
-                                    backgroundColor: diaSeleccionado === index ? '#df103a' : 'white',
-                                    color: diaSeleccionado === index ? 'white' : '#64748b',
-                                    cursor: 'pointer',
-                                    fontWeight: 'bold',
-                                    whiteSpace: 'nowrap',
-                                    transition: 'all 0.2s'
-                                }}
+                                className={`btn-dia ${diaSeleccionado === index ? 'selected' : ''}`}
                             >
                                 {dia}
                             </button>
                         ))}
                     </div>
-
+                    {/* --- METRICAS Y DEMAS --- */}
                     <div className="stats-grid">
                         <div className="stat-card blue-border">
                             <div className="stat-icon blue-bg"><Clock size={24} /></div>
@@ -330,17 +312,9 @@ export default function VentasPage() {
                     </div>
 
                     <div className="table-wrapper">
-                        <div className="filtros-container" style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                            gap: '80px',
-                            padding: '15px',
-                            background: '#f1f5f9',
-                            borderRadius: '8px',
-                            marginBottom: '15px'
-                        }}>
+                        <div className="filtros-container">
                             <div className="filter-group">
-                                <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b' }}>Buscar ID</label>
+                                <label className="label-filtro" >Buscar ID</label>
                                 <input
                                     type="text"
                                     placeholder="# ej: 90"
@@ -353,7 +327,7 @@ export default function VentasPage() {
                             {user.role === 'ADMINISTRADOR' && (
                                 <>
                                     <div className="filter-group">
-                                        <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b' }}>Vendedor</label>
+                                        <label className="label-filtro">Vendedor</label>
                                         <input
                                             type="text"
                                             placeholder="Nombre..."
@@ -363,7 +337,7 @@ export default function VentasPage() {
                                         />
                                     </div>
                                     <div className="filter-group">
-                                        <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b' }}>Tipo Cliente</label>
+                                        <label className="label-filtro">Tipo Cliente</label>
                                         <select
                                             className="status-select"
                                             value={filtros.tipoCliente}
@@ -382,7 +356,7 @@ export default function VentasPage() {
 
                             <button
                                 onClick={() => setFiltros({ id: "", vendedor: "", tipoCliente: "" })}
-                                style={{ alignSelf: 'end', padding: '10px', fontSize: '12px', cursor: 'pointer', background: '#dbcdce', border: 'none', borderRadius: '5px' }}
+                                className="btn-clear-filters"
                             >
                                 Limpiar Filtros
                             </button>
@@ -393,7 +367,7 @@ export default function VentasPage() {
                         <div className="responsive-container">
                             <table className="ventas-table">
                                 <thead>
-                                    <tr style={{ background: '#be2b48' }}>
+                                    <tr className="tr-table">
                                         <th>ID</th>
                                         <th>Fecha</th>
                                         {user.role === 'ADMINISTRADOR'
@@ -402,8 +376,8 @@ export default function VentasPage() {
                                         {user.role === 'ADMINISTRADOR'
                                             && <th>Tipo Cliente</th>
                                         }
-                                        <th style={{ textAlign: 'right' }}>Total Estimado</th>
-                                        <th style={{ textAlign: 'center' }}>Acción</th>
+                                        <th className="th-table-center">Total Estimado</th>
+                                        <th className="th-table-center">Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -411,7 +385,7 @@ export default function VentasPage() {
                                         ordenesFiltradas.map(o => (
                                             <tr key={o.id}>
 
-                                                <td><span className="badge-id" style={{ background: '#be2b48', color: 'white', padding: '5px 10px', borderRadius: '5px' }}>#{o.id}</span></td>
+                                                <td><span className="badge-id">#{o.id}</span></td>
 
                                                 <td>{formatFechaConDia(o.created_at)}</td>
 
@@ -432,31 +406,15 @@ export default function VentasPage() {
                                                 </td>
 
                                                 <td className="text-center">
-                                                    <button className="btn-main" onClick={() => handleSelectOrder(o)} style={{
-                                                        alignSelf: 'end',
-                                                        padding: '10px 20px',
-                                                        fontSize: '13px',
-                                                        fontWeight: '600',
-                                                        cursor: 'pointer',
-                                                        background: 'transparent',
-                                                        color: '#d71c32', // El azul de tus botones "Hacer Venta"
-                                                        border: '1px solid #d71c32',
-                                                        borderRadius: '8px',
-                                                        transition: 'all 0.2s',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        gap: '5px'
-                                                    }}>
+                                                    <button className="btn-main" onClick={() => handleSelectOrder(o)}>
                                                         Hacer Venta <ArrowRight size={16} />
                                                     </button>
                                                 </td>
-
                                             </tr>
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={user.role === 'ADMINISTRADOR' ? 5 : 4} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                                            <td colSpan={user.role === 'ADMINISTRADOR' ? 5 : 4} className="text-table-not-found">
                                                 No hay rutas programadas para el día {DIAS_SEMANA[diaSeleccionado]}
                                             </td>
                                         </tr>
@@ -468,17 +426,17 @@ export default function VentasPage() {
                 </div>
             ) : (
                 <div className="order-details-container">
-                    {/* BOTÓN VOLVER Y TÍTULO */}
-                    {/* --- AGREGAR ESTO JUSTO AQUÍ --- */}
+                    {/* --- BOTON DE VOLVER A MIS RUTAS --- */}
                     <div style={{ marginBottom: '15px' }}>
                         <button
                             onClick={handleVolver}
                             className="btn-back-list"
-                            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                         >
                             <ChevronLeft size={20} /> Volver a mis rutas
                         </button>
                     </div>
+
+
                     <div className="vendedores-layout">
                         {/* COLUMNA IZQUIERDA: STOCK REAL EN CAMIÓN */}
                         <div className="camion-sidebar">
@@ -518,13 +476,12 @@ export default function VentasPage() {
                         </div>
 
                         {/* COLUMNA DERECHA: REGISTRO DE VENTA */}
-                        <div className="venta-main">
+                        <div>
                             <div className="client-header-form">
                                 <input
                                     list="clientes-list"
                                     type="text"
                                     placeholder="Buscar o escribir nombre del cliente..."
-                                    className="main-input"
                                     value={clientData.name}
                                     onChange={(e) => {
                                         const val = e.target.value;
@@ -555,12 +512,11 @@ export default function VentasPage() {
                                     ))}
                                 </datalist>
                                 <input
-                                    type="text" placeholder="Dirección" className="main-input"
+                                    type="text" placeholder="Dirección"
                                     value={clientData.address}
                                     onChange={(e) => setClientData({ ...clientData, address: e.target.value })}
                                 />
                                 <select
-                                    className="status-select"
                                     value={clientData.location_type}
                                     onChange={(e) => setClientData({ ...clientData, location_type: e.target.value })}
                                 >
@@ -570,19 +526,14 @@ export default function VentasPage() {
                                     <option value="Otros">Otros</option>
                                 </select>
                                 <input
-                                    type="text" placeholder="Teléfono" className="main-input"
+                                    type="text" placeholder="Teléfono"
                                     value={clientData.phone}
                                     onChange={(e) => setClientData({ ...clientData, phone: e.target.value })}
                                 />
                                 <select
-                                    className="status-select"
+                                    
                                     value={clientData.status}
                                     onChange={(e) => setClientData({ ...clientData, status: e.target.value })}
-                                    style={{
-                                        border: `2px solid ${STATUS_COLORS[clientData.status] || '#ccc'}`,
-                                        fontWeight: 'bold',
-                                        transition: 'all 0.3s'
-                                    }}
                                 >
                                     <option value="VISITADO">🟢 VISITADO</option>
                                     <option value="REPASO">🟡 REPASO</option>
@@ -597,18 +548,7 @@ export default function VentasPage() {
                                     onChange={(e) => setClientData({ ...clientData, amount_paid: e.target.value })}
                                 />
                                 {clientData.deuda_previa > 0 && (
-                                    <div style={{
-                                        gridColumn: '1 / -1',
-                                        backgroundColor: '#fff5f5',
-                                        border: '1px solid #feb2b2',
-                                        color: '#c53030',
-                                        padding: '10px',
-                                        borderRadius: '8px',
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        fontSize: '14px'
-                                    }}>
+                                    <div className="alert previous-debt-warning">
                                         <span>⚠️ <strong>Este cliente tiene una deuda anterior:</strong></span>
                                         <span style={{ fontSize: '16px', fontWeight: '800' }}>
                                             ${Number(clientData.deuda_previa).toLocaleString()}
@@ -624,7 +564,7 @@ export default function VentasPage() {
                                         <th>PRODUCTO</th>
                                         <th width="100">VENDER</th>
                                         <th width="150">PRECIO UNIT.</th>
-                                        <th>SUBTOTAL</th>
+                                        <th width="150">SUBTOTAL</th>
                                     </tr>
                                 </thead>
                                 <tbody>
