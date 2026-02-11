@@ -143,24 +143,39 @@ export default function VentasHistoryPage() {
                         <thead style={{ background: '#f8fafc' }}>
                             <tr>
                                 <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase' }}>ID Venta</th>
+
                                 <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase' }}>Fecha</th>
+
                                 <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase' }}>Cliente</th>
+
                                 {user.role === "ADMINISTRADOR" && <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase' }}>Vendedor</th>}
-                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'right' }}>Total</th>
-                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'right' }}>Cobrado</th>
-                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'right' }}>Saldo</th>
+
+                                
+
+                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'right' }}>EFECTIVO RECIBIDO</th>
+
+                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'right' }}>ABONO</th>
+
+
                                 <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'center' }}>Estado</th>
+                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'right' }}>Total</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredSales.map(s => (
                                 <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                                     <td className="font-bold" style={{ color: '#10b981' }}>#{s.id}</td>
+
                                     <td style={{ color: '#64748b' }}>{new Date(s.sale_date).toLocaleDateString()}</td>
+
                                     <td style={{ fontWeight: '500' }}>{s.customer_name}</td>
+
                                     {user.role === "ADMINISTRADOR" && <td>{s.seller_name}</td>}
-                                    <td style={{ textAlign: 'right', fontWeight: '600' }}>${Number(s.total_amount).toLocaleString()}</td>
+
+                                    
                                     <td style={{ textAlign: 'right', color: '#10b981', fontWeight: '600' }}>${Number(s.amount_paid).toLocaleString()}</td>
+
+
                                     <td style={{ 
                                         textAlign: 'right', 
                                         color: s.balance_due > 0 ? '#ef4444' : '#64748b', 
@@ -180,6 +195,7 @@ export default function VentasHistoryPage() {
                                             {s.balance_due <= 0 ? 'PAGADO' : 'PENDIENTE'}
                                         </span>
                                     </td>
+                                    <td style={{ textAlign: 'right', fontWeight: '600' }}>${Number(s.total_amount).toLocaleString()}</td>
                                 </tr>
                             ))}
                         </tbody>

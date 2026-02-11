@@ -58,6 +58,7 @@ export default function VentasPage() {
             setLoading(false);
         }
     };
+    // Aquí aplicamos todos los filtros combinados
     const ordenesFiltradas = useMemo(() => {
         return pendingOrders.filter(order => {
             // 1. Filtro por Día (Ya lo tienes)
@@ -83,10 +84,12 @@ export default function VentasPage() {
     // Actualizamos también los stats para que reflejen solo el día seleccionado
     const stats = useMemo(() => {
         const count = ordenesFiltradas.length;
+
         const totalValue = ordenesFiltradas.reduce((acc, o) => acc + Number(o.total_amount || 0), 0);
         return { count, totalValue };
     }, [ordenesFiltradas]);
 
+    // Funciones para manejar la selección de orden, cambios en precios/cantidades, y confirmación de venta
     const handleSelectOrder = async (order) => {
         try {
             const items = await orderService.getOrderDetail(order.id);
@@ -111,12 +114,12 @@ export default function VentasPage() {
             alertError("Error", "No se pudo cargar el detalle del despacho.");
         }
     };
-
+    // Funciones para manejar cambios en precios y cantidades, con validaciones
     const handlePriceChange = (uniqueKey, newValue) => {
         const val = newValue === "" ? "" : Number(newValue);
         setSalePrices(prev => ({ ...prev, [uniqueKey]: val }));
     };
-
+    // Función para manejar cambios en cantidades, con validación de stock
     const handleQuantityChange = (uniqueKey, newValue, maxQty) => {
         if (newValue === "") {
             setSaleQuantities(prev => ({ ...prev, [uniqueKey]: "" }));
@@ -132,7 +135,7 @@ export default function VentasPage() {
             setSaleQuantities(prev => ({ ...prev, [uniqueKey]: val }));
         }
     };
-
+    // Cálculo del total de la venta actual y el saldo pendiente
     const totalSale = useMemo(() => {
         return orderItems.reduce((acc, item, index) => {
             const uniqueKey = `${item.product_id}-${index}`;
@@ -142,8 +145,9 @@ export default function VentasPage() {
         }, 0);
     }, [salePrices, saleQuantities, orderItems]);
 
-    const balanceDue = totalSale - amountPaid;
+    //const balanceDue = totalSale - amountPaid;
 
+    //º Función para confirmar la venta y enviar los datos al backend
     const handleConfirmSale = async () => {
         setLoading(true);
         try {
@@ -156,14 +160,17 @@ export default function VentasPage() {
                     customer_phone: v.cliente.phone,
                     location_type: v.cliente.location_type,
                     visit_status: v.cliente.status,
+
                     total_amount: v.total,
-                    amount_paid: v.pagado,
+                    amount_paid: v.pago_venta,   // CORREGIDO: antes decía pago_compra
+                    credit_amount: v.abono_deuda, // CORREGIDO: coincide con registrarVentaLocal
+
                     items: v.items.map(i => ({
                         product_id: i.product_id,
                         product_name: i.product_name,
                         quantity: i.qty,
-                        unit_price: i.price, // <-- Aquí va el precio de venta (ej: 4000)
-                        total_price: i.total || (i.qty * i.price)
+                        unit_price: i.price,
+                        total_price: i.total_price
                     }))
                 }))
             };
@@ -178,7 +185,8 @@ export default function VentasPage() {
             setLoading(false);
         }
     };
-    // Estados adicionales
+
+    // Nuevo estado para manejar los datos del cliente que se va a registrar en cada venta
     const [clientData, setClientData] = useState({
         name: "",
         address: "",
@@ -190,22 +198,23 @@ export default function VentasPage() {
     });
     const [salesSession, setSalesSession] = useState([]); // Historial de la ruta actual
 
+    // Función para registrar la venta localmente antes de confirmar con el backend
     const registrarVentaLocal = () => {
         if (!clientData.name.trim()) return alertError("Error", "Nombre de cliente requerido");
 
-        // Calcular el total de la venta actual (productos seleccionados)
-        const totalVentaActual = orderItems.reduce((acc, item) => {
-            const key = `${item.product_id}-${orderItems.indexOf(item)}`; // ajusta según tu key
+        // 1. CAPTURA CORRECTA: Leer 'amount_paid' y 'credit_amount' (que es lo que viene de los inputs)
+        const pagoDeVentaHoy = Number(clientData.amount_paid) || 0;
+        const abonoADeudaVieja = Number(clientData.credit_amount) || 0;
+
+        const totalVentaHoy = orderItems.reduce((acc, item, index) => {
+            const key = `${item.product_id}-${index}`;
             const qty = Number(saleQuantities[key]) || 0;
             const price = Number(salePrices[key]) || 0;
             return acc + (qty * price);
         }, 0);
 
-        // En registrarVentaLocal
-        const pago = Number(clientData.amount_paid) || 0; // El || 0 evita el NaN
-
-        // LÓGICA DE SALDO: (Deuda Anterior + Venta Nueva) - Pago Actual
-        const nuevoSaldoCalculado = (Number(clientData.deuda_previa) + totalVentaActual) - pago;
+        const totalDineroEntregado = pagoDeVentaHoy + abonoADeudaVieja;
+        const nuevoSaldoCalculado = (Number(clientData.deuda_previa) + totalVentaHoy) - totalDineroEntregado;
 
         const nuevaVenta = {
             cliente: { ...clientData },
@@ -213,21 +222,25 @@ export default function VentasPage() {
                 product_id: item.product_id,
                 product_name: item.product_name,
                 qty: Number(saleQuantities[`${item.product_id}-${index}`]) || 0,
-                price: Number(salePrices[`${item.product_id}-${index}`]) || 0
-            })).filter(i => i.qty > 0 || totalVentaActual === 0), // Permite abonos (venta $0)
-            total: totalVentaActual,
-            pago: pago,
-            nuevo_saldo: nuevoSaldoCalculado, // Para mostrar en el resumen lateral
+                price: Number(salePrices[`${item.product_id}-${index}`]) || 0,
+                total_price: (Number(saleQuantities[`${item.product_id}-${index}`]) || 0) * (Number(salePrices[`${item.product_id}-${index}`]) || 0)
+            })).filter(i => i.qty > 0 || totalVentaHoy === 0),
+
+            total: totalVentaHoy,
+            pago_venta: pagoDeVentaHoy,    // Guardamos con este nombre
+            abono_deuda: abonoADeudaVieja, // Guardamos con este nombre
+            nuevo_saldo: nuevoSaldoCalculado,
             hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
         setSalesSession([...salesSession, nuevaVenta]);
 
-        // Limpiar formulario para el siguiente cliente
+        // Limpiar campos (importante limpiar credit_amount)
         setClientData({
             name: "", address: "", phone: "",
             status: "REPASO", location_type: "Local",
-            amount_paid: "", deuda_previa: 0
+            amount_paid: "", credit_amount: "",
+            deuda_previa: 0
         });
         setSaleQuantities({});
     };
@@ -312,9 +325,10 @@ export default function VentasPage() {
                     </div>
 
                     <div className="table-wrapper">
-                        <div className="filtros-container">
+                        <div className="filters-row">
+                            {/* Filtro 1: Buscar ID */}
                             <div className="filter-group">
-                                <label className="label-filtro" >Buscar ID</label>
+                                <label className="label-filtro">Buscar ID</label>
                                 <input
                                     type="text"
                                     placeholder="# ej: 90"
@@ -326,6 +340,7 @@ export default function VentasPage() {
 
                             {user.role === 'ADMINISTRADOR' && (
                                 <>
+                                    {/* Filtro 2: Vendedor */}
                                     <div className="filter-group">
                                         <label className="label-filtro">Vendedor</label>
                                         <input
@@ -336,13 +351,14 @@ export default function VentasPage() {
                                             onChange={(e) => setFiltros({ ...filtros, vendedor: e.target.value })}
                                         />
                                     </div>
+
+                                    {/* Filtro 3: Tipo Cliente */}
                                     <div className="filter-group">
                                         <label className="label-filtro">Tipo Cliente</label>
                                         <select
                                             className="status-select"
                                             value={filtros.tipoCliente}
                                             onChange={(e) => setFiltros({ ...filtros, tipoCliente: e.target.value })}
-                                            style={{ marginTop: '0' }}
                                         >
                                             <option value="">Todos</option>
                                             <option value="SOCIO">SOCIO</option>
@@ -354,6 +370,7 @@ export default function VentasPage() {
                                 </>
                             )}
 
+                            {/* Botón: Limpiar */}
                             <button
                                 onClick={() => setFiltros({ id: "", vendedor: "", tipoCliente: "" })}
                                 className="btn-clear-filters"
@@ -478,138 +495,184 @@ export default function VentasPage() {
                         {/* COLUMNA DERECHA: REGISTRO DE VENTA */}
                         <div>
                             <div className="client-header-form">
-                                <input
-                                    list="clientes-list"
-                                    type="text"
-                                    placeholder="Buscar o escribir nombre del cliente..."
-                                    value={clientData.name}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
+                                {/* FILA 1: Nombre y Dirección */}
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <input
+                                            list="clientes-list"
+                                            type="text"
+                                            placeholder="NOMBRE"
+                                            className="custom-input"
+                                            value={clientData.name}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                const clientes = Array.isArray(clientesConocidos) ? clientesConocidos : [];
+                                                const clienteExistente = clientes.find(c => c.customer_name === val);
 
-                                        // Validamos que clientesConocidos sea un array antes de usar .find()
-                                        const clientes = Array.isArray(clientesConocidos) ? clientesConocidos : [];
-                                        const clienteExistente = clientes.find(c => c.customer_name === val);
+                                                if (clienteExistente) {
+                                                    setClientData({
+                                                        ...clientData,
+                                                        name: clienteExistente.customer_name,
+                                                        address: clienteExistente.customer_address,
+                                                        phone: clienteExistente.phone || "",
+                                                        location_type: clienteExistente.location_type || "Local",
+                                                        deuda_previa: clienteExistente.total_debt || 0
+                                                    });
+                                                } else {
+                                                    setClientData({ ...clientData, name: val, deuda_previa: 0 });
+                                                }
+                                            }}
+                                        />
+                                        <datalist id="clientes-list">
+                                            {Array.isArray(clientesConocidos) && clientesConocidos.map((c, i) => (
+                                                <option key={i} value={c.customer_name} />
+                                            ))}
+                                        </datalist>
+                                    </div>
 
-                                        if (clienteExistente) {
-                                            setClientData({
-                                                ...clientData,
-                                                name: clienteExistente.customer_name,
-                                                address: clienteExistente.customer_address,
-                                                phone: clienteExistente.phone || "",
-                                                location_type: clienteExistente.location_type || "Local",
-                                                deuda_previa: clienteExistente.total_debt || 0
-                                            });
-                                        } else {
-                                            setClientData({ ...clientData, name: val, deuda_previa: 0 });
-                                        }
-                                    }}
-                                />
-                                <datalist id="clientes-list">
-                                    {Array.isArray(clientesConocidos) && clientesConocidos.map((c, i) => (
-                                        <option key={i} value={c.customer_name}>
-                                            {c.customer_address} (Debe: ${Number(c.total_debt).toLocaleString()})
-                                        </option>
-                                    ))}
-                                </datalist>
-                                <input
-                                    type="text" placeholder="Dirección"
-                                    value={clientData.address}
-                                    onChange={(e) => setClientData({ ...clientData, address: e.target.value })}
-                                />
-                                <select
-                                    value={clientData.location_type}
-                                    onChange={(e) => setClientData({ ...clientData, location_type: e.target.value })}
-                                >
-                                    <option value="Local">Local</option>
-                                    <option value="Edificio">Edificio</option>
-                                    <option value="Barrio">Barrio</option>
-                                    <option value="Otros">Otros</option>
-                                </select>
-                                <input
-                                    type="text" placeholder="Teléfono"
-                                    value={clientData.phone}
-                                    onChange={(e) => setClientData({ ...clientData, phone: e.target.value })}
-                                />
-                                <select
-                                    
-                                    value={clientData.status}
-                                    onChange={(e) => setClientData({ ...clientData, status: e.target.value })}
-                                >
-                                    <option value="VISITADO">🟢 VISITADO</option>
-                                    <option value="REPASO">🟡 REPASO</option>
-                                    <option value="LLESO">🔴 LLESO</option>
-                                </select>
-                                <input
-                                    type="number"
-                                    placeholder="ABONO RECIBIDO / PAGO TOTAL"
-                                    className="main-input"
-                                    style={{ border: '2px solid #2ecc71', fontWeight: 'bold' }}
-                                    value={clientData.amount_paid}
-                                    onChange={(e) => setClientData({ ...clientData, amount_paid: e.target.value })}
-                                />
+                                    <div className="form-group">
+                                        <input
+                                            type="text"
+                                            placeholder="Dirección"
+                                            className="custom-input"
+                                            value={clientData.address}
+                                            onChange={(e) => setClientData({ ...clientData, address: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* FILA 2: Tipo, Teléfono y Estado */}
+                                <div className="form-row three-cols">
+                                    <select
+                                        className="custom-select"
+                                        value={clientData.location_type}
+                                        onChange={(e) => setClientData({ ...clientData, location_type: e.target.value })}
+                                    >
+                                        <option value="Local">🏠 Local</option>
+                                        <option value="Edificio">🏢 Edificio</option>
+                                        <option value="Barrio">🏘️ Barrio</option>
+                                        <option value="Otros">📍 Otros</option>
+                                    </select>
+
+                                    <input
+                                        type="text"
+                                        placeholder="Teléfono"
+                                        className="custom-input"
+                                        value={clientData.phone}
+                                        onChange={(e) => setClientData({ ...clientData, phone: e.target.value })}
+                                    />
+
+                                    <select
+                                        className="custom-select"
+                                        value={clientData.status}
+                                        onChange={(e) => setClientData({ ...clientData, status: e.target.value })}
+                                    >
+                                        <option value="VISITADO">🟢 VISITADO</option>
+                                        <option value="REPASO">🟡 REPASO</option>
+                                        <option value="LLESO">🔴 LLESO</option>
+                                    </select>
+                                </div>
+
+                                {/* FILA 3: Pagos (Destacados) */}
+                                <div className="form-row payments-row">
+                                    <input
+                                        type="number"
+                                        placeholder="PAGO DE COMPRA"
+                                        className="payment-input buy"
+                                        value={clientData.amount_paid}
+                                        onChange={(e) => setClientData({ ...clientData, amount_paid: e.target.value })}
+                                    />
+
+                                    <input
+                                        type="number"
+                                        placeholder="ABONO"
+                                        className="payment-input credit"
+                                        value={clientData.credit_amount}
+                                        onChange={(e) => setClientData({ ...clientData, credit_amount: e.target.value })}
+                                    />
+                                </div>
+
+                                {/* Alerta de Deuda */}
                                 {clientData.deuda_previa > 0 && (
-                                    <div className="alert previous-debt-warning">
-                                        <span>⚠️ <strong>Este cliente tiene una deuda anterior:</strong></span>
-                                        <span style={{ fontSize: '16px', fontWeight: '800' }}>
+                                    <div className="debt-alert">
+                                        <span>⚠️ <strong>Deuda anterior:</strong></span>
+                                        <span className="debt-amount">
                                             ${Number(clientData.deuda_previa).toLocaleString()}
                                         </span>
                                     </div>
                                 )}
-
                             </div>
 
-                            <table className="matrix-table">
-                                <thead>
-                                    <tr>
-                                        <th>PRODUCTO</th>
-                                        <th width="100">VENDER</th>
-                                        <th width="150">PRECIO UNIT.</th>
-                                        <th width="150">SUBTOTAL</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {orderItems.map((item, index) => {
-                                        const uniqueKey = `${item.product_id}-${index}`;
-                                        const vendidoTotal = salesSession.reduce((acc, sale) => {
-                                            const prod = sale.items.find(i => i.product_id === item.product_id);
-                                            return acc + (prod ? prod.qty : 0);
-                                        }, 0);
-                                        const disponible = item.quantity - vendidoTotal;
+                            <div className="table-container">
+                                <table className="matrix-table">
+                                    <thead>
+                                        <tr>
+                                            <th>PRODUCTO</th>
+                                            <th width="100">P.BASE</th> {/* Columna estática */}
+                                            <th className="text-center">VENDER</th>
+                                            <th className="text-center">PRECIO UNIT.</th>
+                                            <th className="text-right">SUBTOTAL</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {orderItems.map((item, index) => {
+                                            const uniqueKey = `${item.product_id}-${index}`;
+                                            const vendidoTotal = salesSession.reduce((acc, sale) => {
+                                                const prod = sale.items.find(i => i.product_id === item.product_id);
+                                                return acc + (prod ? prod.qty : 0);
+                                            }, 0);
+                                            const disponible = item.quantity - vendidoTotal;
 
-                                        return (
-                                            <tr key={uniqueKey}>
-                                                <td>{item.product_name}</td>
-                                                <td>
-                                                    <input
-                                                        type="number"
-                                                        className={`input-cell ${Number(saleQuantities[uniqueKey]) > disponible ? 'error-stock' : ''}`}
-                                                        placeholder="0"
-                                                        max={disponible} // BLOQUEO VISUAL
-                                                        value={saleQuantities[uniqueKey] ?? ""}
-                                                        onChange={(e) => {
-                                                            const val = Number(e.target.value);
-                                                            if (val > disponible) {
-                                                                alertError(`Solo tienes ${disponible} en stock`);
-                                                                return;
-                                                            }
-                                                            handleQuantityChange(uniqueKey, e.target.value, disponible);
-                                                        }}
-                                                    />
-                                                </td>
-                                                <td>
-                                                    <input type="number" className="input-cell price"
-                                                        value={salePrices[uniqueKey] ?? ""}
-                                                        onChange={(e) => handlePriceChange(uniqueKey, e.target.value)}
-                                                    />
-                                                </td>
-                                                <td className="font-bold">
-                                                    ${((Number(saleQuantities[uniqueKey]) || 0) * (Number(salePrices[uniqueKey]) || 0)).toLocaleString()}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                                            return (
+                                                <tr key={uniqueKey}>
+                                                    <td className="product-name-cell">
+                                                        {item.product_name}
+                                                        <small className="stock-info">Disp: {disponible}</small>
+                                                    </td>
+                                                    <td className="text-center">
+                                                        <span className="price-ref-tag">
+                                                            {/* Usamos Number(item.price || 0) para asegurar que siempre sea un número */}
+                                                            ${salePrices[uniqueKey] || ""}
+
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <div className="input-wrapper">
+                                                            <input
+                                                                type="number"
+                                                                className={`input-cell ${Number(saleQuantities[uniqueKey]) > disponible ? 'error-stock' : ''}`}
+                                                                placeholder="0"
+                                                                value={saleQuantities[uniqueKey] ?? ""}
+                                                                onChange={(e) => {
+                                                                    const val = Number(e.target.value);
+                                                                    if (val > disponible) {
+                                                                        alertError(`Solo tienes ${disponible} en stock`);
+                                                                        return;
+                                                                    }
+                                                                    handleQuantityChange(uniqueKey, e.target.value, disponible);
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div className="input-wrapper">
+                                                            <input
+                                                                type="number"
+                                                                className="input-cell price-input"
+                                                                value={salePrices[uniqueKey] ?? ""}
+                                                                onChange={(e) => handlePriceChange(uniqueKey, e.target.value)}
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td className="text-right subtotal-cell">
+                                                        ${((Number(saleQuantities[uniqueKey]) || 0) * (Number(salePrices[uniqueKey]) || 0)).toLocaleString()}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
 
                             {/* Debajo del aviso de deuda anterior en VentasPage.jsx */}
                             <div style={{
@@ -633,12 +696,13 @@ export default function VentasPage() {
                                     <span style={{
                                         fontSize: '20px',
                                         fontWeight: '800',
-                                        color: (Number(clientData.deuda_previa) + totalSale - (Number(clientData.amount_paid) || 0)) > 0 ? '#e53e3e' : '#38a169'
+                                        color: (Number(clientData.deuda_previa) + totalSale - (Number(clientData.amount_paid) || 0) - (Number(clientData.credit_amount) || 0)) > 0 ? '#e53e3e' : '#38a169'
                                     }}>
                                         ${(
                                             Number(clientData.deuda_previa) +
                                             totalSale -
-                                            (Number(clientData.amount_paid) || 0)
+                                            (Number(clientData.amount_paid) || 0) -
+                                            (Number(clientData.credit_amount) || 0) // Restamos el abono para ver el saldo real
                                         ).toLocaleString()}
                                     </span>
                                 </div>
@@ -646,7 +710,7 @@ export default function VentasPage() {
 
                             <div className="action-footer">
                                 <button className="btn-add-client" onClick={registrarVentaLocal}>
-                                    REGISTRAR CLIENTE Y SIGUIENTE
+                                    REGISTRAR CLIENTE - REGISTRAR COMPRA - REGISTRAR ABONO
                                 </button>
 
                                 {/* Solo se habilita si ya hay ventas registradas */}
@@ -655,7 +719,7 @@ export default function VentasPage() {
                                     disabled={salesSession.length === 0}
                                     onClick={handleConfirmSale}
                                 >
-                                    FINALIZAR LIQUIDACIÓN DEL DÍA
+                                    FINALIZAR RUTA - APLICAR VENTAS AL CLIENTE
                                 </button>
                             </div>
                         </div>

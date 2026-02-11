@@ -293,3 +293,259 @@
     font-weight: 800;
 }
 
+/* Contenedor principal de los filtros */
+.filters-container {
+    display: flex;
+    flex-wrap: wrap; /* Permite que bajen si no hay espacio */
+    gap: 20px;       /* Esto separa un input del otro horizontalmente */
+    align-items: flex-end; /* Alinea los inputs por la base */
+    margin-bottom: 20px;
+}
+/* Cada grupo (Label + Input) */
+.filter-group {
+    display: flex;
+    flex-direction: column; /* Pone el label arriba del input */
+    gap: 8px;              /* Espacio entre el label y el input */
+    min-width: 200px;      /* Evita que se colapsen y se vean pequeños */
+}
+/* Ajuste para que el input y el select tengan el mismo tamaño */
+.main-input, 
+.status-select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    height: 40px; /* Asegura que ambos midan lo mismo de alto */
+    box-sizing: border-box;
+}
+
+.label-filtro {
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+}
+/* Contenedor principal para que todo sea una fila */
+.filters-row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end; /* Alinea los inputs y el botón por la base */
+    gap: 15px;            /* Espacio horizontal entre elementos */
+    flex-wrap: nowrap;     /* Evita que se bajen a la siguiente línea */
+    padding: 10px 0;
+}
+
+/* Grupos de etiqueta + input */
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;               /* Hace que todos los inputs midan lo mismo */
+    min-width: 120px;      /* Pero que no se encojan demasiado */
+}
+
+/* Estilo para el botón de limpiar */
+.btn-clear-filters {
+    height: 40px;          /* Misma altura que tus inputs */
+    padding: 0 20px;
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;   /* Evita que el texto del botón se rompa */
+    transition: background 0.3s;
+    font-size: 14px;
+}
+
+.btn-clear-filters:hover {
+    background-color: #e2e6ea;
+}
+
+/* Asegurar que inputs y select se vean iguales */
+.main-input, .status-select {
+    height: 40px;
+    width: 100%;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}
+.client-header-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Espacio vertical entre filas */
+    padding: 20px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Dos columnas iguales */
+    gap: 15px; /* Espacio entre inputs */
+}
+
+.form-row.three-cols {
+    grid-template-columns: 1fr 1fr 1fr; /* Tres columnas para la fila del medio */
+}
+
+/* Estilo base para todos los inputs y selects */
+.custom-input, .custom-select {
+    width: 100%;
+    height: 45px;
+    padding: 0 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+}
+
+.custom-input:focus, .custom-select:focus {
+    border-color: #3498db;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+/* Estilos específicos para los campos de pago */
+.payment-input {
+    height: 45px;
+    border-radius: 8px;
+    padding: 0 12px;
+    font-weight: bold;
+    font-size: 15px;
+    box-sizing: border-box;
+}
+
+.payment-input.buy {
+    border: 2px solid #2ecc71;
+    color: #27ae60;
+}
+
+.payment-input.credit {
+    border: 2px solid #3498db;
+    color: #2980b9;
+}
+
+/* Alerta de deuda */
+.debt-alert {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #fff3cd;
+    border-left: 5px solid #ffc107;
+    padding: 12px 20px;
+    border-radius: 8px;
+    color: #856404;
+}
+
+.debt-amount {
+    font-size: 18px;
+    font-weight: 800;
+}
+/* Contenedor con sombra suave */
+.table-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    overflow: hidden;
+    margin-top: 20px;
+}
+
+.matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Inter', sans-serif;
+}
+
+/* Encabezados */
+.matrix-table thead {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #edf2f7;
+}
+
+.matrix-table th {
+    padding: 15px;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    font-weight: 700;
+}
+
+/* Filas y Celdas */
+.matrix-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+
+.product-name-cell {
+    display: flex;
+    flex-direction: column;
+    font-weight: 500;
+    color: #1e293b;
+}
+
+.stock-info {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+/* Inputs mejorados */
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.input-cell {
+    width: 80px;
+    height: 38px;
+    text-align: center;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.price-input {
+    width: 100px;
+    padding-left: 15px;
+}
+
+.currency-symbol {
+    position: absolute;
+    left: 10px;
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.input-cell:focus {
+    border-color: #3b82f6;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Subtotal y Alineaciones */
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+
+.subtotal-cell {
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 15px;
+}
+
+/* Error de Stock */
+.error-stock {
+    border-color: #ef4444 !important;
+    background-color: #fef2f2;
+    color: #b91c1c;
+}
+
+/* Efecto Hover en Filas */
+.matrix-table tbody tr:hover {
+    background-color: #fbfcfe;
+}
