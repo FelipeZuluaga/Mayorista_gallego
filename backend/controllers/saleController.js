@@ -86,16 +86,26 @@ const createSale = async (req, res) => {
 };
 const getSales = async (req, res) => {
     try {
-        // Ajustamos el SELECT para traer el nombre del cliente haciendo un JOIN
         const [rows] = await db.query(`
-            SELECT s.*, c.name AS customer_name 
+            SELECT 
+                s.id,
+                s.created_at,
+                c.address,
+                c.name,
+                s.seller_name,
+                s.total_amount,
+                s.balance_due,
+                c.total_debt,
+                s.credit_amount,
+                c.phone,
+                s.visit_status
             FROM sales s
             JOIN customers c ON s.customer_id = c.id
             ORDER BY s.created_at DESC
         `);
         res.json(rows);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 

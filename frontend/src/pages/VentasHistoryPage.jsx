@@ -1,14 +1,14 @@
 import { useEffect, useState, useMemo } from "react";
 import { saleService } from "../services/saleService";
 import { alertError } from "../services/alertService";
-import { 
-    ShoppingBag, 
-    User, 
-    Calendar, 
-    DollarSign, 
-    Search, 
-    TrendingUp, 
-    AlertCircle, 
+import {
+    ShoppingBag,
+    User,
+    Calendar,
+    DollarSign,
+    Search,
+    TrendingUp,
+    AlertCircle,
     CheckCircle,
     ArrowUpRight
 } from "lucide-react";
@@ -49,7 +49,7 @@ export default function VentasHistoryPage() {
         const totalSalesCount = sales.length;
         const totalRevenue = sales.reduce((acc, s) => acc + Number(s.amount_paid || 0), 0);
         const totalPending = sales.reduce((acc, s) => acc + Number(s.balance_due || 0), 0);
-        
+
         return { totalSalesCount, totalRevenue, totalPending };
     }, [sales]);
 
@@ -76,7 +76,7 @@ export default function VentasHistoryPage() {
 
             {/* SECCIÓN DE MÉTRICAS PROFESIONALES */}
             <div className="inventory-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                
+
                 <div className="stat-card" style={{ borderLeft: '5px solid #10b981' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
@@ -140,62 +140,72 @@ export default function VentasHistoryPage() {
 
                 <div style={{ overflowX: 'auto' }}>
                     <table className="inv-table">
-                        <thead style={{ background: '#f8fafc' }}>
+                        <thead>
                             <tr>
-                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase' }}>ID Venta</th>
-
-                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase' }}>Fecha</th>
-
-                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase' }}>Cliente</th>
-
-                                {user.role === "ADMINISTRADOR" && <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase' }}>Vendedor</th>}
-
-                                
-
-                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'right' }}>EFECTIVO RECIBIDO</th>
-
-                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'right' }}>ABONO</th>
-
-
-                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'center' }}>Estado</th>
-                                <th style={{ color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase', textAlign: 'right' }}>Total</th>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th>Dirección</th>
+                                <th>Nombre Cliente</th>
+                                <th>Nombre Vendedor</th>
+                                <th>Total Compra</th>
+                                <th>Total</th>
+                                <th>DEBE</th>
+                                <th>Abono</th>
+                                <th>Teléfono</th>
+                                <th>Estado</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredSales.map(s => (
-                                <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                    <td className="font-bold" style={{ color: '#10b981' }}>#{s.id}</td>
+                            {filteredSales.map((s) => (
+                                <tr key={s.id}>
+                                    {/* id */}
+                                    <td>#{s.id}</td>
 
-                                    <td style={{ color: '#64748b' }}>{new Date(s.sale_date).toLocaleDateString()}</td>
+                                    {/* Fecha: created_at */}
+                                    <td>{new Date(s.created_at).toLocaleDateString()}</td>
 
-                                    <td style={{ fontWeight: '500' }}>{s.customer_name}</td>
+                                    {/* Dirección: address */}
+                                    <td>{s.address}</td>
 
-                                    {user.role === "ADMINISTRADOR" && <td>{s.seller_name}</td>}
+                                    {/* Nombre cliente: name */}
+                                    <td style={{ fontWeight: '600' }}>{s.name}</td>
 
-                                    
-                                    <td style={{ textAlign: 'right', color: '#10b981', fontWeight: '600' }}>${Number(s.amount_paid).toLocaleString()}</td>
+                                    {/* Nombre vendedor: seller_name */}
+                                    <td>{s.seller_name}</td>
 
+                                    {/* total compra: total_amount */}
+                                    <td style={{ textAlign: 'right' }}>
+                                        ${Number(s.total_amount).toLocaleString()}
+                                    </td>
 
-                                    <td style={{ 
-                                        textAlign: 'right', 
-                                        color: s.balance_due > 0 ? '#ef4444' : '#64748b', 
-                                        fontWeight: '700' 
-                                    }}>
+                                    {/* Total: balance_due (Saldo en ese momento) */}
+                                    <td style={{ textAlign: 'right', backgroundColor: '#f8fafc' }}>
                                         ${Number(s.balance_due).toLocaleString()}
                                     </td>
+
+                                    {/* DEBE: total_debt (Deuda global hoy) */}
+                                    <td style={{
+                                        textAlign: 'right',
+                                        fontWeight: '800',
+                                        color: s.total_debt > 0 ? '#e53e3e' : '#38a169'
+                                    }}>
+                                        ${Number(s.total_debt || 0).toLocaleString()}
+                                    </td>
+
+                                    {/* Abono: credit_amount */}
+                                    <td style={{ textAlign: 'right', color: '#3182ce', fontWeight: 'bold' }}>
+                                        ${Number(s.credit_amount || 0).toLocaleString()}
+                                    </td>
+
+                                    {/* Teléfono: phone */}
+                                    <td>{s.phone}</td>
+
+                                    {/* estado: visit_status */}
                                     <td style={{ textAlign: 'center' }}>
-                                        <span style={{
-                                            padding: '4px 12px',
-                                            borderRadius: '20px',
-                                            fontSize: '0.75rem',
-                                            fontWeight: '600',
-                                            background: s.balance_due <= 0 ? '#dcfce7' : '#fee2e2',
-                                            color: s.balance_due <= 0 ? '#15803d' : '#b91c1c'
-                                        }}>
-                                            {s.balance_due <= 0 ? 'PAGADO' : 'PENDIENTE'}
+                                        <span className={`status-badge ${s.visit_status?.toLowerCase()}`}>
+                                            {s.visit_status}
                                         </span>
                                     </td>
-                                    <td style={{ textAlign: 'right', fontWeight: '600' }}>${Number(s.total_amount).toLocaleString()}</td>
                                 </tr>
                             ))}
                         </tbody>
