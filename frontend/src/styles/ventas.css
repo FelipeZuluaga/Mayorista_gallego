@@ -1,551 +1,467 @@
-/* =========================
-   SELECTOR DE DÍAS
-========================= */
-.dias-selector-container {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 20px;
-    overflow-x: auto;
-    padding: 10px 4px;
-}
+/* =====================================================
+   PLANILLA TIPO EXCEL PROFESIONAL
+===================================================== */
 
-.btn-dia {
-    padding: 8px 18px;
-    border-radius: 20px;
-    border: 1px solid #e2e8f0;
-    background-color: #ffffff;
-    color: #c71212;
-    cursor: pointer;
-    font-weight: 600;
-    white-space: nowrap;
-    transition: all 0.2s ease;
-}
-
-.btn-dia:hover {
-    background-color: #fef2f2;
-}
-
-.btn-dia.selected {
-    background-color: #df103a;
-    color: #ffffff;
-    border-color: #df103a;
-}
-
-/* =========================
-   FILTROS
-========================= */
-.filtros-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 20px;
-    padding: 16px;
-    background: #f8fafc;
+/* Contenedor principal: elimina el scroll lateral innecesario */
+.planilla-wrapper {
+    width: 100%;
+    overflow-x: auto; /* Permite scroll solo si es estrictamente necesario */
+    background: #ffffff;
     border-radius: 10px;
-    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    padding: 5px;
 }
 
-.label-filtro {
-    font-size: 13px;
+/* Tabla base compacta */
+.excel-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px; /* Fuente más pequeña para ver más datos */
+    table-layout: auto;
+}
+
+/* Celdas generales con menos espacio */
+.excel-table th,
+.excel-table td {
+    padding: 6px 4px; /* Padding reducido al mínimo */
+    text-align: center;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+}
+
+/* Header más delgado */
+.excel-table thead th {
+    background: #f8fafc;
+    font-weight: 700;
     color: #475569;
-    margin-bottom: 6px;
-    display: block;
-    font-weight: 500;
+    border-bottom: 2px solid #cbd5e1;
+    text-transform: uppercase;
+    font-size: 10px;
 }
 
-.btn-clear-filters {
-    padding: 8px 14px;
-    border-radius: 6px;
-    border: 1px solid #e2e8f0;
-    background-color: #ffffff;
-    color: #334155;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s ease;
+/* Ajuste de columnas de texto */
+.name-col {
+    text-align: left !important;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.btn-clear-filters:hover {
+.address-col {
+    text-align: left !important;
+    font-size: 10px;
+    color: #64748b;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Inputs más pequeños para que no ensanchen la fila */
+.excel-table input[type="number"], 
+.status-select-mini {
+    width: 100px;
+    height: 24px;
+    font-size: 11px;
+    padding: 0 2px;
+    border-radius: 4px;
+    border: 1px solid #d1d5db;
+    text-align: center;
+}
+
+/* Columna de totales resaltada */
+.total-cell {
+    font-weight: 700;
+    color: #1e293b;
     background-color: #f1f5f9;
 }
 
-/* =========================
-   TABLA
-========================= */
-.tr-table {
-    background-color: #be2b48;
-    color: #ffffff;
-}
-
-.th-table {
-    text-align: right;
-    font-weight: 600;
-}
-
-.th-table-center {
-    text-align: center;
-    font-weight: 600;
-}
-
-.text-table-not-found {
-    text-align: center;
-    padding: 40px;
-    color: #94a3b8;
-    font-size: 14px;
-}
-
-/* =========================
-   BADGES
-========================= */
-.badge-id {
-    background-color: #be2b48;
-    color: #ffffff;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 600;
-    display: inline-block;
-}
-
-/* =========================
-   BOTONES
-========================= */
-.btn-main {
-    padding: 10px 16px;
-    border-radius: 6px;
-    border: none;
-    background-color: #be2b48;
-    color: #ffffff;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
-    transition: all 0.2s ease;
-}
-
-.btn-main:hover {
-    background-color: #a8243d;
-}
-
-/* =========================
-   ALERTAS
-========================= */
-.alert {
-    border: 1px solid #fecaca;
-    background-color: #fff5f5;
-    color: #b91c1c;
-    padding: 12px 16px;
-    border-radius: 10px;
+/* Header de acciones más compacto */
+.header-actions {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 14px;
-    grid-column: 1 / -1;
-}
-.order-details-container {
-    padding: 20px;
-    background-color: #f8fafc;
-}
-.vendedores-layout {
-    display: grid;
-    grid-template-columns: 280px 1fr;
-    gap: 24px;
-    align-items: flex-start;
-}
-.camion-sidebar {
-    background: #0f172a;
-    color: white;
-    border-radius: 14px;
-    padding: 16px;
-}
-
-.camion-sidebar h4 {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    margin-bottom: 12px;
-}
-.stock-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.stock-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 13px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-}
-
-.stock-item.exhausted {
-    opacity: 0.4;
-}
-.qty-badge {
-    background: #1e293b;
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-size: 12px;
-}
-.visit-history {
-    margin-top: 20px;
-}
-
-.visit-history h5 {
-    font-size: 12px;
-    color: #cbd5f5;
     margin-bottom: 10px;
+    padding: 10px 15px;
+    background: #fff;
+    border-radius: 10px;
 }
 
-.visit-card {
-    background: #1e293b;
-    padding: 10px;
-    border-radius: 10px;
+.header-actions h3 {
+    margin: 0;
+    font-size: 16px;
+}
+/* Estilos para la lista de productos dinámica */
+.products-cell {
+    padding: 8px !important;
+    vertical-align: top;
+}
+
+.add-prod-container select {
+    width: 100%;
+    padding: 4px;
+    font-size: 11px;
+    border: 1px dashed #be2b48;
+    border-radius: 4px;
     margin-bottom: 8px;
+    cursor: pointer;
+}
+
+.prod-row-mini {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: #f8fafc;
+    padding: 4px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    border: 1px solid #e2e8f0;
+}
+
+.p-name {
+    flex: 1;
+    font-size: 11px;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.p-qty {
+    width: 45px !important;
+    height: 24px !important;
+    font-size: 11px !important;
+}
+
+.p-price {
+    width: 70px !important;
+    height: 24px !important;
+    font-size: 11px !important;
+}
+
+.btn-del-prod {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    padding: 2px;
+}
+
+.btn-del-prod:hover {
+    color: #b91c1c;
+}
+
+.total-cell {
+    font-weight: bold;
+    color: #16a34a;
+    background: #f0fdf4;
+}
+/* Modal Estilos */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    width: 90%;
+    max-width: 700px;
+    border-radius: 12px;
+    padding: 20px;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.modal-header {
     display: flex;
     justify-content: space-between;
-    font-size: 12px;
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
 }
-.client-header-form {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 14px 18px;
-    background: white;
-    padding: 16px;
-    border-radius: 14px;
-    margin-bottom: 20px;
-}
-.client-header-form input,
-.client-header-form select {
-    height: 42px;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-    padding: 0 12px;
-    font-size: 14px;
-}
-.main-input {
-    grid-column: 1 / -1;
-    border: 2px solid #22c55e;
-    font-weight: 700;
-}
-.previous-debt-warning {
-    grid-column: 1 / -1;
-    margin-top: 6px;
-}
-.matrix-table {
+
+.modal-table {
     width: 100%;
     border-collapse: collapse;
-    background: white;
-    border-radius: 14px;
-    overflow: hidden;
 }
 
-.matrix-table thead {
-    background: #f1f5f9;
-}
-
-.matrix-table th,
-.matrix-table td {
-    padding: 12px;
-    font-size: 14px;
-}
-
-.matrix-table th {
+.modal-table th {
     text-align: left;
-    font-weight: 600;
+    padding: 10px;
+    background: #f8fafc;
+    font-size: 12px;
 }
-.input-cell {
-    width: 100%;
-    height: 36px;
-    border-radius: 6px;
-    border: 1px solid #e2e8f0;
+
+.modal-table td {
+    padding: 10px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.stock-badge {
+    color: #be2b48;
+    font-weight: bold;
+}
+
+.qty-selector input {
+    width: 60px;
+    padding: 5px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
     text-align: center;
 }
-.input-cell.price {
-    text-align: right;
-}
-.error-stock {
-    border-color: #ef4444;
-    background: #fff5f5;
-}
-.totals-box {
-    margin-top: 12px;
-    padding: 16px;
-    border-radius: 14px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-}
-.total-label {
-    font-size: 12px;
-    color: #64748b;
-    font-weight: 600;
+
+.modal-footer {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 2px solid #f1f5f9;
+    padding-top: 15px;
 }
 
-.total-value {
-    font-size: 18px;
-    font-weight: 700;
-}
-.total-final {
-    text-align: right;
+.total-venta-modal span {
     font-size: 20px;
     font-weight: 800;
-}
-
-/* Contenedor principal de los filtros */
-.filters-container {
-    display: flex;
-    flex-wrap: wrap; /* Permite que bajen si no hay espacio */
-    gap: 20px;       /* Esto separa un input del otro horizontalmente */
-    align-items: flex-end; /* Alinea los inputs por la base */
-    margin-bottom: 20px;
-}
-/* Cada grupo (Label + Input) */
-.filter-group {
-    display: flex;
-    flex-direction: column; /* Pone el label arriba del input */
-    gap: 8px;              /* Espacio entre el label y el input */
-    min-width: 200px;      /* Evita que se colapsen y se vean pequeños */
-}
-/* Ajuste para que el input y el select tengan el mismo tamaño */
-.main-input, 
-.status-select {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    height: 40px; /* Asegura que ambos midan lo mismo de alto */
-    box-sizing: border-box;
-}
-
-.label-filtro {
-    font-weight: bold;
-    font-size: 14px;
-    color: #333;
-}
-/* Contenedor principal para que todo sea una fila */
-.filters-row {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-end; /* Alinea los inputs y el botón por la base */
-    gap: 15px;            /* Espacio horizontal entre elementos */
-    flex-wrap: nowrap;     /* Evita que se bajen a la siguiente línea */
-    padding: 10px 0;
-}
-
-/* Grupos de etiqueta + input */
-.filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    flex: 1;               /* Hace que todos los inputs midan lo mismo */
-    min-width: 120px;      /* Pero que no se encojan demasiado */
-}
-
-/* Estilo para el botón de limpiar */
-.btn-clear-filters {
-    height: 40px;          /* Misma altura que tus inputs */
-    padding: 0 20px;
-    background-color: #f8f9fa;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    cursor: pointer;
-    white-space: nowrap;   /* Evita que el texto del botón se rompa */
-    transition: background 0.3s;
-    font-size: 14px;
-}
-
-.btn-clear-filters:hover {
-    background-color: #e2e6ea;
-}
-
-/* Asegurar que inputs y select se vean iguales */
-.main-input, .status-select {
-    height: 40px;
-    width: 100%;
-    padding: 8px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    box-sizing: border-box;
-}
-.client-header-form {
-    display: flex;
-    flex-direction: column;
-    gap: 15px; /* Espacio vertical entre filas */
-    padding: 20px;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-}
-
-.form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr; /* Dos columnas iguales */
-    gap: 15px; /* Espacio entre inputs */
-}
-
-.form-row.three-cols {
-    grid-template-columns: 1fr 1fr 1fr; /* Tres columnas para la fila del medio */
-}
-
-/* Estilo base para todos los inputs y selects */
-.custom-input, .custom-select {
-    width: 100%;
-    height: 45px;
-    padding: 0 12px;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    font-size: 14px;
-    transition: all 0.3s ease;
-    box-sizing: border-box;
-}
-
-.custom-input:focus, .custom-select:focus {
-    border-color: #3498db;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-}
-
-/* Estilos específicos para los campos de pago */
-.payment-input {
-    height: 45px;
-    border-radius: 8px;
-    padding: 0 12px;
-    font-weight: bold;
-    font-size: 15px;
-    box-sizing: border-box;
-}
-
-.payment-input.buy {
-    border: 2px solid #2ecc71;
-    color: #27ae60;
-}
-
-.payment-input.credit {
-    border: 2px solid #3498db;
-    color: #2980b9;
-}
-
-/* Alerta de deuda */
-.debt-alert {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: #fff3cd;
-    border-left: 5px solid #ffc107;
-    padding: 12px 20px;
-    border-radius: 8px;
-    color: #856404;
-}
-
-.debt-amount {
-    font-size: 18px;
-    font-weight: 800;
-}
-/* Contenedor con sombra suave */
-.table-container {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-    overflow: hidden;
-    margin-top: 20px;
-}
-
-.matrix-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-family: 'Inter', sans-serif;
-}
-
-/* Encabezados */
-.matrix-table thead {
-    background-color: #f8f9fa;
-    border-bottom: 2px solid #edf2f7;
-}
-
-.matrix-table th {
-    padding: 15px;
-    text-transform: uppercase;
-    font-size: 12px;
-    letter-spacing: 0.05em;
-    color: #64748b;
-    font-weight: 700;
-}
-
-/* Filas y Celdas */
-.matrix-table td {
-    padding: 12px 15px;
-    border-bottom: 1px solid #f1f5f9;
-    vertical-align: middle;
-}
-
-.product-name-cell {
-    display: flex;
-    flex-direction: column;
-    font-weight: 500;
     color: #1e293b;
 }
 
-.stock-info {
-    font-size: 11px;
-    color: #94a3b8;
+.btn-save-modal {
+    background: #be2b48;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
 }
 
-/* Inputs mejorados */
-.input-wrapper {
-    position: relative;
+.btn-open-sell {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 11px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 5px;
 }
-
-.input-cell {
-    width: 80px;
-    height: 38px;
-    text-align: center;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    font-size: 14px;
+.btn-download-pdf {
+    background: #fff0f0;
+    border: 1px solid #be2b48;
+    color: #be2b48;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
     transition: all 0.2s;
 }
 
-.price-input {
-    width: 100px;
-    padding-left: 15px;
+.btn-download-pdf:hover {
+    background: #be2b48;
+    color: white;
 }
 
-.currency-symbol {
-    position: absolute;
-    left: 10px;
-    font-size: 12px;
-    color: #94a3b8;
+.btn-confirm-modal {
+    background: #2ecc71;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+}
+/* --- COLORES POR ESTADO --- */
+
+/* VISITADO - VERDE */
+.fila-visitado td:nth-child(1),
+.fila-visitado td:nth-child(2),
+.fila-visitado td:nth-child(3) {
+    background-color: #dcfce7 !important; 
+    color: #166534 !important;
 }
 
-.input-cell:focus {
-    border-color: #3b82f6;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+/* PENDIENTE - AMARILLO */
+.fila-pendiente td:nth-child(1),
+.fila-pendiente td:nth-child(2),
+.fila-pendiente td:nth-child(3) {
+    background-color: #fef9c3 !important;
+    color: #854d0e !important;
 }
 
-/* Subtotal y Alineaciones */
-.text-right { text-align: right; }
-.text-center { text-align: center; }
+/* LLESO - ROJO */
+.fila-lleso td:nth-child(1),
+.fila-lleso td:nth-child(2),
+.fila-lleso td:nth-child(3) {
+    background-color: #fee2e2 !important;
+    color: #991b1b !important;
+}
 
-.subtotal-cell {
-    font-weight: 700;
+/* --- BLOQUEO PARA LLESO --- */
+.fila-lleso td {
+    opacity: 0.7;
+}
+
+/* Inhabilitar inputs y botones, pero dejar el select libre */
+.fila-lleso input, 
+.fila-lleso button:not(.btn-download-pdf) {
+    pointer-events: none;
+    background-color: #f1f5f9 !important;
+    opacity: 0.5;
+}
+
+/* El select debe poder usarse para salir del estado LLESO */
+.fila-lleso select {
+    pointer-events: auto !important;
+    background-color: white !important;
+}
+.header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #ffffff;
+    padding: 20px 30px;
+    border-radius: 12px 12px 0 0;
+    border-bottom: 2px solid #f1f5f9;
+    margin-bottom: 0; /* Para que pegue con la tabla */
+}
+
+.header-center {
+    text-align: center;
+}
+
+.ruta-title {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #1e293b;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.ruta-subtitle {
+    margin: 4px 0 0 0;
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+/* Botón Volver */
+.btn-back-list {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-back-list:hover {
+    background: #e2e8f0;
     color: #0f172a;
-    font-size: 15px;
 }
 
-/* Error de Stock */
-.error-stock {
-    border-color: #ef4444 !important;
-    background-color: #fef2f2;
-    color: #b91c1c;
+/* Botón Guardar */
+.btn-confirm-all {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #1e293b; /* Color oscuro profesional */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s;
 }
 
-/* Efecto Hover en Filas */
-.matrix-table tbody tr:hover {
-    background-color: #fbfcfe;
+.btn-confirm-all:hover {
+    background: #0f172a;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.15);
+}
+.ruta-subtitle {
+    margin: 4px 0 0 0;
+    font-size: 0.85rem; /* Un poco más grande para legibilidad */
+    color: #475569;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    text-transform: capitalize; /* Para que el día empiece en mayúscula */
+}
+
+.ruta-subtitle svg {
+    color: #be2b48; /* Color de énfasis para el ícono del reloj */
+}
+
+.capitalize {
+    text-transform: capitalize;
+}
+
+/* Estilo adicional para que el título destaque más */
+.ruta-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.5px;
+}
+.btn-add-customer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #10b981; /* Verde esmeralda */
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    margin-right: 10px; /* Separación del botón Guardar */
+    transition: 0.2s;
+}
+
+.btn-add-customer:hover {
+    background: #059669;
+}
+
+.form-group {
+    margin-bottom: 15px;
+    text-align: left;
+}
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 5px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.customer-modal {
+    max-width: 450px !important;
 }
