@@ -22,13 +22,38 @@ const getCustomersWithBalance = async (req, res) => {
         });
     } catch (error) {
         console.error("Error al obtener clientes:", error);
-        res.status(500).json({ 
-            success: false, 
-            message: error.message 
+        res.status(500).json({
+            success: false,
+            message: error.message
         });
+    }
+};
+// Añadir al final del archivo
+const createCustomer = async (req, res) => {
+    try {
+        const { name, address, phone } = req.body;
+        // Insertamos el cliente. Nota: total_debt inicia en 0 por defecto
+        const [result] = await db.query(
+            'INSERT INTO customers (name, address, phone, total_debt, created_at) VALUES (?, ?, ?, 0, NOW())',
+            [name.toUpperCase(), address.toUpperCase(), phone]
+        );
+
+        res.json({
+            success: true,
+            data: {
+                id: result.insertId, // Importante para la planilla
+                name,
+                address,
+                phone,
+                total_debt: 0
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
 module.exports = {
-    getCustomersWithBalance
+    getCustomersWithBalance,
+    createCustomer,// No olvides exportarlo
 };

@@ -286,7 +286,8 @@
 /* VISITADO - VERDE */
 .fila-visitado td:nth-child(1),
 .fila-visitado td:nth-child(2),
-.fila-visitado td:nth-child(3) {
+.fila-visitado td:nth-child(3),
+.fila-visitado td:nth-child(4) {
     background-color: #dcfce7 !important; 
     color: #166534 !important;
 }
@@ -294,7 +295,8 @@
 /* PENDIENTE - AMARILLO */
 .fila-pendiente td:nth-child(1),
 .fila-pendiente td:nth-child(2),
-.fila-pendiente td:nth-child(3) {
+.fila-pendiente td:nth-child(3),
+.fila-pendiente td:nth-child(4) {
     background-color: #fef9c3 !important;
     color: #854d0e !important;
 }
@@ -302,7 +304,8 @@
 /* LLESO - ROJO */
 .fila-lleso td:nth-child(1),
 .fila-lleso td:nth-child(2),
-.fila-lleso td:nth-child(3) {
+.fila-lleso td:nth-child(3),
+.fila-lleso td:nth-child(4) {
     background-color: #fee2e2 !important;
     color: #991b1b !important;
 }
@@ -464,4 +467,359 @@
 
 .customer-modal {
     max-width: 450px !important;
+}
+/* Contenedor de días: Estilo Moderno */
+.dias-selector-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+}
+
+.btn-dia {
+    padding: 10px 20px;
+    border: 2px solid #e2e8f0;
+    background: white;
+    border-radius: 50px; /* Redondos */
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-dia:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.btn-dia.selected {
+    background: #be2b48; /* Tu color guinda/rojo */
+    color: white;
+    border-color: #be2b48;
+    box-shadow: 0 4px 12px rgba(190, 43, 72, 0.3);
+    transform: translateY(-2px);
+}
+
+/* Tabla de Rutas */
+.table-wrapper {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.ventas-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.ventas-table th {
+    background: #f8fafc;
+    padding: 15px;
+    text-align: left;
+    color: #475569;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid #edf2f7;
+}
+
+.ventas-table td {
+    padding: 15px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #1e293b;
+}
+
+.ventas-table tr:hover {
+    background-color: #f8fafc;
+}
+
+/* Badge de Estado (opcional si traes el estado de la orden) */
+.badge-status {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+.status-pendiente { background: #fef3c7; color: #92400e; }
+
+
+.filters-container {
+    display: flex;
+    gap: 80px;
+    background: #f8fafc;
+    padding: 15px 0px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    border: 1px solid #e2e8f0;
+    align-items: flex-end;
+}
+
+.search-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+}
+
+.search-group label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+}
+
+.input-search {
+    padding: 10px 15px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.input-search:focus {
+    border-color: #be2b48;
+    box-shadow: 0 0 0 3px rgba(190, 43, 72, 0.1);
+}
+
+.no-data {
+    text-align: center;
+    padding: 50px !important;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+.id-cell {
+    font-weight: 800;
+    color: #be2b48;
+}
+
+.amount-cell {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+/* Badge de estados */
+.badge-status {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.badge-status.pendiente { background: #fff7ed; color: #9a3412; border: 1px solid #ffedd5; }
+.badge-status.pagado { background: #f0fdf4; color: #166534; border: 1px solid #dcfce7; }
+
+/* Contenedor principal de la sección de filtros */
+.filters-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 24px; /* Más espacio interno */
+    margin: 20px 0;
+    border: 1px solid #e2e8f0;
+}
+
+/* Forzamos que los elementos NO se peguen */
+.filters-grid {
+    display: flex;
+    flex-wrap: wrap;
+    /* 50px de separación real entre cada buscador */
+    gap: 50px; 
+    align-items: flex-end;
+    justify-content: flex-start;
+}
+
+/* Grupo individual: Label + Input */
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Espacio entre el texto de arriba y el cuadro de texto */
+    width: 280px; /* Ancho fijo para que no se peguen ni se estiren */
+}
+
+/* Estilo del Input mejorado */
+.filter-input {
+    height: 45px;
+    padding: 0 15px;
+    background: #ffffff; /* Fondo blanco para que resalte del gris */
+    border: 1.5px solid #cbd5e1;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    color: #1e293b;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.03); /* Sombra muy suave */
+    transition: all 0.3s ease;
+}
+
+.filter-input:focus {
+    border-color: #be2b48;
+    box-shadow: 0 0 0 4px rgba(190, 43, 72, 0.15);
+    outline: none;
+    transform: translateY(-1px); /* Efecto de elevación al hacer clic */
+}
+
+/* Etiquetas más elegantes */
+.filter-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #475569;
+    letter-spacing: 0.5px;
+}
+/* Estilo del Botón Limpiar Filtros */
+.btn-clear-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #fff1f2; /* Un rojo muy tenue de fondo */
+    color: #be2b48; /* Tu color guinda/rojo principal */
+    border: 1.5px solid #fecdd3;
+    padding: 0 20px;
+    height: 48px; /* Misma altura que tus inputs para que queden alineados */
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-clear-filters:hover {
+    background-color: #be2b48; /* Se vuelve sólido al pasar el mouse */
+    color: white;
+    border-color: #be2b48;
+    box-shadow: 0 4px 12px rgba(190, 43, 72, 0.2);
+    transform: translateY(-2px);
+}
+
+.btn-clear-filters:active {
+    transform: translateY(0);
+}
+
+/* Opcional: Si quieres que aparezca con una pequeña animación */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.btn-clear-filters {
+    animation: fadeIn 0.3s ease-out;
+}
+/* Espaciado y Diseño del Modal Moderno */
+.modal-ventas-xl {
+    width: 95%;
+    max-width: 900px;
+    padding: 40px !important; /* Más espacio interno */
+    border-radius: 20px !important;
+}
+
+/* Encabezado separado */
+.header-info h3 {
+    margin-bottom: 15px;
+    font-size: 1.6rem;
+    color: #1e293b;
+}
+
+.client-badge {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background: #f8fafc;
+    padding: 15px;
+    border-radius: 12px;
+    border-left: 4px solid #be2b48;
+}
+
+/* Tabla con filas espaciadas */
+.modal-table-modern {
+    width: 100%;
+    border-spacing: 0 12px; /* Espacio vertical entre filas */
+    border-collapse: separate;
+    margin: 25px 0;
+}
+
+.modal-table-modern th {
+    padding: 12px;
+    color: #64748b;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+}
+
+.modal-table-modern td {
+    background: #ffffff;
+    padding: 18px 12px;
+    border-top: 1px solid #f1f5f9;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.modal-table-modern td:first-child { border-left: 1px solid #f1f5f9; border-radius: 12px 0 0 12px; }
+.modal-table-modern td:last-child { border-right: 1px solid #f1f5f9; border-radius: 0 12px 12px 0; }
+
+/* Inputs Modernos y Grandes */
+.input-modern {
+    height: 45px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0 12px;
+    font-weight: 700;
+    font-size: 1rem;
+    transition: all 0.2s;
+    width: 100px;
+}
+
+.input-modern:focus {
+    border-color: #be2b48;
+    box-shadow: 0 0 0 4px rgba(190, 43, 72, 0.1);
+    outline: none;
+}
+
+/* Footer separado */
+.modal-footer-modern {
+    margin-top: 30px;
+    padding-top: 25px;
+    border-top: 2px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.total-amount {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #be2b48;
+    margin-left: 15px;
+}
+
+.btn-confirm-final {
+    background: #be2b48;
+    color: white;
+    padding: 15px 35px;
+    border-radius: 12px;
+    font-weight: 800;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 10px 15px -3px rgba(190, 43, 72, 0.3);
+}
+/* Resaltar fila con productos seleccionados */
+.modal-table-modern tr.row-active td {
+    background-color: #fff1f2 !important; /* Un rojo muy suave */
+    border-top: 1px solid #fecdd3;
+    border-bottom: 1px solid #fecdd3;
+}
+
+.subtotal-cell.active-amount {
+    color: #be2b48;
+    font-weight: 800;
+}
+
+/* Evitar flechas en inputs de tipo número para un look más limpio */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
