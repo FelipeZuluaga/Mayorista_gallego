@@ -1,29 +1,42 @@
-import { useLocation, useNavigate } from "react-router-dom";
-import { ChevronLeft, FileText, Printer } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { ChevronLeft, Printer, MapPin, Phone } from "lucide-react";
+import { saleService } from "../services/saleService";
+import { alertError } from "../services/alertService";
 
 export default function VentasDetalleReadOnly() {
-    const { state } = useLocation();
+    const { orderId } = useParams();
     const navigate = useNavigate();
-    const sale = state?.saleData;
+    const [rutaData, setRutaData] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    if (!sale) return <p>No se encontró información de la ruta.</p>;
+    useEffect(() => {
+        const fetchPlanilla = async () => {
+            try {
+                setLoading(true);
+                // Llamamos al nuevo endpoint que creamos en el backend
+                const data = await saleService.getRutaCompleta(orderId);
+                setRutaData(data);
+            } catch (err) {
+                alertError("Error", "No se pudo cargar la planilla de la ruta.");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchPlanilla();
+    }, [orderId]);
 
-    // Simulamos la estructura de la planilla a partir de los items de la venta
-    // Nota: El backend debe devolver los items en la respuesta de historial
-    const items = sale.items || []; 
+    if (loading) return <div className="inv-page">Cargando Planilla...</div>;
 
     return (
-        <div className="planilla-excel-view" style={{ padding: '20px' }}>
-            <div className="header-actions">
-                <button onClick={() => navigate(-1)} className="btn-back-list">
+        <div className="inv-page full-layout">
+            <div className="header-actions" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                <button onClick={() => navigate(-1)} className="btn-back-list" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <ChevronLeft size={20} /> Volver al Historial
                 </button>
-                <div className="header-center">
-                    <h3 className="ruta-title">Consulta de Ruta: #{sale.id}</h3>
-                    <p className="ruta-subtitle">VENDEDOR: {sale.seller_name} | FECHA: {new Date(sale.created_at).toLocaleDateString()}</p>
-                </div>
+                <h2 style={{ margin: 0 }}>Planilla de Ruta: #{orderId}</h2>
                 <button onClick={() => window.print()} className="btn-confirm-all" style={{ background: '#64748b' }}>
-                    <Printer size={20} /> Imprimir Vista
+                    <Printer size={20} /> Imprimir
                 </button>
             </div>
 
@@ -34,50 +47,30 @@ export default function VentasDetalleReadOnly() {
                             <th>CLIENTE</th>
                             <th>DIRECCIÓN</th>
                             <th>ESTADO</th>
-                            <th>VENTA TOTAL</th>
-                            <th>PAGO RECIBIDO</th>
-                            <th>DEUDA PREVIA</th>
+                            <th>VENTA</th>
+                            <th>PAGO</th>
                             <th>ABONO</th>
-                            <th>SALDO FINAL</th>
+                            <th>TELÉFONO</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td className="name-col">{sale.name}</td>
-                            <td className="address-col">{sale.address}</td>
-                            <td><span className="badge-status">{sale.visit_status}</span></td>
-                            <td className="text-right">${Number(sale.total_amount).toLocaleString()}</td>
-                            <td className="text-right">${Number(sale.amount_paid).toLocaleString()}</td>
-                            <td className="text-right">${Number(sale.previous_debt || 0).toLocaleString()}</td>
-                            <td className="text-right" style={{ color: '#3182ce', fontWeight: 'bold' }}>
-                                ${Number(sale.credit_amount).toLocaleString()}
-                            </td>
-                            <td className={`total-cell ${sale.total_debt > 0 ? 'deuda' : 'saldo-ok'}`}>
-                                ${Number(sale.total_debt).toLocaleString()}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <h4 style={{ marginTop: '30px', color: '#475569' }}>Detalle de Productos Entregados</h4>
-            <div className="inv-card">
-                <table className="inv-table">
-                    <thead>
-                        <tr>
-                            <th>Producto</th>
-                            <th>Cantidad</th>
-                            <th>Precio Unit.</th>
-                            <th>Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {items.map((item, i) => (
-                            <tr key={i}>
-                                <td>{item.product_name}</td>
-                                <td>{item.quantity}</td>
-                                <td>${Number(item.unit_price).toLocaleString()}</td>
-                                <td>${(item.quantity * item.unit_price).toLocaleString()}</td>
+                        {rutaData.map((item, idx) => (
+                            <tr key={idx} className={`fila-${item.estado?.toLowerCase()}`}>
+                                <td className="name-col">{item.nombre_cliente}</td>
+                                <td className="address-col">
+                                    <MapPin size={12} /> {item.direccion}
+                                </td>
+                                <td>
+                                    <span className={`status-badge ${item.estado?.toLowerCase()}`}>
+                                        {item.estado}
+                                    </span>
+                                </td>
+                                <td style={{ textAlign: 'right' }}>${Number(item.venta).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>${Number(item.pago).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right', color: '#3182ce' }}>${Number(item.abono).toLocaleString()}</td>
+                                <td className="name-col">
+                                    <Phone size={12} /> {item.telefono}
+                                </td>
                             </tr>
                         ))}
                     </tbody>

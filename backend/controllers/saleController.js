@@ -87,22 +87,42 @@ const createSale = async (req, res) => {
 const getSales = async (req, res) => {
     try {
         const [rows] = await db.query(`
-            SELECT 
-                s.order_id, 
-                o.created_at, 
-                s.seller_name, 
-                SUM(s.amount_paid) as total_recaudado, 
-                SUM(s.balance_due) as total_pendiente,
-                COUNT(s.id) as total_clientes_visitados
-            FROM sales s
-            JOIN orders o ON s.order_id = o.id
-            GROUP BY s.order_id, s.seller_name
-            ORDER BY o.created_at DESC;
+            SELECT DISTINCT 
+                order_id, 
+                seller_name, 
+                credit_amount, 
+                created_at 
+            FROM sales 
+            GROUP BY order_id
+            ORDER BY created_at DESC
         `);
         res.json(rows);
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+const getRutaCompleta = async (req, res) => {
+    const { orderId } = req.params;
+    try {
+        const [rows] = await db.query(`
+            SELECT 
+                s.order_id,
+                c.name AS nombre_cliente,
+                c.address AS direccion,
+                s.visit_status AS estado,
+                s.total_amount AS venta,
+                s.amount_paid AS pago,
+                s.credit_amount AS abono,
+                c.phone AS telefono
+            FROM sales s
+            JOIN customers c ON s.customer_id = c.id
+            WHERE s.order_id = ?
+            ORDER BY s.id ASC
+        `, [orderId]);
 
-module.exports = { createSale, getSales};
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+module.exports = { createSale, getSales, getRutaCompleta };

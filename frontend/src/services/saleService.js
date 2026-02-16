@@ -28,4 +28,12 @@ export const saleService = {
             throw error.response?.data?.message || "Error al obtener el historial de ventas";
         }
     },
+    getRutaCompleta: async (orderId) => {
+        try {
+            const response = await api.get(`/sales/ruta-completa/${orderId}`);
+            return response.data;
+        } catch (error) {
+            throw error.response?.data?.message || "Error al obtener la planilla de la ruta";
+        }
+    },
 };

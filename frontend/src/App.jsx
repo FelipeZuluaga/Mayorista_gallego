@@ -117,7 +117,7 @@ export default function AppRouter() {
           }
         />
         <Route
-          path="/ventas-detalle/:id"
+          path="/ventas-detalle/:orderId"
           element={
             <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO", "NO_SOCIO"]}>
               <MainLayout>
