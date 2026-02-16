@@ -9,6 +9,8 @@ import DespachoPage from "./pages/DespachoPage.jsx";
 import PedidosPage from "./pages/PedidosPage.jsx";
 import VentasPage from "./pages/VentasPage.jsx";
 import VentasHistoryPage from "./pages/VentasHistoryPage.jsx";
+import DevolucionesPage from "./pages/DevolucionesPage.jsx";
+
 export default function AppRouter() {
   return (
     <BrowserRouter>
@@ -76,6 +78,16 @@ export default function AppRouter() {
             <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO", "NO_SOCIO"]}>
               <MainLayout>
                 <VentasPage />
+              </MainLayout>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/devoluciones"
+          element={
+            <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO", "NO_SOCIO"]}>
+              <MainLayout>
+                <DevolucionesPage />
               </MainLayout>
             </RoleRoute>
           }

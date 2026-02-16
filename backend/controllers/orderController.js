@@ -249,10 +249,45 @@ const updateOrderItems = async (req, res) => {
         if (connection) connection.release();
     }
 };
+// backend/controllers/orderController.js
+
+const processReturn = async (req, res) => {
+    const { order_id, items } = req.body; // items: [{product_id, quantity}]
+    const connection = await db.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        for (const item of items) {
+            if (item.quantity > 0) {
+                // Devolver el sobrante al stock general de la tabla products
+                await connection.query(
+                    "UPDATE products SET stock = stock + ? WHERE id = ?",
+                    [item.quantity, item.product_id]
+                );
+            }
+        }
+
+        // Cambiar el estado de la orden a 'FINALIZADO' o 'LIQUIDADO'
+        await connection.query(
+            "UPDATE orders SET status = 'LIQUIDADO' WHERE id = ?", 
+            [order_id]
+        );
+
+        await connection.commit();
+        res.json({ success: true, message: "Inventario liquidado y stock devuelto al almacén." });
+    } catch (error) {
+        await connection.rollback();
+        res.status(500).json({ success: false, message: error.message });
+    } finally {
+        connection.release();
+    }
+};
 module.exports = {
     createOrder,
     getOrdersByRole,
     getOrderDetail,
     deleteOrder,
+    processReturn,
     updateOrderItems
 };

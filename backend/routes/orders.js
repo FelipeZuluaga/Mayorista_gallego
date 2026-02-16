@@ -21,4 +21,10 @@ router.put('/update-full/:id', orderController.updateOrderItems);
 
 // ELIMINACIÓN: Borra el pedido y restaura el stock al inventario
 router.delete('/delete/:id', orderController.deleteOrder);
+/**
+ * NUEVA RUTA: Procesar devolución de sobrantes
+ * Esta ruta permite que al terminar una ruta, los productos no vendidos
+ * regresen automáticamente al stock central de la tabla 'products'.
+ */
+router.post('/process-return', orderController.processReturn);
 module.exports = router;

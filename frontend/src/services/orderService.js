@@ -95,5 +95,18 @@ export const orderService = {
             console.error("Error al obtener vendedores filtrados:", error);
             throw error.response?.data?.message || "Error al filtrar usuarios";
         }
-    }
+    },
+    /**
+     * NUEVO: Procesar la devolución de productos sobrantes al inventario.
+     * Envía: { order_id, items: [{product_id, quantity}, ...] }
+     */
+    processReturn: async (returnData) => {
+        try {
+            const response = await api.post("/orders/process-return", returnData);
+            return response.data;
+        } catch (error) {
+            console.error("Error en processReturn:", error.response?.data);
+            throw error.response?.data?.message || "Error al procesar la devolución de productos";
+        }
+    },
 };
