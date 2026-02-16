@@ -12,8 +12,6 @@ import {
     CheckCircle,
     ArrowUpRight
 } from "lucide-react";
-import { Eye } from "lucide-react"; // Importar icono de ojo
-import { useNavigate } from "react-router-dom";
 
 export default function VentasHistoryPage() {
     const [sales, setSales] = useState([]);
@@ -21,7 +19,6 @@ export default function VentasHistoryPage() {
     const [searchTerm, setSearchTerm] = useState("");
 
     const user = JSON.parse(localStorage.getItem("user"));
-    const navigate = useNavigate();
 
     useEffect(() => {
         loadSales();
@@ -56,11 +53,15 @@ export default function VentasHistoryPage() {
         return { totalSalesCount, totalRevenue, totalPending };
     }, [sales]);
 
-    const filteredSales = sales.filter(s =>
-        s.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.id.toString().includes(searchTerm)
-    );
+    const filteredSales = sales.filter(s => {
+        const name = s.customer_name || s.name || ""; // Busca en ambas propiedades por si acaso
+        const id = s.id ? s.id.toString() : ""; // Valida que el ID exista
 
+        return (
+            name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            id.includes(searchTerm)
+        );
+    });
     if (loading) return <div className="inv-page">Cargando historial de ventas...</div>;
 
     return (
@@ -145,35 +146,69 @@ export default function VentasHistoryPage() {
                     <table className="inv-table">
                         <thead>
                             <tr>
-                                <th>ID Ruta</th>
+                                <th>ID</th>
                                 <th>Fecha</th>
-                                <th>Vendedor</th>
-                                <th style={{ textAlign: 'right' }}>Recaudo</th>
-                                <th style={{ textAlign: 'right' }}>Pendiente</th>
-                                <th style={{ textAlign: 'center' }}>Acciones</th>
+                                <th>Dirección</th>
+                                <th>Nombre Cliente</th>
+                                <th>Nombre Vendedor</th>
+                                <th>Total Compra</th>
+                                <th>Total</th>
+                                <th>DEBE</th>
+                                <th>Abono</th>
+                                <th>Teléfono</th>
+                                <th>Estado</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredSales.map((s) => (
                                 <tr key={s.id}>
-                                    <td style={{ fontWeight: 'bold' }}>#{s.id}</td>
+                                    {/* id */}
+                                    <td>#{s.id}</td>
+
+                                    {/* Fecha: created_at */}
                                     <td>{new Date(s.created_at).toLocaleDateString()}</td>
+
+                                    {/* Dirección: address */}
+                                    <td>{s.address}</td>
+
+                                    {/* Nombre cliente: name */}
+                                    <td style={{ fontWeight: '600' }}>{s.name}</td>
+
+                                    {/* Nombre vendedor: seller_name */}
                                     <td>{s.seller_name}</td>
-                                    <td style={{ textAlign: 'right', color: '#10b981' }}>
-                                        ${Number(s.amount_paid || 0).toLocaleString()}
+
+                                    {/* total compra: total_amount */}
+                                    <td style={{ textAlign: 'right' }}>
+                                        ${Number(s.total_amount).toLocaleString()}
                                     </td>
-                                    <td style={{ textAlign: 'right', color: '#ef4444' }}>
-                                        ${Number(s.balance_due || 0).toLocaleString()}
+
+                                    {/* Total: balance_due (Saldo en ese momento) */}
+                                    <td style={{ textAlign: 'right', backgroundColor: '#f8fafc' }}>
+                                        ${Number(s.balance_due).toLocaleString()}
                                     </td>
+
+                                    {/* DEBE: total_debt (Deuda global hoy) */}
+                                    <td style={{
+                                        textAlign: 'right',
+                                        fontWeight: '800',
+                                        color: s.total_debt > 0 ? '#e53e3e' : '#38a169'
+                                    }}>
+                                        ${Number(s.total_debt || 0).toLocaleString()}
+                                    </td>
+
+                                    {/* Abono: credit_amount */}
+                                    <td style={{ textAlign: 'right', color: '#3182ce', fontWeight: 'bold' }}>
+                                        ${Number(s.credit_amount || 0).toLocaleString()}
+                                    </td>
+
+                                    {/* Teléfono: phone */}
+                                    <td>{s.phone}</td>
+
+                                    {/* estado: visit_status */}
                                     <td style={{ textAlign: 'center' }}>
-                                        <button 
-                                            className="btn-del-prod" 
-                                            style={{ background: '#b0b0b6', padding: '6px 12px' }}
-                                            onClick={() => navigate(`/ventas-detalle/${s.id}`, { state: { saleData: s } })}
-                                        >
-                                            <Eye size={16} style={{ marginRight: '5px' }} />
-                                            Ver Detalle
-                                        </button>
+                                        <span className={`status-badge ${s.visit_status?.toLowerCase()}`}>
+                                            {s.visit_status}
+                                        </span>
                                     </td>
                                 </tr>
                             ))}
@@ -184,7 +219,7 @@ export default function VentasHistoryPage() {
                 {filteredSales.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '40px' }}>
                         <ShoppingBag size={48} color="#e2e8f0" style={{ marginBottom: '10px' }} />
-                        <p style={{ color: '#fafafa' }}>No se encontraron registros de ventas.</p>
+                        <p style={{ color: '#64748b' }}>No se encontraron registros de ventas.</p>
                     </div>
                 )}
             </div>

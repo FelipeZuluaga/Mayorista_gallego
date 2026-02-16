@@ -8,14 +8,14 @@ const createSale = async (req, res) => {
         await connection.beginTransaction();
 
         for (const venta of sales) {
-            const { 
-                customer_name, customer_address, customer_phone, 
+            const {
+                customer_name, customer_address, customer_phone,
                 location_type, visit_status, seller_name,
                 total_amount,   // La compra de hoy (M en tu Excel)
                 amount_paid,    // El pago de la compra de hoy
                 credit_amount   // El abono a la deuda vieja (N en tu Excel)
             } = venta;
-            
+
             const m_totalVentaHoy = Number(total_amount) || 0;
             const pagoVentaHoy = Number(amount_paid) || 0;
             const n_abonoDeudaVieja = Number(credit_amount) || 0;
@@ -33,7 +33,7 @@ const createSale = async (req, res) => {
                     phone = VALUES(phone),
                     total_debt = total_debt + ? - ?`,
                 [
-                    customer_name, customer_address, customer_phone, location_type, 
+                    customer_name, customer_address, customer_phone, location_type,
                     (m_totalVentaHoy - efectivoRecibidoTotal), // Si es nuevo
                     m_totalVentaHoy, efectivoRecibidoTotal    // Si ya existe
                 ]
@@ -41,7 +41,7 @@ const createSale = async (req, res) => {
 
             // 2. RECUPERAR EL ID Y EL SALDO FINAL TRAS LA OPERACIÓN
             const [custRes] = await connection.query(
-                "SELECT id, total_debt FROM customers WHERE name = ?", 
+                "SELECT id, total_debt FROM customers WHERE name = ?",
                 [customer_name]
             );
             const customer_id = custRes[0].id;
@@ -55,7 +55,7 @@ const createSale = async (req, res) => {
                     visit_status, total_amount, amount_paid, credit_amount, balance_due
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
-                    order_id, customer_id, seller_name, 
+                    order_id, customer_id, seller_name,
                     visit_status, m_totalVentaHoy, pagoVentaHoy, n_abonoDeudaVieja, saldoFinalCalculado
                 ]
             );
@@ -66,7 +66,7 @@ const createSale = async (req, res) => {
                     `INSERT INTO sale_items (sale_id, product_id, product_name, quantity, unit_price, total_price) 
                      VALUES (?, ?, ?, ?, ?, ?)`,
                     [
-                        saleRes.insertId, item.product_id, item.product_name, 
+                        saleRes.insertId, item.product_id, item.product_name,
                         item.quantity, item.unit_price, item.total_price
                     ]
                 );
@@ -88,47 +88,21 @@ const getSales = async (req, res) => {
     try {
         const [rows] = await db.query(`
             SELECT 
-                s.id,
-                s.created_at,
-                c.address,
-                c.name,
-                s.seller_name,
-                s.total_amount,
-                s.balance_due,
-                c.total_debt,
-                s.credit_amount,
-                c.phone,
-                s.visit_status
+                s.order_id, 
+                o.created_at, 
+                s.seller_name, 
+                SUM(s.amount_paid) as total_recaudado, 
+                SUM(s.balance_due) as total_pendiente,
+                COUNT(s.id) as total_clientes_visitados
             FROM sales s
-            JOIN customers c ON s.customer_id = c.id
-            ORDER BY s.created_at DESC
+            JOIN orders o ON s.order_id = o.id
+            GROUP BY s.order_id, s.seller_name
+            ORDER BY o.created_at DESC;
         `);
         res.json(rows);
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
 };
-// saleController.js
 
-const getSalesByOrder = async (req, res) => {
-    const { orderId } = req.params;
-    try {
-        // Seleccionamos todo de la tabla sales para ese despacho
-        const [rows] = await db.query(
-            "SELECT * FROM sales WHERE order_id = ? ORDER BY id ASC", 
-            [orderId]
-        );
-
-        if (rows.length === 0) {
-            return res.status(404).json({ message: "No hay registros para esta ruta" });
-        }
-
-        // Enviamos las filas encontradas
-        res.json(rows); 
-    } catch (error) {
-        console.error("Error al traer planilla:", error);
-        res.status(500).json({ message: "Error en el servidor" });
-    }
-};
-
-module.exports = { createSale, getSales, getSalesByOrder };
+module.exports = { createSale, getSales};

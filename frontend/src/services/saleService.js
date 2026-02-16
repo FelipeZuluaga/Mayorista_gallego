@@ -28,13 +28,4 @@ export const saleService = {
             throw error.response?.data?.message || "Error al obtener el historial de ventas";
         }
     },
-    getSalesByOrder: async (orderId) => {
-        try {
-            // Asegúrate de que API_URL sea la base de tu backend (ej. http://localhost:3000/api)
-            const response = await api.get(`/sales/order/${orderId}`);
-            return response.data; // Retorna el array de filas (clientes)
-        } catch (error) {
-            throw error.response?.data?.message || "Error al obtener el detalle de la ruta";
-        }
-    },
 };

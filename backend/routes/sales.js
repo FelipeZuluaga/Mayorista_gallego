@@ -8,6 +8,5 @@ router.post('/create', saleController.createSale);
 // Ruta para obtener el historial de ventas liquidadas
 router.get('/', saleController.getSales);
 // Ruta para obtener el detalle de ventas por order_id (para la planilla de liquidación)
-router.get('/order/:orderId', saleController.getSalesByOrder);
 
 module.exports = router;
