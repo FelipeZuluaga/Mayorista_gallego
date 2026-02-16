@@ -252,35 +252,107 @@ const updateOrderItems = async (req, res) => {
 // backend/controllers/orderController.js
 
 const processReturn = async (req, res) => {
-    const { order_id, items } = req.body; // items: [{product_id, quantity}]
+    const { order_id, items } = req.body;
     const connection = await db.getConnection();
 
     try {
         await connection.beginTransaction();
 
         for (const item of items) {
-            if (item.quantity > 0) {
-                // Devolver el sobrante al stock general de la tabla products
+            // USAMOS cantidad_a_devolver que es como lo envía el frontend
+            // FORZAMOS el valor a número entero
+            const cantADevolver = parseInt(item.cantidad_a_devolver);
+            const productId = item.product_id;
+
+            if (cantADevolver > 0) {
+                //console.log(`Sumando ${cantADevolver} al producto ID: ${productId}`); // Log para depurar
+
+                // 1. SUMAR AL INVENTARIO
+                // Usamos stock = stock + ? para que SQL haga la suma matemática
                 await connection.query(
                     "UPDATE products SET stock = stock + ? WHERE id = ?",
-                    [item.quantity, item.product_id]
+                    [cantADevolver, productId]
+                );
+
+                // 2. REGISTRAR EN HISTORIAL
+                await connection.query(
+                    "INSERT INTO order_returns (order_id, product_id, quantity) VALUES (?, ?, ?)",
+                    [order_id, productId, cantADevolver]
                 );
             }
         }
 
-        // Cambiar el estado de la orden a 'FINALIZADO' o 'LIQUIDADO'
+        // 3. Marcar la orden como LIQUIDADA
         await connection.query(
-            "UPDATE orders SET status = 'LIQUIDADO' WHERE id = ?", 
+            "UPDATE orders SET status = 'LIQUIDADO' WHERE id = ?",
             [order_id]
         );
 
         await connection.commit();
-        res.json({ success: true, message: "Inventario liquidado y stock devuelto al almacén." });
+        res.json({ success: true, message: "Liquidación guardada con éxito." });
     } catch (error) {
-        await connection.rollback();
+        if (connection) await connection.rollback();
+        console.error("Error en SQL:", error);
         res.status(500).json({ success: false, message: error.message });
     } finally {
-        connection.release();
+        if (connection) connection.release();
+    }
+};
+// 2. NUEVA FUNCIÓN: Obtener lo que se devolvió de una orden
+const getReturnHistory = async (req, res) => {
+    const { orderId } = req.params;
+    try {
+        const [rows] = await db.query(
+            `SELECT r.quantity as cantidad_devuelta, p.name as product_name, r.return_date 
+             FROM order_returns r 
+             JOIN products p ON r.product_id = p.id 
+             WHERE r.order_id = ?`,
+            [orderId]
+        );
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+const getTruckInventory = async (req, res) => {
+    const { orderId } = req.params;
+    try {
+        // Esta consulta busca lo que se despachó y le resta lo que se vendió en esa orden
+        const [rows] = await db.query(
+            `SELECT 
+                oi.product_id, 
+                p.name as product_name, 
+                oi.quantity as despachado,
+                IFNULL((SELECT SUM(si.quantity) 
+                        FROM sale_items si 
+                        JOIN sales s ON si.sale_id = s.id 
+                        WHERE s.order_id = oi.order_id 
+                        AND si.product_id = oi.product_id), 0) as vendido
+             FROM order_items oi
+             JOIN products p ON oi.product_id = p.id
+             WHERE oi.order_id = ?`,
+            [orderId]
+        );
+
+        // Calculamos el sobrante real
+        const stockEnCamion = rows.map(item => ({
+            product_id: item.product_id,
+            product_name: item.product_name,
+            cantidad_sobrante: item.despachado - item.vendido
+        }));
+
+        res.json(stockEnCamion);
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+const markAsLiquidated = async (req, res) => {
+    const { orderId } = req.params;
+    try {
+        await db.query("UPDATE orders SET status = 'LIQUIDADO' WHERE id = ?", [orderId]);
+        res.json({ success: true, message: "Orden liquidada." });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 module.exports = {
@@ -289,5 +361,8 @@ module.exports = {
     getOrderDetail,
     deleteOrder,
     processReturn,
-    updateOrderItems
+    updateOrderItems,
+    getReturnHistory,
+    getTruckInventory,
+    markAsLiquidated
 };

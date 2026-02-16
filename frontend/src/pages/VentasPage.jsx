@@ -18,7 +18,7 @@ import {
 import "../styles/ventas.css";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-
+import { useNavigate } from "react-router-dom";
 
 // --- 1. MOVER EL MODAL FUERA DEL COMPONENTE PRINCIPAL ---
 // Esto evita que el input pierda el foco al escribir.
@@ -150,7 +150,7 @@ export default function VentasPage() {
 
     const [filterID, setFilterID] = useState("");
     const [filterVendedor, setFilterVendedor] = useState("");
-
+    const navigate = useNavigate(); // Inicializar el hook
     useEffect(() => { loadPendingOrders(); }, []);
 
 
@@ -306,6 +306,38 @@ export default function VentasPage() {
                 }))
             };
             await saleService.createSale(payload);
+
+
+            // 1. Calculamos qué quedó en el camión
+            const productosSobrantes = orderItems.map(item => ({
+                product_id: item.product_id,
+                product_name: item.product_name,
+                stock_en_camion: item.quantity // Lo que sobró después de vender
+            }));
+
+            alertSuccess("Éxito", "Ventas guardadas. Procediendo a devolución de sobrantes.");
+
+            // 2. Calculamos el total de unidades que quedaron en el camión
+            // productosSobrantes es el array que ya tienes calculado arriba en tu código
+            const totalUnidadesSobrantes = productosSobrantes.reduce((acc, p) => acc + p.stock_en_camion, 0);
+
+            if (totalUnidadesSobrantes === 0) {
+                // --- CASO: VENDIÓ TODO ---
+                // Llamamos a la función que ya tienes en el backend para cerrar la orden
+                await orderService.markAsLiquidated(selectedOrder.id);
+
+                alertSuccess("¡Excelente!", "Venta total completada. La orden se cerró automáticamente.");
+                navigate("/liquidaciones"); // Ir al historial
+            } else {
+                // --- CASO: SOBRÓ MERCANCÍA ---
+                alertSuccess("Éxito", "Ventas guardadas. Procede a devolver el sobrante.");
+                navigate("/devoluciones", {
+                    state: {
+                        orderId: selectedOrder.id,
+                        sobrantes: productosSobrantes
+                    }
+                });
+            }
             alertSuccess("Éxito", "Planilla sincronizada.");
             setSelectedOrder(null);
             loadPendingOrders();

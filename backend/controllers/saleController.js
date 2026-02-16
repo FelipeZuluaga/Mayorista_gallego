@@ -108,5 +108,27 @@ const getSales = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+// saleController.js
 
-module.exports = { createSale, getSales };
+const getSalesByOrder = async (req, res) => {
+    const { orderId } = req.params;
+    try {
+        // Seleccionamos todo de la tabla sales para ese despacho
+        const [rows] = await db.query(
+            "SELECT * FROM sales WHERE order_id = ? ORDER BY id ASC", 
+            [orderId]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: "No hay registros para esta ruta" });
+        }
+
+        // Enviamos las filas encontradas
+        res.json(rows); 
+    } catch (error) {
+        console.error("Error al traer planilla:", error);
+        res.status(500).json({ message: "Error en el servidor" });
+    }
+};
+
+module.exports = { createSale, getSales, getSalesByOrder };

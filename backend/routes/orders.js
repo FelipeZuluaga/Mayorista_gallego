@@ -27,4 +27,8 @@ router.delete('/delete/:id', orderController.deleteOrder);
  * regresen automáticamente al stock central de la tabla 'products'.
  */
 router.post('/process-return', orderController.processReturn);
+router.get('/return-history/:orderId', orderController.getReturnHistory);
+router.get('/truck-inventory/:orderId', orderController.getTruckInventory);
+router.post('/mark-liquidated/:orderId', orderController.markAsLiquidated);
+
 module.exports = router;

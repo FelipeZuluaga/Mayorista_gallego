@@ -12,6 +12,8 @@ import {
     CheckCircle,
     ArrowUpRight
 } from "lucide-react";
+import { Eye } from "lucide-react"; // Importar icono de ojo
+import { useNavigate } from "react-router-dom";
 
 export default function VentasHistoryPage() {
     const [sales, setSales] = useState([]);
@@ -19,6 +21,7 @@ export default function VentasHistoryPage() {
     const [searchTerm, setSearchTerm] = useState("");
 
     const user = JSON.parse(localStorage.getItem("user"));
+    const navigate = useNavigate();
 
     useEffect(() => {
         loadSales();
@@ -142,69 +145,35 @@ export default function VentasHistoryPage() {
                     <table className="inv-table">
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <th>ID Ruta</th>
                                 <th>Fecha</th>
-                                <th>Dirección</th>
-                                <th>Nombre Cliente</th>
-                                <th>Nombre Vendedor</th>
-                                <th>Total Compra</th>
-                                <th>Total</th>
-                                <th>DEBE</th>
-                                <th>Abono</th>
-                                <th>Teléfono</th>
-                                <th>Estado</th>
+                                <th>Vendedor</th>
+                                <th style={{ textAlign: 'right' }}>Recaudo</th>
+                                <th style={{ textAlign: 'right' }}>Pendiente</th>
+                                <th style={{ textAlign: 'center' }}>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredSales.map((s) => (
                                 <tr key={s.id}>
-                                    {/* id */}
-                                    <td>#{s.id}</td>
-
-                                    {/* Fecha: created_at */}
+                                    <td style={{ fontWeight: 'bold' }}>#{s.id}</td>
                                     <td>{new Date(s.created_at).toLocaleDateString()}</td>
-
-                                    {/* Dirección: address */}
-                                    <td>{s.address}</td>
-
-                                    {/* Nombre cliente: name */}
-                                    <td style={{ fontWeight: '600' }}>{s.name}</td>
-
-                                    {/* Nombre vendedor: seller_name */}
                                     <td>{s.seller_name}</td>
-
-                                    {/* total compra: total_amount */}
-                                    <td style={{ textAlign: 'right' }}>
-                                        ${Number(s.total_amount).toLocaleString()}
+                                    <td style={{ textAlign: 'right', color: '#10b981' }}>
+                                        ${Number(s.amount_paid || 0).toLocaleString()}
                                     </td>
-
-                                    {/* Total: balance_due (Saldo en ese momento) */}
-                                    <td style={{ textAlign: 'right', backgroundColor: '#f8fafc' }}>
-                                        ${Number(s.balance_due).toLocaleString()}
+                                    <td style={{ textAlign: 'right', color: '#ef4444' }}>
+                                        ${Number(s.balance_due || 0).toLocaleString()}
                                     </td>
-
-                                    {/* DEBE: total_debt (Deuda global hoy) */}
-                                    <td style={{
-                                        textAlign: 'right',
-                                        fontWeight: '800',
-                                        color: s.total_debt > 0 ? '#e53e3e' : '#38a169'
-                                    }}>
-                                        ${Number(s.total_debt || 0).toLocaleString()}
-                                    </td>
-
-                                    {/* Abono: credit_amount */}
-                                    <td style={{ textAlign: 'right', color: '#3182ce', fontWeight: 'bold' }}>
-                                        ${Number(s.credit_amount || 0).toLocaleString()}
-                                    </td>
-
-                                    {/* Teléfono: phone */}
-                                    <td>{s.phone}</td>
-
-                                    {/* estado: visit_status */}
                                     <td style={{ textAlign: 'center' }}>
-                                        <span className={`status-badge ${s.visit_status?.toLowerCase()}`}>
-                                            {s.visit_status}
-                                        </span>
+                                        <button 
+                                            className="btn-del-prod" 
+                                            style={{ background: '#b0b0b6', padding: '6px 12px' }}
+                                            onClick={() => navigate(`/ventas-detalle/${s.id}`, { state: { saleData: s } })}
+                                        >
+                                            <Eye size={16} style={{ marginRight: '5px' }} />
+                                            Ver Detalle
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
@@ -215,7 +184,7 @@ export default function VentasHistoryPage() {
                 {filteredSales.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '40px' }}>
                         <ShoppingBag size={48} color="#e2e8f0" style={{ marginBottom: '10px' }} />
-                        <p style={{ color: '#64748b' }}>No se encontraron registros de ventas.</p>
+                        <p style={{ color: '#fafafa' }}>No se encontraron registros de ventas.</p>
                     </div>
                 )}
             </div>

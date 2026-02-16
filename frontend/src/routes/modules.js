@@ -8,7 +8,7 @@ export const modulesByRole = {
         // --- MEJORADO PARA ADMIN ---
         { title: "Generar una venta", path: "/ventas", iconName: "LayoutDashboard" },
         { title: "Informe de ventas", path: "/historial-ventas", iconName: "BarChart3" },
-        { title: "Devoluciones", path: "/devoluciones", iconName: "RefreshCcw" },
+        { title: "Devoluciones", path: "/liquidaciones", iconName: "RefreshCcw" },
 
         { title: "Liquidación", path: "/liquidacion", iconName: "Calculator" },
         { title: "Pagos", path: "/pagos", iconName: "Wallet" },
