@@ -823,3 +823,17 @@ input::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
 }
+.input-search-planilla {
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 14px;
+    width: 200px;
+    margin-right: 10px;
+}
+
+.input-search-planilla:focus {
+    outline: none;
+    border-color: #be2b48;
+    box-shadow: 0 0 0 2px rgba(190, 43, 72, 0.1);
+}

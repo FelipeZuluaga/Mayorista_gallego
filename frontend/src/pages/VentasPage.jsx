@@ -32,8 +32,13 @@ const ModalProductos = ({
     confirmarVentaModal,
     calcularTotalFila
 }) => {
+    // ESTADO PARA EL BUSCADOR DE PRODUCTOS
+    const [searchTerm, setSearchTerm] = useState("");
     if (!show || !cliente) return null;
-
+    // FILTRADO DINÁMICO DE PRODUCTOS
+    const productosFiltrados = orderItems.filter(item =>
+        item.product_name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
     return (
         <div className="modal-overlay">
             <div className="modal-content modal-ventas-xl">
@@ -45,6 +50,18 @@ const ModalProductos = ({
                             <span className="client-address">{cliente.address}</span>
                         </div>
                     </div>
+                    {/* --- BUSCADOR DE PRODUCTOS --- */}
+                    <div className="modal-search-wrapper" style={{ margin: '0 20px', flex: 1 }}>
+                        <input
+                            type="text"
+                            placeholder="Buscar producto por nombre..."
+                            className="input-modern"
+                            style={{ width: '100%', maxWidth: '300px' }}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+
                     <button className="btn-close-modal" onClick={onClose}><X /></button>
                 </div>
 
@@ -60,9 +77,9 @@ const ModalProductos = ({
                             </tr>
                         </thead>
                         <tbody>
-                            {orderItems.map((item) => {
+                            {/* USAMOS LA LISTA FILTRADA */}
+                            {productosFiltrados.map((item) => {
                                 const cant = cliente.productos[item.product_id] || 0;
-                                // Obtenemos el precio personalizado o el precio base del item
                                 const precioVenta = cliente.preciosPersonalizados?.[item.product_id] ?? "";
                                 const stockDisponible = item.quantity;
                                 const tieneVenta = cant > 0;
@@ -150,6 +167,9 @@ export default function VentasPage() {
 
     const [filterID, setFilterID] = useState("");
     const [filterVendedor, setFilterVendedor] = useState("");
+
+    const [searchTerm, setSearchTerm] = useState("");
+
     const navigate = useNavigate(); // Inicializar el hook
     useEffect(() => { loadPendingOrders(); }, []);
 
@@ -242,9 +262,31 @@ export default function VentasPage() {
         }, 0);
     };
 
-    const updateCelda = (clienteIdx, campo, valor) => {
+    const updateCelda = (idx, campo, valor) => {
         const nuevaPlanilla = [...planilla];
-        nuevaPlanilla[clienteIdx][campo] = valor;
+        const cliente = nuevaPlanilla[idx];
+
+        cliente[campo] = valor;
+
+        // Lógica para estado LLESO
+        if (campo === "status" && valor === "LLESO") {
+            const totalVentaHoy = calcularTotalFila(cliente);
+            const nuevoSaldo = (cliente.deuda_previa + totalVentaHoy) -
+                (Number(cliente.pago_compra) + Number(cliente.abono_deuda));
+
+            // REGLA: Si es LLESO y no debe nada, se elimina de la planilla
+            if (nuevoSaldo <= 0) {
+                if (window.confirm(`El cliente ${cliente.name} no tiene deuda. ¿Eliminar de esta ruta?`)) {
+                    nuevaPlanilla.splice(idx, 1);
+                    setPlanilla(nuevaPlanilla);
+                    return;
+                } else {
+                    cliente.status = "PENDIENTE"; // Revertir si cancela
+                }
+            }
+            // Si DEBE, el cliente se queda en la lista con estado LLESO (bloqueado por CSS)
+        }
+
         setPlanilla(nuevaPlanilla);
     };
 
@@ -287,7 +329,7 @@ export default function VentasPage() {
                     customer_address: v.address,
                     customer_name: v.name,
                     customer_phone: v.phone,
-                    visit_status: v.status,
+                    visit_status: v.status || "PENDIENTE",
                     total_amount: calcularTotalFila(v),
                     amount_paid: Number(v.pago_compra) || 0,
                     credit_amount: Number(v.abono_deuda) || 0,
@@ -727,6 +769,16 @@ export default function VentasPage() {
                                     <ChevronLeft size={20} />
                                     <span>Volver</span>
                                 </button>
+                                {/* --- BUSCADOR AÑADIDO --- */}
+                                <div className="search-container-mini">
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar cliente..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="input-search-planilla"
+                                    />
+                                </div>
                             </div>
 
                             <div className="header-center">
@@ -736,6 +788,7 @@ export default function VentasPage() {
                             </div>
 
                             <div className="header-right">
+
                                 {/* Botón Nuevo Cliente */}
                                 <button onClick={() => setShowAddCustomerModal(true)} className="btn-add-customer">
                                     <UserPlus size={20} />
@@ -757,7 +810,7 @@ export default function VentasPage() {
                                         <th>NOMBRE</th>
                                         <th>ESTADO</th>
                                         <th>PRODUCTOS</th>
-                                        <th>PAGO VENTA</th>
+                                        {/*<th>PAGO VENTA</th>*/}
                                         <th>DEBE</th>
                                         <th>ABONO</th>
                                         <th>TOTAL</th>
@@ -767,73 +820,79 @@ export default function VentasPage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {planilla.map((cliente, idx) => {
-                                        const totalVentaHoy = calcularTotalFila(cliente);
-                                        const nuevoSaldo = (cliente.deuda_previa + totalVentaHoy) - (Number(cliente.pago_compra) + Number(cliente.abono_deuda));
+                                    {/* --- FILTRADO DINÁMICO --- */}
+                                    {planilla
+                                        .map((c, i) => ({ ...c, originalIdx: i })) // Guardamos el índice original para que updateCelda funcione
+                                        .filter(cliente =>
+                                            cliente.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                            cliente.address.toLowerCase().includes(searchTerm.toLowerCase())
+                                        )
+                                        .map((cliente) => {
+                                            const idx = cliente.originalIdx; // Usamos el índice real del array original
+                                            const totalVentaHoy = calcularTotalFila(cliente);
+                                            const nuevoSaldo = (cliente.deuda_previa + totalVentaHoy) - (Number(cliente.pago_compra) + Number(cliente.abono_deuda));
+                                            const estadoClase = `fila-${cliente.status.toLowerCase()}`;
+                                            const esLleso = cliente.status === "LLESO";
 
-                                        // --- LÓGICA DE CLASE Y BLOQUEO ---
-                                        const estadoClase = `fila-${cliente.status.toLowerCase()}`;
-                                        const esLleso = cliente.status === "LLESO";
+                                            return (
+                                                <tr key={idx} className={estadoClase}> {/* AGREGAMOS LA CLASE AQUÍ */}
 
-                                        return (
-                                            <tr key={idx} className={estadoClase}> {/* AGREGAMOS LA CLASE AQUÍ */}
-
-                                                <td className="code-col">{cliente.id}</td>
-                                                <td className="address-col">{cliente.address}</td>
-                                                <td className="name-col">{cliente.name}</td>
-                                                <td>
-                                                    <select
-                                                        value={cliente.status}
-                                                        onChange={(e) => updateCelda(idx, "status", e.target.value)}
-                                                        className="status-select-mini"
-                                                    >
-                                                        <option value=""></option>
-                                                        <option value="PENDIENTE">PENDIENTE</option>
-                                                        <option value="VISITADO">VISITADO</option>
-                                                        <option value="LLESO">LLESO</option>
-                                                    </select>
-                                                </td>
-                                                <td>
-                                                    <button
-                                                        disabled={esLleso} // BLOQUEO
-                                                        className={`btn-vender ${totalVentaHoy > 0 ? 'con-venta' : ''}`}
-                                                        onClick={() => abrirModalVenta(idx)}
-                                                    >
-                                                        <ShoppingCart size={14} />
-                                                        {totalVentaHoy > 0 ? ` $${totalVentaHoy.toLocaleString()}` : ' Vender'}
-                                                    </button>
-                                                </td>
-                                                <td>
-                                                    <input
-                                                        type="number"
-                                                        value={cliente.pago_compra}
-                                                        disabled={esLleso} // BLOQUEO
-                                                        onChange={(e) => updateCelda(idx, "pago_compra", e.target.value)}
-                                                    />
-                                                </td>
-                                                <td>${cliente.deuda_previa.toLocaleString()}</td>
-                                                <td>
-                                                    <input
-                                                        type="number"
-                                                        value={cliente.abono_deuda}
-                                                        disabled={esLleso} // BLOQUEO
-                                                        onChange={(e) => updateCelda(idx, "abono_deuda", e.target.value)}
-                                                    />
-                                                </td>
-                                                <td className={`total-cell ${nuevoSaldo > 0 ? 'deuda' : 'saldo-ok'}`}>
-                                                    ${nuevoSaldo.toLocaleString()}
-                                                </td>
-                                                <td>
-                                                    {cliente.facturaBlob && (
-                                                        <a href={cliente.facturaBlob} download={`Factura_${cliente.name}.pdf`} className="btn-download-pdf">
-                                                            <FileText size={16} /> PDF
-                                                        </a>
-                                                    )}
-                                                </td>
-                                                <td className="name-col">{cliente.phone}</td>
-                                            </tr>
-                                        );
-                                    })}
+                                                    <td className="code-col">{cliente.id}</td>
+                                                    <td className="address-col">{cliente.address}</td>
+                                                    <td className="name-col">{cliente.name}</td>
+                                                    <td>
+                                                        <select
+                                                            value={cliente.status}
+                                                            onChange={(e) => updateCelda(idx, "status", e.target.value)}
+                                                            className="status-select-mini"
+                                                        >
+                                                            <option value=""></option>
+                                                            <option value="PENDIENTE">PENDIENTE</option>
+                                                            <option value="VISITADO">VISITADO</option>
+                                                            <option value="LLESO">LLESO</option>
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <button
+                                                            disabled={esLleso} // BLOQUEO
+                                                            className={`btn-vender ${totalVentaHoy > 0 ? 'con-venta' : ''}`}
+                                                            onClick={() => abrirModalVenta(idx)}
+                                                        >
+                                                            <ShoppingCart size={14} />
+                                                            {totalVentaHoy > 0 ? ` $${totalVentaHoy.toLocaleString()}` : ' Vender'}
+                                                        </button>
+                                                    </td>
+                                                    {/*<td>
+                                                        <input
+                                                            type="number"
+                                                            value={cliente.pago_compra}
+                                                            disabled={esLleso} // BLOQUEO
+                                                            onChange={(e) => updateCelda(idx, "pago_compra", e.target.value)}
+                                                        />
+                                                    </td>*/}
+                                                    <td>${cliente.deuda_previa.toLocaleString()}</td>
+                                                    <td>
+                                                        <input
+                                                            type="number"
+                                                            value={cliente.abono_deuda}
+                                                            disabled={esLleso} // BLOQUEO
+                                                            onChange={(e) => updateCelda(idx, "abono_deuda", e.target.value)}
+                                                        />
+                                                    </td>
+                                                    <td className={`total-cell ${nuevoSaldo > 0 ? 'deuda' : 'saldo-ok'}`}>
+                                                        ${nuevoSaldo.toLocaleString()}
+                                                    </td>
+                                                    <td>
+                                                        {cliente.facturaBlob && (
+                                                            <a href={cliente.facturaBlob} download={`Factura_${cliente.name}.pdf`} className="btn-download-pdf">
+                                                                <FileText size={16} /> PDF
+                                                            </a>
+                                                        )}
+                                                    </td>
+                                                    <td className="name-col">{cliente.phone}</td>
+                                                </tr>
+                                            );
+                                        })}
                                 </tbody>
                             </table>
                         </div>
