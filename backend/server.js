@@ -30,6 +30,11 @@ app.use("/api/orders", require("./routes/orders"));
 // La ruta final será: http://localhost:3001/api/sales
 app.use("/api/sales", require("./routes/sales"));
 
+// NUEVA: Ruta para Gestión de Clientes con Saldo
+// La ruta final será: http://localhost:3001/api/customers/balances
+app.use("/api/customers", require("./routes/customer"));
+
+
 // --- Puerto ---
 const PORT = process.env.PORT || 3001;
 

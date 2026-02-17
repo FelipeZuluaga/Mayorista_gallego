@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { inventoryService } from "../services/inventoryService";
 import { orderService } from "../services/orderService";
 import { alertSuccess, alertError, alertConfirm } from "../services/alertService";
-import { Package, User, Truck, ChevronLeft, Search } from "lucide-react";
-import "../styles/inventory.css";
+import { User, Truck, ChevronLeft, Search } from "lucide-react";
 
 export default function DespachoPage() {
     const navigate = useNavigate();
@@ -15,10 +14,9 @@ export default function DespachoPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(false);
 
-    // Formulario de despacho
-    const [customerTypeId, setCustomerTypeId] = useState("4"); // Por defecto Despacho Mayorista
+    // Formulario de despacho simplificado
+    const [customerTypeId, setCustomerTypeId] = useState("4"); // 4: Despacho Mayorista
     const [sellerName, setSellerName] = useState("");
-    const [customerName, setCustomerName] = useState("");
     const [quantities, setQuantities] = useState({});
 
     useEffect(() => {
@@ -34,16 +32,20 @@ export default function DespachoPage() {
         }
     };
 
-    // Lógica de precios dinámica por tipo de cliente
     const getUnitPrice = (product) => {
-        const priceObj = product.prices?.find(p => String(p.customer_type_id) === String(customerTypeId));
+        if (!product || !product.prices) return 0;
+
+        // Buscamos el precio usando el ID que seleccionaste en el select
+        const priceObj = product.prices.find(p =>
+            Number(p.customer_type_id) === Number(customerTypeId)
+        );
+
+        // Retorna el precio encontrado o 0 si no existe (evita el NaN)
         return priceObj ? Math.trunc(priceObj.unit_price) : 0;
     };
 
     const handleQtyChange = (id, val, stock) => {
-        // Validamos que no despache más de lo que hay en stock ni números negativos
         const value = val === "" ? "" : Math.max(0, Math.min(Number(val), stock));
-
         setQuantities(prev => ({
             ...prev,
             [id]: value
@@ -56,8 +58,9 @@ export default function DespachoPage() {
     }, 0);
 
     const handleConfirmar = async () => {
-        if (!sellerName.trim() || !customerName.trim()) {
-            return alertError("Campos vacíos", "Ingresa el vendedor y el destinatario.");
+        // Validación: Ahora solo pedimos el nombre del receptor (vendedor o cliente)
+        if (!sellerName.trim()) {
+            return alertError("Campo vacío", "Ingresa el nombre de la persona o local que recibe.");
         }
 
         const items = Object.keys(quantities)
@@ -71,21 +74,22 @@ export default function DespachoPage() {
 
         const confirm = await alertConfirm(
             "¿Confirmar Despacho?",
-            `Se restará el stock y se asignará un total de $${totalDespacho.toLocaleString()} a ${sellerName}.`
+            `Se restará el stock y se registrará un total de $${totalDespacho.toLocaleString()} a nombre de ${sellerName}.`
         );
 
         if (confirm.isConfirmed) {
             try {
                 setLoading(true);
+                // Enviamos los datos según la nueva estructura del controlador
                 await orderService.createOrder({
                     user_id: user?.id,
-                    seller_name: sellerName,
+                    receptor_name: sellerName, // En el backend esto se guarda en seller_name
                     customer_type_id: Number(customerTypeId),
-                    customer_name: customerName,
                     items
                 });
-                await alertSuccess("Despacho Exitoso", "El stock ha sido actualizado en tiempo real.");
-                navigate("/pedidos");
+
+                await alertSuccess("Despacho Exitoso", "El stock ha sido actualizado correctamente.");
+                navigate("/pedidos"); // Cambia esto por tu ruta de historial si es diferente
             } catch (err) {
                 alertError("Error de Proceso", err);
             } finally {
@@ -97,11 +101,11 @@ export default function DespachoPage() {
     return (
         <div className="inv-page full-layout">
             <div className="module-intro">
-                <button className="btn-edit" onClick={() => navigate(-1)} style={{ marginBottom: '15px' }}>
+                <button className="btn-primary-main" onClick={() => navigate(-1)} style={{ marginBottom: '15px' }}>
                     <ChevronLeft size={16} /> Volver al Panel
                 </button>
                 <h1>Salida de Mercancía (Despacho)</h1>
-                <p>Selecciona el tipo de cliente para aplicar la lista de precios correcta.</p>
+                <p>Configura el tipo de lista y el receptor para actualizar el inventario.</p>
             </div>
 
             <div className="inv-card full-width-card">
@@ -109,28 +113,29 @@ export default function DespachoPage() {
                     <div className="input-group">
                         <label><Truck size={14} /> Tipo de Lista de Precios</label>
                         <select value={customerTypeId} onChange={(e) => setCustomerTypeId(e.target.value)}>
-                            <option value="1">Socio</option>
-                            <option value="2">No socio</option>
-                            <option value="3">Cliente</option>
-                            <option value="4">Despacho mayorista</option>
+                            <option value="1">CLIENTE</option>        {/* ID 1 en BD es CLIENTE */}
+                            <option value="2">SOCIO</option>          {/* ID 2 en BD es SOCIO */}
+                            <option value="3">NO SOCIO</option>       {/* ID 3 en BD es NO_SOCIO */}
+                            <option value="4">DESPACHO MAYOR</option> {/* ID 4 en BD es DESPACHO_MAYOR */}
                         </select>
                     </div>
+
                     <div className="input-group">
-                        <label><User size={14} /> Vendedor / Repartidor</label>
-                        <input value={sellerName} onChange={e => setSellerName(e.target.value)} placeholder="Nombre de quien recibe" />
-                    </div>
-                    <div className="input-group">
-                        <label><Package size={14} /> Cliente Destino</label>
-                        <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Nombre del local o cliente" />
+                        <label><User size={14} /> Vendedor / Receptor / Cliente</label>
+                        <input
+                            value={sellerName}
+                            onChange={e => setSellerName(e.target.value)}
+                            placeholder="Nombre de quien recibe la mercancía"
+                        />
                     </div>
                 </div>
 
                 <div className="search-bar-container" style={{ margin: '25px 0', position: 'relative' }}>
-                    <Search size={18} style={{ position: 'absolute', left: '15px', top: '13px', color: '#64748b' }} />
+                    <Search size={18} style={{ position: 'absolute', left: '15px', top: '13px', color: '#dc193d' }} />
                     <input
                         className="input-group input"
-                        style={{ width: '100%', paddingLeft: '45px', height: '45px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                        placeholder="Filtrar productos por nombre o código..."
+                        style={{ width: '80%', paddingLeft: '45px', height: '45px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                        placeholder="Filtrar productos por nombre..."
                         onChange={e => setSearchTerm(e.target.value)}
                     />
                 </div>

@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require("../config/db"); // Ahora db soporta promesas
 
 router.post("/login", async (req, res) => {
-  const { email, password, role_id } = req.body;
+  const { id, password, role_id } = req.body;
 
   // 1. Usamos un bloque try-catch para manejar errores de forma limpia
   try {
@@ -15,13 +15,13 @@ router.post("/login", async (req, res) => {
         r.name AS role
       FROM users u
       INNER JOIN roles r ON u.role_id = r.id
-      WHERE u.email = ?
+      WHERE u.id = ?
       AND u.password_hash = ?
       AND r.id = ?
     `;
 
     // 2. Con .promise(), usamos await. El resultado viene en un array [filas, campos]
-    const [rows] = await db.query(sql, [email, password, role_id]);
+    const [rows] = await db.query(sql, [id, password, role_id]);
 
     if (rows.length === 0) {
       return res.status(401).json({

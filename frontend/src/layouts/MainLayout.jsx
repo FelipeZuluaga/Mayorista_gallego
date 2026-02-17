@@ -1,8 +1,8 @@
 import { useNavigate, NavLink } from "react-router-dom";
-import { LogOut, User, Package, Users, ClipboardList, LayoutDashboard, Truck } from "lucide-react";
+import * as Lucide from 'lucide-react';
 import logo from "../assets/logo.jpeg";
-import "../styles/Dashboard.css";
 import Footer from "../components/footer";
+import "../styles/mainLayout.css";
 
 function MainLayout({ children }) {
     const user = JSON.parse(localStorage.getItem("user"));
@@ -14,34 +14,36 @@ function MainLayout({ children }) {
         navigate("/login");
     };
 
-    // Definimos todas las opciones posibles
     const menuOptions = [
-        { to: "/dashboard", label: "Inicio", icon: <LayoutDashboard size={18} />, roles: ["ADMINISTRADOR", "DESPACHADOR", "SOCIO","NO_SOCIO"] },
-        { to: "/Inventory", label: "Inventario", icon: <Package size={18} />, roles: ["ADMINISTRADOR"] },
-        { to: "/despacho", label: "Crear pedido", icon: <Truck size={18} />, roles: ["ADMINISTRADOR", "DESPACHADOR"] },
-        { to: "/pedidos", label: "Pedidos", icon: <ClipboardList size={18} />, roles: ["ADMINISTRADOR", "SOCIO", "DESPACHADOR"] },
-        { to: "/AdminDashboard/users", label: "Usuarios", icon: <Users size={18} />, roles: ["ADMINISTRADOR"] },
+        { to: "/dashboard", label: "Inicio", icon: <Lucide.LayoutDashboard size={18} />, roles: ["ADMINISTRADOR", "DESPACHADOR", "SOCIO", "NO_SOCIO"] },
+        { to: "/AdminDashboard/users", label: "Creaciòn de Usuarios", icon: <Lucide.Users size={18} />, roles: ["ADMINISTRADOR"] },
+        { to: "/Inventory", label: "Ingreso de Productos / Inventario", icon: <Lucide.Package size={18} />, roles: ["ADMINISTRADOR"] },
+        { to: "/despacho", label: "Crear Ruta", icon: <Lucide.ClipboardList size={18} />, roles: ["ADMINISTRADOR"] },
+        { to: "/pedidos", label: "Informe de rutas cargadas", icon: <Lucide.Truck size={18} />, roles: ["ADMINISTRADOR"] },
+        { to: "/ventas", label: "Generar una venta", icon: <Lucide.LayoutDashboard size={18} />, roles: ["ADMINISTRADOR"] },
+        { to: "/historial-ventas", label: "Informe de ventas", icon: <Lucide.BarChart3 size={18} />, roles: ["ADMINISTRADOR"] },
+
+        { to: "/despacho", label: "Crear Ruta", icon: <Lucide.ClipboardList size={18} />, roles: ["DESPACHADOR"] },
+        { to: "/pedidos", label: "Informe de rutas cargadas", icon: <Lucide.Truck size={18} />, roles: ["DESPACHADOR"] },
+
+        { to: "/ventas", label: "Mis Rutas Cargadas", icon: <Lucide.Navigation size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
+        { to: "/historial-ventas", label: "Mis Clientes", icon: <Lucide.TrendingUp size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
     ];
 
     return (
-        <div className="admin-page">
+        <div className="layout-wrapper"> {/* Clase base para el Sticky Footer */}
             <header className="admin-header">
-                <div className="header-left" onClick={() => navigate("/AdminDashboard")} style={{ cursor: 'pointer' }}>
-                    <img src={logo} alt="Logo" className="header-logo-img" />
-                    <div className="header-brand-info">
-                        <h2>Mayorista <span>Gallego</span></h2>
-                        <p>Panel de Control</p>
-                    </div>
+                <div className="header-brand">
+                    <img src={logo} alt="Mayorista Gallego" className="header-logo-img" />
                 </div>
 
                 <nav className="header-nav-menu">
                     {menuOptions.map((option) => (
-                        // Solo renderiza si el rol del usuario está en la lista de roles permitidos de la opción
                         option.roles.includes(userRole) && (
-                            <NavLink 
-                                key={option.to} 
-                                to={option.to} 
-                                end={option.to === "/AdminDashboard"}
+                            <NavLink
+                                key={option.to}
+                                to={option.to}
+                                end={option.to === "/dashboard"}
                                 className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}
                             >
                                 {option.icon}
@@ -51,16 +53,23 @@ function MainLayout({ children }) {
                     ))}
                 </nav>
 
-                <div className="header-right">
-                    <div className="user-info-display">
-                        <div className="user-text-details">
-                            <span className="user-name">{user?.name || "Usuario"} / </span>
-                            <span className="user-role-label">{userRole}</span>
-                        </div>
-                        <User size={18} />
+                <div className="user-profile-section">
+                    <div className="user-info">
+                        <span className="user-name">{user?.name || "Usuario"}</span>
+                        <span className="user-role">{userRole}</span>
                     </div>
-                    <button className="logout-action-btn" onClick={handleLogout}>
-                        <LogOut size={18} />
+                    
+                    <div className="user-avatar">
+                         <Lucide.UserCircle size={32} strokeWidth={1.5} />
+                    </div>
+
+                    {/* USAMOS LA CLASE GLOBAL .btn y .btn-primary */}
+                    <button 
+                        className="btn btn-primary" 
+                        onClick={handleLogout}
+                        style={{ padding: '8px 16px', fontSize: '0.85rem' }} // Ajuste pequeño puntual
+                    >
+                        <Lucide.LogOut size={16} />
                         <span>Salir</span>
                     </button>
                 </div>
@@ -70,7 +79,7 @@ function MainLayout({ children }) {
                 {children}
             </main>
 
-            <Footer /> 
+            <Footer />
         </div>
     );
 }

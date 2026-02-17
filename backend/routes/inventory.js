@@ -134,28 +134,25 @@ router.get("/categories", async (req, res) => {
     }
 });
 /* ============================
-    ACTUALIZAR PRODUCTO (PUT)
+    ACTUALIZAR PRODUCTO (PUT) - MODIFICADO PARA SUMAR STOCK
 ============================ */
 router.put("/:id", canManage, async (req, res) => {
     const productId = req.params.id;
-    const { name, stock, category_id, prices } = req.body;
+    const { name, stock, category_id, prices } = req.body; // 'stock' aquí será lo que el usuario escribió (ej: 5)
     const connection = await db.getConnection();
 
     try {
         await connection.beginTransaction();
 
-        // 1. Actualizar datos básicos del producto
+        // 1. Actualizar datos básicos: sumamos el stock enviado al stock actual en DB
         const [updateResult] = await connection.query(
-            "UPDATE products SET name = ?, stock = ?, category_id = ? WHERE id = ?",
+            "UPDATE products SET name = ?, stock = stock + ?, category_id = ? WHERE id = ?",
             [name, stock, category_id, productId]
         );
 
-        // 2. Actualizar precios (Lo más limpio es borrar y volver a insertar)
+        // 2. Actualizar precios (Borrar e insertar como ya tenías)
         if (prices && prices.length > 0) {
-            // Borramos precios anteriores
             await connection.query("DELETE FROM product_prices WHERE product_id = ?", [productId]);
-
-            // Insertamos los nuevos precios
             const priceValues = prices.map(p => [productId, p.customer_type_id, p.unit_price]);
             await connection.query(
                 "INSERT INTO product_prices (product_id, customer_type_id, unit_price) VALUES ?",
@@ -164,11 +161,11 @@ router.put("/:id", canManage, async (req, res) => {
         }
 
         await connection.commit();
-        res.json({ message: "Producto actualizado con éxito" });
+        res.json({ message: "Producto actualizado y stock incrementado con éxito" });
     } catch (err) {
         await connection.rollback();
         console.error("Error al actualizar:", err);
-        res.status(500).json({ message: "Error interno al actualizar el producto" });
+        res.status(500).json({ message: "Error interno al actualizar" });
     } finally {
         connection.release();
     }
