@@ -139,7 +139,7 @@ export default function PedidosPage() {
 
                 alertSuccess("Éxito", "Pedido actualizado correctamente.");
                 setIsEditModalOpen(false);
-                loadOrders(); // Recargar la lista
+                loadOrders();
             } catch (err) {
                 alertError("Error al guardar", err);
             }
@@ -166,7 +166,8 @@ export default function PedidosPage() {
     const filteredOrders = useMemo(() => {
         let baseOrders = orders;
 
-        if (user?.role !== 'ADMINISTRADOR' && user?.role !== 'DESPACHADOR') {
+        // Solo restringimos si NO es Admin Y NO es Despachador
+        if (user?.role?.toUpperCase() !== 'ADMINISTRADOR' && user?.role?.toUpperCase() !== 'DESPACHADOR') {
             baseOrders = orders.filter(o => Number(o.seller_name) === Number(user.id));
         }
 
@@ -174,37 +175,24 @@ export default function PedidosPage() {
             const matchesSearch = o.seller_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 o.id.toString().includes(searchTerm);
 
-            // Ajuste de Fecha: Asegurar formato YYYY-MM-DD
-            const orderDate = new Date(o.created_at).toISOString().split('T')[0];
-            const matchesFecha = !filters.fecha || orderDate === filters.fecha;
+            const d = new Date(o.created_at);
+            const orderDateFormatted = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-            // Ajuste Tipo Cliente: Comparación insensible a mayúsculas/minúsculas
-            const matchesTipo = !filters.tipoCliente ||
-                o.customer_type_name?.toLowerCase() === filters.tipoCliente.toLowerCase();
+            const matchesFecha = !filters.fecha || orderDateFormatted === filters.fecha;
+            const matchesTipo = !filters.tipoCliente || o.customer_type_name?.toLowerCase() === filters.tipoCliente.toLowerCase();
 
-            const matchesVendedor = !filters.vendedor || o.seller_name?.toLowerCase().includes(filters.vendedor.toLowerCase());
-            const matchesDespachador = !filters.despachador || o.dispatcher_name?.toLowerCase().includes(filters.despachador.toLowerCase());
+            // Cambiamos la lógica aquí para que sea más robusta
+            const matchesVendedor = !filters.vendedor || o.seller_name?.toString().toLowerCase().includes(filters.vendedor.toLowerCase());
 
-            if (user?.role === 'ADMINISTRADOR') {
-                return matchesSearch && matchesFecha && matchesTipo && matchesVendedor && matchesDespachador;
-            } else if (user?.role === 'DESPACHADOR') {
+            // Si es Admin o Despachador, permitimos ver según los filtros de búsqueda
+            if (user?.role?.toUpperCase() === 'ADMINISTRADOR' || user?.role?.toUpperCase() === 'DESPACHADOR') {
                 return matchesSearch && matchesFecha && matchesTipo && matchesVendedor;
             } else {
                 return matchesSearch && matchesFecha;
             }
         });
     }, [orders, searchTerm, user, filters]);
-    // Usamos los nombres exactos que aparecen en tu captura de base de datos
-    const pedidosSocio = filteredOrders.filter(o =>
-        o.customer_type_name?.toUpperCase() === 'SOCIO'
-    );
 
-    const pedidosNoSocio = filteredOrders.filter(o =>
-        o.customer_type_name?.toUpperCase() === 'NO_SOCIO'
-    );
-
-    // Opcional: Si quieres sumar también los que dicen "CLIENTE" o "DESPACHO_MAYOR" 
-    // a alguna métrica, puedes agregarlos aquí.
     // 2. SEGUNDO: Definir las estadísticas (Dependen de filteredOrders)
     const stats = useMemo(() => {
         const role = user?.role?.toUpperCase();
@@ -253,6 +241,16 @@ export default function PedidosPage() {
     }, [user]);
     if (loading) return <div className="inv-page">Cargando panel de control...</div>;
 
+    const formatFechaConDia = (fechaStr) => {
+        const fecha = new Date(fechaStr);
+        const opcionesFecha = { day: '2-digit', month: '2-digit', year: 'numeric' };
+        const opcionesDia = { weekday: 'long' };
+
+        const fechaNum = fecha.toLocaleDateString('es-ES', opcionesFecha);
+        const nombreDia = fecha.toLocaleDateString('es-ES', opcionesDia);
+
+        return `${fechaNum} - ${nombreDia.charAt(0).toUpperCase() + nombreDia.slice(1)}`;
+    };
     return (
         <div className="inv-page full-layout">
             <div className="module-intro" style={{ marginBottom: '30px' }}>
@@ -335,7 +333,7 @@ export default function PedidosPage() {
             </div>
             {/* SECCIÓN DE FILTROS DINÁMICOS */}
             <div className="inv-card" style={{ marginBottom: '20px', padding: '20px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '80px' }}>
 
                     {/* FECHA */}
                     <div className="filter-group">
@@ -363,35 +361,25 @@ export default function PedidosPage() {
                                     <option value="">Todos</option>
                                     <option value="SOCIO">Socio</option>
                                     <option value="NO_SOCIO">No Socio</option>
+                                    <option value="CLIENTE">Cliente</option>
+                                    <option value="DESPACHO_MAYOR">Despacho Mayor</option>
                                 </select>
                             </div>
                             {/* VENDEDOR */}
-                            <div className="filter-group">
-                                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b' }}>VENDEDOR</label>
-                                <input
-                                    type="text"
-                                    placeholder="Nombre..."
-                                    className="input"
-                                    style={{ width: '100%', marginTop: '5px' }}
-                                    value={filters.vendedor} // IMPORTANTE
-                                    onChange={(e) => setFilters({ ...filters, vendedor: e.target.value })}
-                                />
-                            </div>
+                            {(user?.role === 'ADMINISTRADOR' || user?.role === 'DESPACHADOR') && (
+                                <div className="filter-group">
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b' }}>NOMBRE A QUIEN SE LE ENTREGA</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar por nombre..."
+                                        className="input"
+                                        style={{ width: '100%', marginTop: '5px' }}
+                                        value={filters.vendedor}
+                                        onChange={(e) => setFilters({ ...filters, vendedor: e.target.value })}
+                                    />
+                                </div>
+                            )}
                         </>
-                    )}
-
-                    {user?.role === 'ADMINISTRADOR' && (
-                        <div className="filter-group">
-                            <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b' }}>DESPACHADOR</label>
-                            <input
-                                type="text"
-                                placeholder="Nombre..."
-                                className="input"
-                                style={{ width: '100%', marginTop: '5px' }}
-                                value={filters.despachador} // IMPORTANTE
-                                onChange={(e) => setFilters({ ...filters, despachador: e.target.value })}
-                            />
-                        </div>
                     )}
 
                     <div style={{ display: 'flex', alignItems: 'flex-end' }}>
@@ -413,16 +401,14 @@ export default function PedidosPage() {
                             <tr>
                                 <th>ID Pedido</th>
                                 <th>Fecha</th>
-                                <th>Vendedor / Receptor</th>
-
-                                {/* 1. Columnas extra SOLO para el Administrador */}
-                                {user?.role === 'ADMINISTRADOR' && (
-                                    <>
-                                        <th>Despachador</th>
-                                        <th>Tipo Cliente</th>
-                                    </>
+                                {/* ID PEDIDO */}
+                                {(user?.role === 'ADMINISTRADOR' || user?.role === 'DESPACHADOR') && (
+                                    <th>nombre a quien se le entrega</th>
                                 )}
-
+                                {user?.role === 'ADMINISTRADOR' && (
+                                    <th>Tipo Cliente</th>
+                                )}
+                            
                                 <th style={{ textAlign: 'right' }}>Total</th>
                                 <th style={{ textAlign: 'center' }}>Estado</th>
                                 <th style={{ textAlign: 'center' }}>Gestión</th>
@@ -431,20 +417,15 @@ export default function PedidosPage() {
                         <tbody>
                             {filteredOrders.map(o => (
                                 <tr key={o.id}>
+                                    {/* ID PEDIDO */}
                                     <td className="font-bold" style={{ color: '#6366f1' }}>#{o.id}</td>
-                                    <td>{new Date(o.created_at).toLocaleDateString()}</td>
+                                    {/* FECHA */}
+                                    <td>{formatFechaConDia(o.created_at)}</td>
+                                    {/* NOMBRE A QUIEN SE LE ENTREGA */}
                                     <td style={{ fontWeight: '500' }}>{o.seller_name}</td>
-
-                                    {/* 2. Datos extra SOLO para el Administrador */}
+                                    {/* TYPO DE */}
                                     {user?.role === 'ADMINISTRADOR' && (
-                                        <>
-                                            <td style={{ color: '#4b5563' }}>{o.dispatcher_name || 'N/A'}</td>
-                                            <td>
-                                                <span style={{ fontSize: '0.85em', padding: '2px 8px', borderRadius: '12px', background: '#f3f4f6' }}>
-                                                    {o.customer_type_name || 'General'}
-                                                </span>
-                                            </td>
-                                        </>
+                                        <td style={{ fontWeight: '500' }}>{o.customer_type_name}</td>
                                     )}
 
                                     <td style={{ textAlign: 'right', fontWeight: '700' }}>
@@ -464,9 +445,11 @@ export default function PedidosPage() {
                                                 <button className="btn-edit" style={{ background: '#f59e0b', color: 'white' }} onClick={() => handleOpenEdit(o)} title="Editar Pedido">
                                                     <Edit3 size={14} />
                                                 </button>
-                                                <button className="btn-edit" style={{ background: '#ef4444', color: 'white' }} onClick={() => handleDeleteOrder(o)} title="Eliminar">
-                                                    <Trash2 size={14} />
-                                                </button>
+                                                {user?.role === 'ADMINISTRADOR' && (
+                                                    <button className="btn-edit" style={{ background: '#ef4444', color: 'white' }} onClick={() => handleDeleteOrder(o)} title="Eliminar">
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                )}
                                             </>
                                         )}
                                     </td>
@@ -569,7 +552,7 @@ export default function PedidosPage() {
                                 border: '1px solid #e2e8f0'
                             }}>
                                 <div>
-                                    <p style={{ margin: '0 0 5px 0', fontSize: '0.75rem', fontWeight: 'bold', color: '#94a3b8', letterSpacing: '0.05em' }}>RECEPTOR / VENDEDOR</p>
+                                    <p style={{ margin: '0 0 5px 0', fontSize: '0.75rem', fontWeight: 'bold', color: '#94a3b8', letterSpacing: '0.05em' }}>NOMBRE A QUIEN SE LE ENTREGA</p>
                                     <p style={{ margin: 0, fontWeight: '700', fontSize: '1.1rem', color: '#1e293b' }}>
                                         {selectedOrder.seller_name || 'Sin nombre'}
                                     </p>
@@ -578,7 +561,7 @@ export default function PedidosPage() {
                                     <p style={{ margin: '0 0 5px 0', fontSize: '0.75rem', fontWeight: 'bold', color: '#94a3b8', letterSpacing: '0.05em' }}>FECHA DEL PEDIDO</p>
                                     <p style={{ margin: 0, fontWeight: '600', color: '#334155' }}>
                                         {selectedOrder.created_at
-                                            ? new Date(selectedOrder.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                                            ? formatFechaConDia(selectedOrder.created_at)
                                             : '10/02/2026' /* Fecha de ejemplo si no viene de la DB */}
                                     </p>
                                 </div>

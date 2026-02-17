@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { inventoryService } from "../services/inventoryService";
 import { orderService } from "../services/orderService";
 import { alertSuccess, alertError, alertConfirm } from "../services/alertService";
-import { Package, User, Truck, ChevronLeft, Search } from "lucide-react";
+import { User, Truck, ChevronLeft, Search } from "lucide-react";
 
 export default function DespachoPage() {
     const navigate = useNavigate();
@@ -101,7 +101,7 @@ export default function DespachoPage() {
     return (
         <div className="inv-page full-layout">
             <div className="module-intro">
-                <button className="btn-edit" onClick={() => navigate(-1)} style={{ marginBottom: '15px' }}>
+                <button className="btn-primary-main" onClick={() => navigate(-1)} style={{ marginBottom: '15px' }}>
                     <ChevronLeft size={16} /> Volver al Panel
                 </button>
                 <h1>Salida de Mercancía (Despacho)</h1>
@@ -131,10 +131,10 @@ export default function DespachoPage() {
                 </div>
 
                 <div className="search-bar-container" style={{ margin: '25px 0', position: 'relative' }}>
-                    <Search size={18} style={{ position: 'absolute', left: '15px', top: '13px', color: '#64748b' }} />
+                    <Search size={18} style={{ position: 'absolute', left: '15px', top: '13px', color: '#dc193d' }} />
                     <input
                         className="input-group input"
-                        style={{ width: '100%', paddingLeft: '45px', height: '45px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                        style={{ width: '80%', paddingLeft: '45px', height: '45px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
                         placeholder="Filtrar productos por nombre..."
                         onChange={e => setSearchTerm(e.target.value)}
                     />

@@ -1,92 +1,58 @@
-/* FOOTER */
-.footer {
+/* FOOTER GLOBAL - Mayorista Gallego */
+/* En footer.css */
+.main-footer {
     background: #2d3436;
-    color: #dfe6e9;
-    padding: 20px 40px;
+    color: var(--white);
+    padding: 25px 5%;
+    width: 100%;
+    margin: 0; /* Asegúrate de que no haya margen */
+    border: none; /* Quita cualquier border-top */
+    outline: 1px solid #2d3436; /* Truco: un outline del mismo color "pisa" cualquier hueco */
 }
 
-.footer-content {
+.footer-container {
+    max-width: 1200px;
+    margin: 0 auto;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    max-width: 1200px;
-    margin: 0 auto;
-    font-size: 0.85rem;
+    gap: 20px;
 }
 
-.footer-links a {
-    color: white;
-    text-decoration: none;
-    margin-left: 20px;
+.footer-info p {
+    font-size: 0.85rem;
     opacity: 0.7;
-}
-
-.footer-links a:hover {
-    opacity: 1;
-}
-.admin-footer {
-    background: var(--dark-footer);
-    color: var(--white);
-    padding: 20px 5%;
-    text-align: center;
-    margin-top: auto; /* Empuja el footer al final */
-}
-
-.footer-content p {
-    font-size: 0.85rem;
-    opacity: 0.8;
-}
-
-/* */
-.admin-container {
-    flex: 1; /* Permite que el contenido crezca y el footer baje */
-    max-width: 1200px;
-    margin: 0 auto;
-    width: 100%;
-    padding: 0 20px; /* Margen de seguridad lateral para móviles */
-}
-
-
-/* */
-.admin-footer {
-    background: var(--dark-footer, #2d3436);
-    color: white;
-    padding: 20px 5%;
-    text-align: center;
-    margin-top: auto; /* Empuja el footer al fondo en el layout */
-}
-
-.footer-content p {
-    font-size: 0.85rem;
-    opacity: 0.8;
-    margin-bottom: 10px;
+    margin: 0;
 }
 
 .footer-links {
     display: flex;
-    justify-content: center;
     gap: 20px;
-    font-size: 0.75rem;
-    opacity: 0.6;
 }
 
 .footer-links span {
+    color: var(--white);
+    font-size: 0.8rem;
+    opacity: 0.6;
+    transition: all 0.3s ease;
     cursor: pointer;
-    transition: opacity 0.3s;
+    font-weight: 500;
 }
 
 .footer-links span:hover {
     opacity: 1;
+    color: var(--accent-color); /* El dorado que definimos en app.css */
 }
-@media (max-width: 600px) {
-    .footer-content {
+
+/* Ajuste para pantallas pequeñas */
+@media (max-width: 768px) {
+    .footer-container {
         flex-direction: column;
         text-align: center;
         gap: 15px;
     }
-
+    
     .footer-links {
-        flex-direction: column;
-        gap: 10px;
+        justify-content: center;
     }
 }

@@ -9,6 +9,10 @@ import DespachoPage from "./pages/DespachoPage.jsx";
 import PedidosPage from "./pages/PedidosPage.jsx";
 import VentasPage from "./pages/VentasPage.jsx";
 import VentasHistoryPage from "./pages/VentasHistoryPage.jsx";
+import DevolucionesPage from "./pages/DevolucionesPage.jsx";
+import LiquidacionesListPage from "./pages/LiquidacionesListPage.jsx";
+import VentasDetalleReadOnly from "./components/VentasDetalleReadOnly.jsx";
+
 export default function AppRouter() {
   return (
     <BrowserRouter>
@@ -80,6 +84,27 @@ export default function AppRouter() {
             </RoleRoute>
           }
         />
+        <Route
+          path="/devoluciones"
+          element={
+            <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO", "NO_SOCIO"]}>
+              <MainLayout>
+                <DevolucionesPage />
+              </MainLayout>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/liquidaciones"
+          element={
+            <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO"]}>
+              <MainLayout>
+                <LiquidacionesListPage />
+              </MainLayout>
+            </RoleRoute>
+          }
+        />
+        
         {/* 2. NUEVA RUTA: HISTORIAL DE VENTAS REALIZADAS */}
         <Route
           path="/historial-ventas"
@@ -87,6 +112,16 @@ export default function AppRouter() {
             <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO", "NO_SOCIO"]}>
               <MainLayout>
                 <VentasHistoryPage />
+              </MainLayout>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/ventas-detalle/:orderId"
+          element={
+            <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO", "NO_SOCIO"]}>
+              <MainLayout>
+                <VentasDetalleReadOnly />
               </MainLayout>
             </RoleRoute>
           }

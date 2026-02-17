@@ -60,7 +60,11 @@
   border: 1px solid var(--border);
   transition: transform 0.2s ease;
 }
-
+/* Contenedor del grupo de código */
+.barcode-group {
+    min-width: 200px; /* Asegura un ancho mínimo suficiente */
+    flex: 1;
+}
 .s-card:hover {
   transform: translateY(-3px);
 }
@@ -93,7 +97,23 @@
   font-weight: 800;
   color: var(--text);
 }
-
+/* Estilo específico para el input automático */
+.input-barcode-auto {
+    background-color: #f8f9fa !important;
+    border: 2px dashed #6c757d !important; /* Estilo de borde de tu imagen */
+    color: #495057;
+    font-weight: bold;
+    font-family: monospace; /* Ayuda a que los números se vean ordenados */
+    font-size: 1.1rem;
+    padding: 8px 12px;
+    width: 100%;
+    cursor: not-allowed;
+    
+    /* Evita que el texto se corte */
+    white-space: nowrap;
+    overflow: visible; 
+    text-overflow: clip;
+}
 /* =========================
    ESTILOS DEL CARRUSEL (NUEVO)
    ========================= */
@@ -173,7 +193,7 @@
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
 }
 
