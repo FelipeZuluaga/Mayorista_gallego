@@ -134,6 +134,25 @@ router.get("/categories", async (req, res) => {
     }
 });
 /* ============================
+   CREAR CATEGORÍA (NUEVA RUTA SOLUCIONA 404)
+============================ */
+router.post("/categories", canManage, async (req, res) => {
+    const { name } = req.body;
+    try {
+        const [result] = await db.query("INSERT INTO categories (name) VALUES (?)", [name]);
+        res.status(201).json({ 
+            message: "Categoría creada correctamente", 
+            id: result.insertId 
+        });
+    } catch (err) {
+        if (err.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ message: "La categoría ya existe" });
+        }
+        console.error(err);
+        res.status(500).json({ message: "Error al crear categoría" });
+    }
+});
+/* ============================
     ACTUALIZAR PRODUCTO (PUT) - MODIFICADO PARA SUMAR STOCK
 ============================ */
 router.put("/:id", canManage, async (req, res) => {

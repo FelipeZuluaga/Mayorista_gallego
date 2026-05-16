@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { inventoryService } from "../services/inventoryService";
-import { alertSuccess, alertError, alertConfirm } from "../services/alertService";
+import { alertSuccess, alertError, alertConfirm, alertInput } from "../services/alertService";
 import { Trash2, Edit3, Barcode, Boxes, Tag, DollarSign, AlertTriangle, Search } from "lucide-react";
 import "../styles/inventory.css";
 
@@ -40,7 +40,18 @@ export default function InventoryPage() {
             setForm(prev => ({ ...prev, barcode: generateNextBarcode() }));
         }
     }, [products]); // Se recalcula si la lista de productos cambia
+    // --- NUEVO: Lógica del Carrusel (Añade esto aquí) ---
+    useEffect(() => {
+        // Creamos un intervalo que cambia el tipo de cliente cada 5 segundos
+        const interval = setInterval(() => {
+            setCurrentTypeIndex((prevIndex) =>
+                prevIndex === CUSTOMER_TYPES.length - 1 ? 0 : prevIndex + 1
+            );
+        }, 5000);
 
+        // Limpieza: si el usuario sale de la página, el reloj se detiene
+        return () => clearInterval(interval);
+    }, []);
     const loadData = async () => {
         try {
             const [prodData, catData] = await Promise.all([
@@ -182,6 +193,86 @@ export default function InventoryPage() {
         });
         setEditingProduct(null);
     };
+    // --- NUEVA FUNCIÓN PARA ESCANEO RÁPIDO ---
+    const handleQuickScan = async (scannedBarcode) => {
+        if (!scannedBarcode) return;
+
+        const existingProduct = products.find(p => String(p.barcode) === String(scannedBarcode));
+
+        if (existingProduct) {
+            // Si el producto existe, preparamos el payload para SUMAR 1 al stock
+            const pricesObj = { 1: "", 2: "", 3: "", 4: "" };
+            existingProduct.prices?.forEach(pr => {
+                pricesObj[pr.customer_type_id] = Math.trunc(pr.unit_price);
+            });
+
+            const catId = categories.find(c => c.name === existingProduct.category)?.id || "";
+
+            const payload = {
+                name: existingProduct.name,
+                stock: 1, // El backend hará stock = stock + 1
+                category_id: Number(catId),
+                prices: CUSTOMER_TYPES.map((c) => ({
+                    customer_type_id: c.id,
+                    unit_price: pricesObj[c.id],
+                })),
+            };
+
+            try {
+                setLoading(true);
+                await inventoryService.updateProduct(existingProduct.id, payload);
+                alertSuccess("Stock Actualizado", `+1 unidad a: ${existingProduct.name}`);
+                resetForm();
+                loadData();
+            } catch (err) {
+                alertError("Error", "No se pudo actualizar el stock por escaneo.");
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            // Si no existe, movemos el foco al nombre para que el usuario lo cree
+            document.getElementById("product-name-input")?.focus();
+        }
+    };
+    const handleAddNewCategory = async () => {
+        // Usamos alertInput para que aparezca el cuadro de texto
+        const result = await alertInput(
+            "Nueva Categoría",
+            "Escribe el nombre de la nueva categoría..."
+        );
+
+        // SweetAlert guarda lo escrito en result.value
+        if (result.isConfirmed && result.value) {
+            try {
+                setLoading(true);
+                const categoryName = result.value.trim();
+
+                // 1. Llamada al servicio
+                const res = await inventoryService.createCategory({ name: categoryName });
+
+                // 2. Si el backend retorna éxito o el ID del nuevo registro
+                if (res.success || res.id) {
+                    alertSuccess("¡Creada!", `Categoría "${categoryName}" agregada.`);
+
+                    // 3. Recargar categorías de la base de datos para refrescar el <select>
+                    const catData = await inventoryService.getCategories();
+                    setCategories(catData || []);
+
+                    // 4. Auto-seleccionar la nueva categoría en el formulario
+                    // Usamos el ID que nos devolvió el servidor
+                    setForm(prev => ({ ...prev, category_id: res.id }));
+                }
+            } catch (err) {
+                alertError("Error", "No se pudo crear la categoría. Tal vez ya existe.");
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            // Si el usuario cancela o cierra la modal sin escribir, 
+            // reseteamos el select para que no se quede en "ADD_NEW"
+            setForm(prev => ({ ...prev, category_id: "" }));
+        }
+    };
 
     return (
         <div className="inv-page full-layout">
@@ -231,12 +322,21 @@ export default function InventoryPage() {
                 <form className="inv-form" onSubmit={handleSubmit}>
                     <div className="form-grid">
                         <div className="input-group barcode-group">
-                            <label><Barcode size={14} /> Código de barras (Automático)</label>
+                            <label><Barcode size={14} /> Código de barras</label>
                             <input
+                                id="barcode-input"
+                                type="text"
                                 value={form.barcode}
-                                readOnly
-                                className="input-barcode-auto"
-                                title={form.barcode} // Esto permite ver el código completo al pasar el mouse
+                                onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleQuickScan(form.barcode);
+                                    }
+                                }}
+                                placeholder="Escanee aquí..."
+                                className="input-barcode-editable"
+                                autoFocus
                             />
                         </div>
                         <div className="input-group">
@@ -260,13 +360,29 @@ export default function InventoryPage() {
                             <label><Tag size={14} /> Categoría</label>
                             <select
                                 value={form.category_id}
-                                onChange={(e) => setForm({ ...form, category_id: e.target.value })}
+                                onChange={(e) => {
+                                    if (e.target.value === "ADD_NEW") {
+                                        handleAddNewCategory();
+                                    } else {
+                                        setForm({ ...form, category_id: e.target.value });
+                                    }
+                                }}
                                 required
                             >
                                 <option value="">Seleccione...</option>
                                 {categories.map(c => (
                                     <option key={c.id} value={c.id}>{c.name}</option>
                                 ))}
+                                <option 
+                                    value="ADD_NEW" 
+                                    style={{ 
+                                        fontWeight: 'bold', 
+                                        color: '#9b111e', 
+                                        backgroundColor: '#f8f9fa' 
+                                    }}
+                                >
+                                    + AGREGAR NUEVA...
+                                </option>
                             </select>
                         </div>
                     </div>

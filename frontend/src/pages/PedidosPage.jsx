@@ -12,7 +12,10 @@ export default function PedidosPage() {
     const [allProducts, setAllProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
-
+    const [isPasscodeModalOpen, setIsPasscodeModalOpen] = useState(false);
+    const [passcode, setPasscode] = useState("");
+    const [orderToDelete, setOrderToDelete] = useState(null);
+    const SECURITY_CODE = "9988"; // Define aquí el código que desees
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [orderItems, setOrderItems] = useState([]);
 
@@ -147,13 +150,38 @@ export default function PedidosPage() {
     };
 
     const handleDeleteOrder = async (order) => {
+        // Si es DESPACHADOR, pedimos código primero
+        if (user?.role?.toUpperCase() === 'DESPACHADOR') {
+            setOrderToDelete(order);
+            setIsPasscodeModalOpen(true);
+            return;
+        }
+
+        // Si es ADMIN, sigue el flujo normal
         const confirm = await alertConfirm("¿Eliminar pedido?", "Esta acción devolverá todos los productos al inventario.");
         if (confirm.isConfirmed) {
-            try {
-                await orderService.deleteOrder(order.id);
-                alertSuccess("Eliminado", "El pedido fue borrado y el stock restaurado.");
-                loadOrders();
-            } catch (err) { alertError("Error", err); }
+            executeDeletion(order.id);
+        }
+    };
+    // Función auxiliar para no repetir código de borrado
+    const executeDeletion = async (orderId) => {
+        try {
+            await orderService.deleteOrder(orderId);
+            alertSuccess("Eliminado", "El pedido fue borrado y el stock restaurado.");
+            loadOrders();
+            setIsPasscodeModalOpen(false);
+            setPasscode("");
+        } catch (err) {
+            alertError("Error", err);
+        }
+    };
+    // Función para validar el código ingresado
+    const handleVerifyCode = () => {
+        if (passcode === SECURITY_CODE) {
+            executeDeletion(orderToDelete.id);
+        } else {
+            alertError("Código Incorrecto", "El código de seguridad no es válido.");
+            setPasscode("");
         }
     };
 
@@ -341,7 +369,7 @@ export default function PedidosPage() {
                         <input
                             type="date"
                             className="input"
-                            style={{ width: '100%', marginTop: '5px' }}
+                            style={{ width: '80%', marginTop: '5px' }}
                             value={filters.fecha} // IMPORTANTE
                             onChange={(e) => setFilters({ ...filters, fecha: e.target.value })}
                         />
@@ -373,7 +401,7 @@ export default function PedidosPage() {
                                         type="text"
                                         placeholder="Buscar por nombre..."
                                         className="input"
-                                        style={{ width: '100%', marginTop: '5px' }}
+                                        style={{ width: '80%', marginTop: '5px' }}
                                         value={filters.vendedor}
                                         onChange={(e) => setFilters({ ...filters, vendedor: e.target.value })}
                                     />
@@ -408,7 +436,7 @@ export default function PedidosPage() {
                                 {user?.role === 'ADMINISTRADOR' && (
                                     <th>Tipo Cliente</th>
                                 )}
-                            
+
                                 <th style={{ textAlign: 'right' }}>Total</th>
                                 <th style={{ textAlign: 'center' }}>Estado</th>
                                 <th style={{ textAlign: 'center' }}>Gestión</th>
@@ -440,13 +468,25 @@ export default function PedidosPage() {
                                         <button className="btn-edit" onClick={() => handleViewDetail(o)} title="Ver Detalle">
                                             <Eye size={14} />
                                         </button>
-                                        {canManage && (
+                                        {/* Verificamos que tenga permisos Y que el pedido NO esté liquidado */}
+                                        {canManage && o.status?.toUpperCase() !== 'LIQUIDADO' && (
                                             <>
-                                                <button className="btn-edit" style={{ background: '#f59e0b', color: 'white' }} onClick={() => handleOpenEdit(o)} title="Editar Pedido">
+                                                <button
+                                                    className="btn-edit"
+                                                    style={{ background: '#f59e0b', color: 'white' }}
+                                                    onClick={() => handleOpenEdit(o)}
+                                                    title="Editar Pedido"
+                                                >
                                                     <Edit3 size={14} />
                                                 </button>
-                                                {user?.role === 'ADMINISTRADOR' && (
-                                                    <button className="btn-edit" style={{ background: '#ef4444', color: 'white' }} onClick={() => handleDeleteOrder(o)} title="Eliminar">
+                                                {/* CAMBIO AQUÍ: Permitir a ADMIN o DESPACHADOR */}
+                                                {(user?.role === 'ADMINISTRADOR' || user?.role === 'DESPACHADOR') && (
+                                                    <button
+                                                        className="btn-edit"
+                                                        style={{ background: '#ef4444', color: 'white' }}
+                                                        onClick={() => handleDeleteOrder(o)}
+                                                        title="Eliminar"
+                                                    >
                                                         <Trash2 size={14} />
                                                     </button>
                                                 )}
@@ -619,6 +659,62 @@ export default function PedidosPage() {
                                     ${Number(selectedOrder.total_amount || 0).toLocaleString('es-CO')}
                                 </span>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* MODAL DE CÓDIGO DE SEGURIDAD PARA DESPACHADOR */}
+            {isPasscodeModalOpen && (
+                <div className="modal-overlay">
+                    <div className="modal-content" style={{ maxWidth: '400px', textAlign: 'center', padding: '30px' }}>
+                        <div style={{ marginBottom: '20px' }}>
+                            <div style={{ background: '#fee2e2', color: '#ef4444', width: '60px', height: '60px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px' }}>
+                                <Trash2 size={30} />
+                            </div>
+                            <h2 style={{ margin: 0 }}>Confirmación de Seguridad</h2>
+                            <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '10px' }}>
+                                Ingresa el código de autorización para eliminar el pedido <b>#{orderToDelete?.id}</b>
+                            </p>
+                        </div>
+
+                        <input
+                            type="password"
+                            placeholder="****"
+                            value={passcode}
+                            onChange={(e) => setPasscode(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '15px',
+                                fontSize: '24px',
+                                textAlign: 'center',
+                                letterSpacing: '10px',
+                                borderRadius: '12px',
+                                border: '2px solid #e2e8f0',
+                                outline: 'none',
+                                marginBottom: '20px'
+                            }}
+                            autoFocus
+                            onKeyDown={(e) => e.key === 'Enter' && handleVerifyCode()}
+                        />
+
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button
+                                className="btn-edit"
+                                style={{ flex: 1, background: '#f1f5f9' }}
+                                onClick={() => {
+                                    setIsPasscodeModalOpen(false);
+                                    setPasscode("");
+                                }}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                className="btn-primary-main"
+                                style={{ flex: 1, background: '#ef4444' }}
+                                onClick={handleVerifyCode}
+                            >
+                                Eliminar
+                            </button>
                         </div>
                     </div>
                 </div>

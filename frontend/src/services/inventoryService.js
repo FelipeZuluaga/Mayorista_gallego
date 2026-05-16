@@ -23,6 +23,13 @@ export const inventoryService = {
         return res.data;
     },
 
+    // --- NUEVA FUNCIÓN: Crear una categoría desde el select ---
+    createCategory: async (categoryData) => {
+        // Asumiendo que tu endpoint en el backend es /inventory/categories
+        const res = await api.post("/inventory/categories", categoryData, getHeaders());
+        return res.data;
+    },
+    
     // Crear un nuevo producto junto con su array de precios
     createProduct: async (productData) => {
         const res = await api.post("/inventory", productData, getHeaders());

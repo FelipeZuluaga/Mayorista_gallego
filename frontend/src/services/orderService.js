@@ -96,6 +96,9 @@ export const orderService = {
             throw error.response?.data?.message || "Error al filtrar usuarios";
         }
     },
+
+    //DEVOLUCION
+
     /**
      * NUEVO: Procesar la devolución de productos sobrantes al inventario.
      * Envía: { order_id, items: [{product_id, quantity}, ...] }
@@ -109,6 +112,7 @@ export const orderService = {
             throw error.response?.data?.message || "Error al procesar la devolución de productos";
         }
     },
+
     // Dentro de orderService.js
     getReturnHistory: async (orderId) => {
         try {
@@ -118,6 +122,20 @@ export const orderService = {
             throw error.response?.data?.message || "Error al obtener historial";
         }
     },
+
+    // orderService.js
+    updateOrderStatus: async (orderId, status) => {
+        try {
+            // Asegúrate de que esta ruta coincida con tu backend
+            const response = await api.put(`/orders/update-status/${orderId}`, { status });
+            return response.data;
+        } catch (error) {
+            throw error.response?.data?.message || "Error al actualizar el estado";
+        }
+    },
+
+    //-----------------------------------------------------------------------------------------------------------------------
+
     /**
      * NUEVO - INVENTARIO ACTUAL EN CAMIÓN: 
      * Calcula: (Cantidad Despachada) - (Cantidad Vendida en Sales).
@@ -131,6 +149,11 @@ export const orderService = {
             throw error.response?.data?.message || "Error al calcular inventario del camión";
         }
     },
+
+
+    //------------------------------------------------------------------------------------------------------------------------
+
+    //lIQUIDACION
     markAsLiquidated: async (orderId) => {
         try {
             const response = await api.post(`/orders/mark-liquidated/${orderId}`);
@@ -138,6 +161,20 @@ export const orderService = {
         } catch (error) {
             throw error.response?.data?.message || "Error al marcar la orden como liquidada";
         }
-    }  
-    
+    },
+    /**
+     * LIQUIDACIÓN ECONÓMICA: 
+     * Procesa ventas, devoluciones, abonos y calcula el 50/50 y faltantes.
+     * Envía: { abonosManuales, efectivoEntregado, costoProducto }
+     */
+    settleOrder: async (orderId, settlementData) => {
+        try {
+            const response = await api.post(`/orders/settle/${orderId}`, settlementData);
+            return response.data;
+        } catch (error) {
+            console.error("Error en settleOrder:", error.response?.data);
+            throw error.response?.data?.message || "Error al procesar la liquidación económica";
+        }
+    }
+
 };

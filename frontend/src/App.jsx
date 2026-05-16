@@ -7,11 +7,23 @@ import UsersPage from "./pages/UsersPage.jsx";
 import InventoryPage from "./pages/InventoryPage.jsx";
 import DespachoPage from "./pages/DespachoPage.jsx";
 import PedidosPage from "./pages/PedidosPage.jsx";
+
+
 import VentasPage from "./pages/VentasPage.jsx";
 import VentasHistoryPage from "./pages/VentasHistoryPage.jsx";
-import DevolucionesPage from "./pages/DevolucionesPage.jsx";
-import LiquidacionesListPage from "./pages/LiquidacionesListPage.jsx";
+import CustomerList from "./components/CustomerList.jsx";
 import VentasDetalleReadOnly from "./components/VentasDetalleReadOnly.jsx";
+
+
+import DevolucionesPage from "./pages/DevolucionesPage.jsx";
+import HistDevolucionesPage from "./pages/HistDevolucionesPage.jsx";
+
+
+
+import SettlementModule from "./components/SettlementModule.jsx";
+// --- NUEVA IMPORTACIÓN ---
+import Pagos from "./components/Pagos.jsx";
+import HistorialPagos from "./pages/HistorialPagos.jsx";
 
 export default function AppRouter() {
   return (
@@ -19,7 +31,6 @@ export default function AppRouter() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
-
         {/* El Dashboard ahora es para TODOS los roles autorizados */}
         <Route
           path="/dashboard"
@@ -50,7 +61,7 @@ export default function AppRouter() {
             </RoleRoute>
           }
         />
-        {/* --- MÓDULO DE DESPACHOS (Donde se crea el pedido y resta stock) --- */}
+         {/* --- MÓDULO DE DESPACHOS (Donde se crea el pedido y resta stock) --- */}
         <Route
           path="/despacho"
           element={
@@ -61,7 +72,7 @@ export default function AppRouter() {
             </RoleRoute>
           }
         />
-        {/* Módulo de Pedidos/Historial: 
+         {/* Módulo de Pedidos/Historial: 
             Aquí aplicamos la lógica de visibilidad filtrada para todos los roles */}
         <Route
           path="/pedidos"
@@ -84,27 +95,6 @@ export default function AppRouter() {
             </RoleRoute>
           }
         />
-        <Route
-          path="/devoluciones"
-          element={
-            <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO", "NO_SOCIO"]}>
-              <MainLayout>
-                <DevolucionesPage />
-              </MainLayout>
-            </RoleRoute>
-          }
-        />
-        <Route
-          path="/liquidaciones"
-          element={
-            <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO"]}>
-              <MainLayout>
-                <LiquidacionesListPage />
-              </MainLayout>
-            </RoleRoute>
-          }
-        />
-        
         {/* 2. NUEVA RUTA: HISTORIAL DE VENTAS REALIZADAS */}
         <Route
           path="/historial-ventas"
@@ -122,6 +112,68 @@ export default function AppRouter() {
             <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO", "NO_SOCIO"]}>
               <MainLayout>
                 <VentasDetalleReadOnly />
+              </MainLayout>
+            </RoleRoute>
+          }
+        />
+        {/* --- NUEVA RUTA: DETALLE FINANCIERO DE PAGOS --- */}
+        <Route
+          path="/pagos-detalle"
+          element={
+            <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO", "NO_SOCIO"]}>
+              <MainLayout>
+                <Pagos />
+              </MainLayout>
+            </RoleRoute>
+          }
+        />
+        {/* --- NUEVA RUTA: HISTORIAL DE CIERRES SEMANALES --- */}
+        <Route
+          path="/historial-pagos"
+          element={
+            <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO", "NO_SOCIO"]}>
+              <MainLayout>
+                <HistorialPagos />
+              </MainLayout>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/devoluciones"
+          element={
+            <RoleRoute allowedRoles={["ADMINISTRADOR", "DESPACHADOR", "SOCIO", "NO_SOCIO"]}>
+              <MainLayout>
+                <DevolucionesPage />
+              </MainLayout>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/historial-devoluciones"
+          element={
+            <RoleRoute allowedRoles={["ADMINISTRADOR", "DESPACHADOR", "SOCIO", "NO_SOCIO"]}>
+              <MainLayout>
+                <HistDevolucionesPage />
+              </MainLayout>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/liquidacion-ruta/:orderId"
+          element={
+            <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO", "NO_SOCIO"]}>
+              <MainLayout>
+                <SettlementModule />
+              </MainLayout>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/clientes"
+          element={
+            <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO", "NO_SOCIO"]}>
+              <MainLayout>
+                <CustomerList />
               </MainLayout>
             </RoleRoute>
           }

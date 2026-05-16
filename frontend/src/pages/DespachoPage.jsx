@@ -18,7 +18,8 @@ export default function DespachoPage() {
     const [customerTypeId, setCustomerTypeId] = useState("4"); // 4: Despacho Mayorista
     const [sellerName, setSellerName] = useState("");
     const [quantities, setQuantities] = useState({});
-
+    // 1. Nuevo estado para el valor del escáner
+    const [scannerInput, setScannerInput] = useState("");
     useEffect(() => {
         loadProducts();
     }, []);
@@ -97,6 +98,30 @@ export default function DespachoPage() {
             }
         }
     };
+    // 2. Función para manejar el pistoleo
+    const handleBarcodeScan = (e) => {
+        if (e.key === 'Enter') {
+            const barcode = scannerInput.trim();
+            // Buscamos el producto por código (asegúrate de tener un campo 'barcode' en tus productos)
+            const product = products.find(p => p.barcode === barcode);
+
+            if (product) {
+                // Si existe, incrementamos la cantidad actual en +1
+                const currentQty = Number(quantities[product.id] || 0);
+                if (currentQty < product.stock) {
+                    setQuantities(prev => ({
+                        ...prev,
+                        [product.id]: currentQty + 1
+                    }));
+                } else {
+                    alertError("Stock limitado", "No hay más stock disponible para este producto.");
+                }
+            } else {
+                alertError("No encontrado", "Producto no registrado con ese código.");
+            }
+            setScannerInput(""); // Limpiamos para el siguiente escaneo
+        }
+    };
 
     return (
         <div className="inv-page full-layout">
@@ -130,14 +155,57 @@ export default function DespachoPage() {
                     </div>
                 </div>
 
-                <div className="search-bar-container" style={{ margin: '25px 0', position: 'relative' }}>
-                    <Search size={18} style={{ position: 'absolute', left: '15px', top: '13px', color: '#dc193d' }} />
-                    <input
-                        className="input-group input"
-                        style={{ width: '80%', paddingLeft: '45px', height: '45px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                        placeholder="Filtrar productos por nombre..."
-                        onChange={e => setSearchTerm(e.target.value)}
-                    />
+                <div className="search-controls-wrapper" style={{
+                    display: 'flex',
+                    gap: '15px',
+                    margin: '25px 0',
+                    alignItems: 'center'
+                }}>
+                    {/* Buscador por Nombre */}
+                    <div style={{ position: 'relative', flex: '2' }}>
+                        <Search size={18} style={{
+                            position: 'absolute',
+                            left: '15px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            color: '#94a3b8'
+                        }} />
+                        <input
+                            className="input-group-field"
+                            style={{
+                                width: '100%',
+                                padding: '12px 15px 12px 45px',
+                                borderRadius: '8px',
+                                border: '1px solid #e2e8f0',
+                                fontSize: '14px',
+                                outline: 'none'
+                            }}
+                            placeholder="Filtrar productos por nombre..."
+                            onChange={e => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+
+                    {/* Buscador por Pistola (Escáner) */}
+                    <div style={{ position: 'relative', flex: '1' }}>
+                        <input
+                            type="text"
+                            autoFocus // Para que siempre esté listo para recibir el código
+                            placeholder="Pistolea el código aquí..."
+                            value={scannerInput}
+                            onChange={(e) => setScannerInput(e.target.value)}
+                            onKeyDown={handleBarcodeScan}
+                            style={{
+                                width: '100%',
+                                padding: '12px 15px',
+                                borderRadius: '8px',
+                                border: '2px solid #0d2a4d', // Mantenemos el rojo pero más sutil
+                                backgroundColor: '#fffcfc',
+                                fontSize: '14px',
+                                fontWeight: '500',
+                                outline: 'none'
+                            }}
+                        />
+                    </div>
                 </div>
 
                 <div className="table-container-fixed">
@@ -153,9 +221,21 @@ export default function DespachoPage() {
                         </thead>
                         <tbody>
                             {products
-                                .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                                .filter(p =>
+                                    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                    (p.barcode && p.barcode.includes(searchTerm)) // También filtra por lo que escribas en el buscador principal
+                                )
+                                // ORDENAMIENTO: Si tiene cantidad > 0, va primero
+                                .sort((a, b) => {
+                                    const qtyA = Number(quantities[a.id]) || 0;
+                                    const qtyB = Number(quantities[b.id]) || 0;
+
+                                    if (qtyA > 0 && qtyB === 0) return -1; // a va primero
+                                    if (qtyA === 0 && qtyB > 0) return 1;  // b va primero
+                                    return 0; // se mantienen igual si ambos tienen o no tienen
+                                })
                                 .map(p => (
-                                    <tr key={p.id}>
+                                    <tr key={p.id} className={Number(quantities[p.id]) > 0 ? "row-selected" : ""}>
                                         <td className="font-bold">{p.name}</td>
                                         <td>
                                             <span className={`badge-stock ${p.stock < 10 ? 'stock-low' : ''}`}>
@@ -182,7 +262,19 @@ export default function DespachoPage() {
                     </table>
                 </div>
 
-                <div className="form-actions" style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {/* SECCIÓN MODIFICADA: Ahora es 'sticky' para que no se pierda al hacer scroll */}
+                <div className="form-actions" style={{
+                    marginTop: '30px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    position: 'sticky',
+                    bottom: '0',
+                    backgroundColor: 'white',
+                    padding: '20px 0',
+                    borderTop: '2px solid #eee',
+                    zIndex: 10
+                }}>
                     <div style={{ fontSize: '22px', fontWeight: '800' }}>
                         TOTAL: <span style={{ color: 'var(--primary)' }}>${totalDespacho.toLocaleString()}</span>
                     </div>
