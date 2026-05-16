@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/login.css";
 import logo from "../assets/logo.jpeg";
-import { Truck } from 'lucide-react'; 
+import { Truck } from 'lucide-react';
 import Footer from "../components/footer";
 import { loginUser } from "../services/authService";
 import { alertSuccess, alertError, alertWarning } from "../services/alertService";
@@ -11,13 +11,13 @@ function Login() {
   const navigate = useNavigate();
 
   // Cambiado de email a userId para usar el código único
-  const [userId, setUserId] = useState(""); 
+  const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const [roleId, setRoleId] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
 
     // Validación actualizada para usar userId
     if (!userId || !password || !roleId) {
@@ -85,7 +85,12 @@ function Login() {
         <div className="login-section">
           <div className="login-container">
             <div className="brand-header">
-              <img src={logo} alt="Logo" className="login-logo" />
+              <img
+                src={logo}
+                alt="Logo"
+                className="login-logo"
+                draggable="false"
+              />
               <h2>Bienvenido de nuevo</h2>
               <p className="subtitle">Ingresa tu código único para continuar</p>
             </div>
@@ -106,7 +111,7 @@ function Login() {
                 {/* Cambiado de Correo Electrónico a Código de Usuario */}
                 <label>Código de Usuario (ID)</label>
                 <input
-                  type="text" 
+                  type="text"
                   placeholder="Ej: 102030"
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}

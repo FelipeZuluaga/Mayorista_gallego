@@ -249,7 +249,8 @@ const updateOrderItems = async (req, res) => {
         if (connection) connection.release();
     }
 };
-// backend/controllers/orderController.js
+
+// DEVOLUCIÓNES
 
 const processReturn = async (req, res) => {
     const { order_id, items } = req.body;
@@ -259,16 +260,12 @@ const processReturn = async (req, res) => {
         await connection.beginTransaction();
 
         for (const item of items) {
-            // USAMOS cantidad_a_devolver que es como lo envía el frontend
-            // FORZAMOS el valor a número entero
-            const cantADevolver = parseInt(item.cantidad_a_devolver);
+            // CAMBIO: Ahora leemos 'quantity' en lugar de 'cantidad_a_devolver'
+            const cantADevolver = parseInt(item.quantity); 
             const productId = item.product_id;
 
-            if (cantADevolver > 0) {
-                //console.log(`Sumando ${cantADevolver} al producto ID: ${productId}`); // Log para depurar
-
+            if (!isNaN(cantADevolver) && cantADevolver > 0) {
                 // 1. SUMAR AL INVENTARIO
-                // Usamos stock = stock + ? para que SQL haga la suma matemática
                 await connection.query(
                     "UPDATE products SET stock = stock + ? WHERE id = ?",
                     [cantADevolver, productId]
@@ -282,14 +279,14 @@ const processReturn = async (req, res) => {
             }
         }
 
-        // 3. Marcar la orden como LIQUIDADA
+        // 3. Marcar la orden como DEVOLUCION (o lo que corresponda)
         await connection.query(
-            "UPDATE orders SET status = 'LIQUIDADO' WHERE id = ?",
+            "UPDATE orders SET status = 'DEVOLUCION' WHERE id = ?",
             [order_id]
         );
 
         await connection.commit();
-        res.json({ success: true, message: "Liquidación guardada con éxito." });
+        res.json({ success: true, message: "La devolución fue procesada correctamente." });
     } catch (error) {
         if (connection) await connection.rollback();
         console.error("Error en SQL:", error);
@@ -298,15 +295,23 @@ const processReturn = async (req, res) => {
         if (connection) connection.release();
     }
 };
+
+
+
+
 // 2. NUEVA FUNCIÓN: Obtener lo que se devolvió de una orden
 const getReturnHistory = async (req, res) => {
     const { orderId } = req.params;
     try {
         const [rows] = await db.query(
-            `SELECT r.quantity as cantidad_devuelta, p.name as product_name, r.return_date 
-             FROM order_returns r 
-             JOIN products p ON r.product_id = p.id 
-             WHERE r.order_id = ?`,
+            `SELECT 
+                r.product_id, -- <--- TE FALTABA ESTO
+                r.quantity as cantidad_devuelta, 
+                p.name as product_name, 
+                r.return_date 
+            FROM order_returns r 
+            JOIN products p ON r.product_id = p.id 
+            WHERE r.order_id = ?`,
             [orderId]
         );
         res.json(rows);
@@ -314,15 +319,30 @@ const getReturnHistory = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+const updateOrderStatus = async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    try {
+        // Actualiza el campo status en la tabla orders (m_g_orders)[cite: 6]
+        await db.query("UPDATE orders SET status = ? WHERE id = ?", [status, id]);
+        res.json({ success: true, message: "Estado de orden actualizado correctamente" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+//-----------------------------------------------------------------------------------------------
+
 const getTruckInventory = async (req, res) => {
     const { orderId } = req.params;
     try {
         // Esta consulta busca lo que se despachó y le resta lo que se vendió en esa orden
         const [rows] = await db.query(
-            `SELECT 
+            `SELECT
+                p.barcode AS codg_barras,
                 oi.product_id, 
                 p.name as product_name, 
                 oi.quantity as despachado,
+                oi.unit_price AS precio_base,
                 IFNULL((SELECT SUM(si.quantity) 
                         FROM sale_items si 
                         JOIN sales s ON si.sale_id = s.id 
@@ -336,9 +356,12 @@ const getTruckInventory = async (req, res) => {
 
         // Calculamos el sobrante real
         const stockEnCamion = rows.map(item => ({
+            codg_barras:item.codg_barras,
             product_id: item.product_id,
             product_name: item.product_name,
-            cantidad_sobrante: item.despachado - item.vendido
+            despachado: item.despachado,
+            cantidad_sobrante: item.despachado - item.vendido,
+            precio_base: item.precio_base,
         }));
 
         res.json(stockEnCamion);
@@ -346,12 +369,96 @@ const getTruckInventory = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+//-----------------------------------------------------------------------------------------------
+
+//LIQUIDACION
 const markAsLiquidated = async (req, res) => {
     const { orderId } = req.params;
     try {
         await db.query("UPDATE orders SET status = 'LIQUIDADO' WHERE id = ?", [orderId]);
         res.json({ success: true, message: "Orden liquidada." });
     } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+
+
+const settleOrder = async (req, res) => {
+    const { orderId } = req.params;
+
+    // Capturamos los datos enviados desde el frontend (React)
+    const {
+        user_id,
+        total_recaudado,
+        ventas_totales,
+        cartera_anterior,
+        valor_almuerzo,
+        valor_gasolina,
+        ganancia_vendedor,
+        efectivo_fisico,
+        diferencia
+    } = req.body || {};
+
+    try {
+        // 1. RECAUDO Y VENTAS (Igual que lo tenías)
+        const [cashData] = await db.query(`
+            SELECT IFNULL(SUM(amount_paid), 0) as total_recaudado,
+                   IFNULL(SUM(total_amount), 0) as ventas_totales_hoy
+            FROM sales WHERE order_id = ?
+        `, [orderId]);
+
+        // 2. CARTERA (Igual que lo tenías)
+        const [carteraData] = await db.query(`
+            SELECT IFNULL(SUM(total_debt), 0) as cartera_anterior 
+            FROM customers 
+            WHERE id IN (SELECT DISTINCT customer_id FROM sales WHERE order_id = ?)
+        `, [orderId]);
+
+        // 3. OBTENER USER_ID DE LA ORDEN (Si no viene en el body)
+        const [orderInfo] = await db.query("SELECT user_id FROM orders WHERE id = ?", [orderId]);
+
+        // 4. FLUJO DE CONSULTA (Si no hay efectivo_fisico enviado)
+        if (efectivo_fisico === undefined) {
+            return res.json({
+                user_id: orderInfo[0]?.user_id,
+                total_recaudado: cashData[0].total_recaudado,
+                ventas_totales_hoy: cashData[0].ventas_totales_hoy,
+                cartera_anterior: carteraData[0].cartera_anterior
+            });
+        }
+
+        // 5. FLUJO DE GUARDADO (POST - FINALIZAR)
+        // Insertamos en la tabla m_g_settlements (según la imagen de tu DB)
+        await db.query(`
+            INSERT INTO m_g_settlements 
+            (order_id, user_id, total_recaudado, ventas_totales, cartera_anterior, 
+             valor_almuerzo, valor_gasolina, ganancia_vendedor, efectivo_fisico, diferencia)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+            orderId,
+            user_id || orderInfo[0]?.user_id,
+            total_recaudado,
+            ventas_totales,
+            cartera_anterior,
+            valor_almuerzo,
+            valor_gasolina,
+            ganancia_vendedor,
+            efectivo_fisico,
+            diferencia
+        ]);
+
+        // 6. ACTUALIZAR ESTADO DE LA ORDEN
+        await db.query("UPDATE orders SET status = 'LIQUIDADO' WHERE id = ?", [orderId]);
+
+        res.json({
+            success: true,
+            message: "Liquidación guardada en m_g_settlements y ruta cerrada."
+        });
+
+    } catch (error) {
+        console.error(error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -364,5 +471,7 @@ module.exports = {
     updateOrderItems,
     getReturnHistory,
     getTruckInventory,
-    markAsLiquidated
+    markAsLiquidated,
+    settleOrder,
+    updateOrderStatus
 };

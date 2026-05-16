@@ -1,173 +1,323 @@
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom"; // <--- IMPORTACIÓN FALTANTE
+import { useEffect, useState, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { orderService } from "../services/orderService";
-import { saleService } from "../services/saleService";
-import { alertSuccess, alertError } from "../services/alertService";
-import { ChevronLeft, Save } from "lucide-react";
+import { alertError } from "../services/alertService";
+import "../styles/devoluciones.css";
 
 export default function DevolucionesPage() {
     const location = useLocation();
     const navigate = useNavigate();
-
-    // Extraemos los datos enviados desde VentasPage vía navigate
     const { orderId, sobrantes } = location.state || {};
 
-    // ESTADOS NECESARIOS
     const [itemsDevolver, setItemsDevolver] = useState([]);
-    const [loading, setLoading] = useState(true); // <--- SOLUCIONA EL ERROR DE LA IMAGEN
-    const [itemsCargados, setItemsCargados] = useState([]); // <--- PARA LA CARGA MANUAL
-    const [esHistorial, setEsHistorial] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [procesando, setProcesando] = useState(false);
+
+    // NUEVO: Estado para saber si la liquidación ya está cerrada
+    const [esLiquidado, setEsLiquidado] = useState(false);
+
+    // NUEVO: Estados para encabezado dinámico
+    const [nombreVendedor, setNombreVendedor] = useState("");
+    const [fechaDevolucion, setFechaDevolucion] = useState("");
+
+    const barcodeBuffer = useRef("");
 
     useEffect(() => {
-        if (!orderId) {
-            alertError("Error", "No hay una orden seleccionada.");
-            navigate("/ventas");
-            return;
-        }
+        if (!orderId) { navigate("/historial-devoluciones"); return; }
 
-        // PRIORIDAD: Siempre intentar cargar desde la DB primero para ver si hay historial
         const inicializarPagina = async () => {
             setLoading(true);
+            try {
+                // 1. Consultar estado de la orden y el historial de devoluciones en paralelo
+                const [infoOrden, historialDB] = await Promise.all([
+                    orderService.settleOrder(orderId),
+                    orderService.getReturnHistory(orderId)
+                ]);
+                // NUEVO: Seteamos el nombre del vendedor y la fecha actual
+                setNombreVendedor(infoOrden.seller_name || "VENDEDOR NO IDENTIFICADO");
+                setFechaDevolucion(new Date().toLocaleDateString());
 
-            // 1. Intentamos traer historial de la DB
-            const historial = await orderService.getReturnHistory(orderId);
 
-            if (historial && historial.length > 0) {
-                // SI HAY HISTORIAL: Lo mostramos y bloqueamos edición
-                setItemsDevolver(historial.map(h => ({
-                    product_id: h.product_id,
-                    product_name: h.product_name,
-                    stock_en_sistema: h.cantidad_devuelta,
-                    cantidad_a_devolver: h.cantidad_devuelta,
-                    ya_procesado: true
-                })));
-                setEsHistorial(true);
+                // --- LÓGICA DE BLOQUEO ACTUALIZADA ---
+                // Verificamos si el estado es DEVOLUCION o LIQUIDADO
+                const estadoActual = String(infoOrden.status).trim().toUpperCase();
+                const yaFinalizado = estadoActual === 'DEVOLUCION' || estadoActual === 'LIQUIDADO';
+
+                setEsLiquidado(yaFinalizado);
+
+                // FORZAMOS EL ESTADO: Asegúrate de que infoOrden.status sea 'LIQUIDADO'
+                const isLiq = String(infoOrden.status).trim().toUpperCase() === 'LIQUIDADO';
+                setEsLiquidado(isLiq);
+
+                // 2. Obtener el inventario que se despachó originalmente
+                const dataInventario = sobrantes || await orderService.getTruckInventory(orderId);
+
+                // 3. Mapear los productos cruzando la información
+                const itemsMapeados = dataInventario.map(item => {
+                    // Buscamos si este producto específico está en el historial de la DB
+                    const registroPrevio = historialDB.find(h => h.product_id === item.product_id);
+
+                    return {
+                        codg_barras: String(item.codg_barras || '').trim(),
+                        product_id: item.product_id || 'N/A',
+                        product_name: item.product_name || 'Producto',
+                        despachado: Number(item.despachado) || 0,
+                        precio_base: Number(item.precio_base) || 0,
+                        // Si existe en la DB, usamos esa cantidad; si no, 0
+                        cantidad_a_devolver: registroPrevio ? Number(registroPrevio.cantidad_devuelta) : 0
+                    };
+                });
+
+                setItemsDevolver(itemsMapeados);
+            } catch (err) {
+                alertError("Error", "No se pudo cargar la información de la planilla.");
+            } finally {
                 setLoading(false);
-            }
-            // 2. SI NO HAY HISTORIAL pero tenemos datos frescos de VentasPage
-            else if (sobrantes && sobrantes.length > 0) {
-                setItemsDevolver(sobrantes.map(item => ({
-                    product_id: item.product_id,
-                    product_name: item.product_name,
-                    cantidad_a_devolver: item.stock_en_camion,
-                    stock_en_sistema: item.stock_en_camion
-                })));
-                setEsHistorial(false);
-                setLoading(false);
-            }
-            // 3. SI NO HAY NADA: Cargamos el detalle original (por si acaso)
-            else {
-                await cargarDatosLiquidacion();
             }
         };
 
         inicializarPagina();
-    }, [orderId, sobrantes]);
+    }, [orderId, sobrantes, navigate]);
 
-    const cargarDatosLiquidacion = async () => {
-        try {
-            setLoading(true);
+    // LÓGICA DE ESCANEO (Bloqueada si esLiquidado es true)
+    // LÓGICA DE ESCANEO CORREGIDA
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (esLiquidado) return;
 
-            // 1. Verificamos si YA se hizo la devolución antes (historial)
-            const historial = await orderService.getReturnHistory(orderId);
+            if (document.activeElement.tagName === "INPUT" && document.activeElement.type === "text") return;
 
-            if (historial && historial.length > 0) {
-                // ... (tu lógica de historial que ya funciona)
+            if (e.key === "Enter") {
+                const code = barcodeBuffer.current;
+                if (code) {
+                    setItemsDevolver(prev => prev.map(item => {
+                        if (item.codg_barras === code) {
+                            // VALIDACIÓN: Solo sumar si lo que trae es MENOR a lo que lleva (despachado)
+                            if (item.cantidad_a_devolver < item.despachado) {
+                                return { ...item, cantidad_a_devolver: item.cantidad_a_devolver + 1 };
+                            } else {
+                                // Opcional: Podrías lanzar una alerta aquí si intentan pistolear de más
+                                console.warn("Límite alcanzado para este producto");
+                                return item;
+                            }
+                        }
+                        return item;
+                    }));
+                }
+                barcodeBuffer.current = "";
             } else {
-                // 2. SI ES NUEVA: Llamamos a la nueva función que calcula la resta
-                // Debes crear este método en orderService.js que llame a /orders/truck-inventory/:id
-                const stockCalculado = await orderService.getTruckInventory(orderId);
-
-                setItemsDevolver(stockCalculado.map(item => ({
-                    product_id: item.product_id,
-                    product_name: item.product_name,
-                    stock_en_sistema: item.cantidad_sobrante, // La resta de despacho - ventas
-                    cantidad_a_devolver: item.cantidad_sobrante
-                })));
+                if (e.key.length === 1) {
+                    barcodeBuffer.current += e.key;
+                }
             }
-        } catch (err) {
-            alertError("Error", "No se pudo calcular el sobrante del camión.");
-        } finally {
-            setLoading(false);
-        }
-    };
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [esLiquidado, itemsDevolver]); // Añadimos itemsDevolver a las dependencias para tener los datos frescos
+
     const handleCantidadChange = (id, valor) => {
-        const nuevaLista = itemsDevolver.map(item => {
+        // BLOQUEO DE SEGURIDAD: Si la orden está liquidada, no permite cambios en el estado
+        if (esLiquidado) return;
+
+        const numValor = Number(valor) || 0;
+        setItemsDevolver(prev => prev.map(item => {
             if (item.product_id === id) {
-                return { ...item, cantidad_a_devolver: parseInt(valor) || 0 };
+                // Validar que no devuelva más de lo que lleva
+                const cantidadValidada = numValor > item.despachado ? item.despachado : numValor;
+                return { ...item, cantidad_a_devolver: cantidadValidada };
             }
             return item;
-        });
-        setItemsDevolver(nuevaLista);
+        }));
     };
 
-    const confirmarDevolucion = async () => {
-        try {
-            const payload = {
-                order_id: orderId,
-                items: itemsDevolver.filter(i => i.cantidad_a_devolver > 0)
-            };
+    const handleLiquidacion = async () => {
+        if (esLiquidado) return;
+        setProcesando(true);
 
-            // Asegúrate de que saleService o orderService tengan processReturn definido
-            await orderService.processReturn(payload);
-            alertSuccess("Éxito", "El stock ha sido reintegrado al almacén.");
-            navigate("/ventas");
-        } catch (err) {
-            alertError("Error", "No se pudo procesar la devolución.");
+        try {
+            const devolucionesParaEnviar = itemsDevolver
+                .filter(item => item.cantidad_a_devolver > 0)
+                .map(item => ({
+                    order_id: orderId,
+                    product_id: item.product_id,
+                    quantity: item.cantidad_a_devolver
+                }));
+
+            // 1. Procesar los items devueltos (si hay alguno)
+            if (devolucionesParaEnviar.length > 0) {
+                await orderService.processReturn({
+                    order_id: orderId,
+                    items: devolucionesParaEnviar
+                });
+            }
+
+            // 2. Aseguramos el cambio de estado a 'DEVOLUCION'
+            await orderService.updateOrderStatus(orderId, 'DEVOLUCION');
+
+            // 3. CAMBIO: En lugar de ir a /liquidacion-ruta/, volvemos al historial
+            // Usamos una pequeña alerta de éxito opcional para confirmar al usuario
+            navigate("/historial-devoluciones");
+
+        } catch (error) {
+            console.error(error);
+            alertError("Error", "No se pudo completar el proceso de devolución");
+        } finally {
+            setProcesando(false);
         }
     };
 
-    if (loading) return <div className="loading-screen">Cargando sobrantes...</div>;
+    const itemsFiltrados = itemsDevolver.filter(item =>
+        item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.codg_barras.includes(searchTerm)
+    );
+
+    const totalSuma = itemsDevolver.reduce((acc, item) => {
+        const venta = item.despachado - item.cantidad_a_devolver;
+        return acc + (venta * item.precio_base);
+    }, 0);
+
+    // Función para disparar la impresión del navegador
+    const handlePrint = () => {
+        window.print();
+    };
+
+    if (loading) return <div className="loading-state">Cargando...</div>;
 
     return (
         <div className="devoluciones-container">
-            <header className="header-actions">
-                <button onClick={() => navigate("/liquidaciones")} className="btn-back-list">
-                    <ChevronLeft size={20} /> Volver
-                </button>
-                <h2 className="ruta-title">Liquidación de Inventario - Despacho #{orderId}</h2>
-                <button
-                    onClick={confirmarDevolucion}
-                    className="btn-confirm-all"
-                    disabled={esHistorial} // Se deshabilita si ya estamos viendo un historial
-                >
-                    {esHistorial ? "Ya Procesado" : "Procesar Reingreso"}
-                </button>
-            </header>
+            <div className="header-actions">
+                <button className="btn-back" onClick={() => navigate(-1)}>← Volver</button>
 
-            <div className="planilla-wrapper">
-                <table className="excel-table">
+                <h3 style={{ margin: 0, color: '#333', textTransform: 'uppercase',}}>
+                    HOJA DE DEVOLUCIÓN
+                </h3>
+            </div>
+
+            <div className="search-container" style={{ marginBottom: '20px' }}>
+                <input
+                    type="text"
+                    placeholder={esLiquidado ? "MODO CONSULTA - ORDEN CERRADA" : "Buscar por nombre..."}
+                    className="input-search"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    // Solo deshabilitamos si ya está liquidado
+                    disabled={esLiquidado}
+                    style={{
+                        width: '100%',
+                        padding: '10px',
+                        backgroundColor: esLiquidado ? '#e9ecef' : '#fff',
+                        cursor: esLiquidado ? 'not-allowed' : 'text'
+                    }}
+                />
+            </div>
+
+            {/* El wrapper solo bloquea los clicks si esLiquidado es true */}
+            <div className="planilla-wrapper" style={{
+                pointerEvents: esLiquidado ? 'none' : 'auto',
+                opacity: esLiquidado ? 0.9 : 1
+            }}>
+                <table className="modern-table">
                     <thead>
                         <tr>
-                            <th>PRODUCTO</th>
-                            <th>STOCK EN CAMIÓN</th>
-                            <th>CANT. A DEVOLVER</th>
-                            <th>ESTADO</th>
+                            <th>CODIGO</th>
+                            <th>PRODUCTOS</th>
+                            <th>LLEVA</th>
+                            <th>TRAE</th>
+                            <th>VENTA</th>
+                            <th>PRECIO</th>
+                            <th>TOTAL</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {itemsDevolver.map((item) => (
-                            <tr key={item.product_id}>
-                                <td>{item.product_name}</td>
-                                <td>{item.stock_en_sistema}</td>
-                                <td>
-                                    <input
-                                        type="number"
-                                        className="input-modern"
-                                        value={item.cantidad_a_devolver}
-                                        onChange={(e) => handleCantidadChange(item.product_id, e.target.value)}
-                                    />
-                                </td>
-                                <td>
-                                    {item.cantidad_a_devolver === item.stock_en_sistema ?
-                                        <span className="badge-ok">Cuadrado</span> :
-                                        <span className="badge-warning">Diferencia</span>
-                                    }
-                                </td>
-                            </tr>
-                        ))}
+                        {itemsFiltrados.map((item) => {
+                            const venta = item.despachado - item.cantidad_a_devolver;
+                            const total = venta * item.precio_base;
+                            return (
+                                <tr key={item.product_id} style={{ backgroundColor: esLiquidado ? '#f8f9fa' : '' }}>
+                                    <td className="text-center">{item.codg_barras}</td>
+                                    <td>{item.product_name}</td>
+                                    <td className="text-center">{item.despachado}</td>
+                                    <td>
+                                        <td>
+                                            <input
+                                                type="number"
+                                                className="input-minimal"
+                                                value={item.cantidad_a_devolver}
+                                                onChange={(e) => handleCantidadChange(item.product_id, e.target.value)}
+                                                // Bloqueo total si ya se devolvió o liquidó
+                                                readOnly={esLiquidado}
+                                                style={{
+                                                    backgroundColor: esLiquidado ? 'transparent' : '#fff',
+                                                    border: esLiquidado ? 'none' : '1px solid #ccc',
+                                                    textAlign: 'center',
+                                                    fontWeight: 'bold',
+                                                    color: esLiquidado ? '#d32f2f' : '#000',
+                                                    pointerEvents: esLiquidado ? 'none' : 'auto' // Evita clics
+                                                }}
+                                            />
+                                        </td>
+                                    </td>
+                                    <td className="text-center">{venta}</td>
+                                    <td className="text-right">{item.precio_base.toLocaleString()}</td>
+                                    <td className="text-right">{total.toLocaleString()}</td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
+            </div>
+
+            <div className="resumen-total-container" style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                marginTop: '15px'
+            }}>
+                <div style={{
+                    backgroundColor: '#f8f9fa',
+                    border: '1px solid #ccc',
+                    padding: '10px 20px',
+                    borderRadius: '4px',
+                    minWidth: '250px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                }}>
+                    <span style={{ fontWeight: 'bold', color: '#333', fontSize: '1.1rem' }}>
+                        TOTAL SURTIDO:
+                    </span>
+                    <span style={{ fontWeight: 'bold', color: '#d32f2f', fontSize: '1.2rem' }}>
+                        $ {totalSuma.toLocaleString()}
+                    </span>
+                </div>
+            </div>
+
+
+
+            <div className="footer-actions" style={{ marginTop: '30px' }}>
+                {!esLiquidado ? (
+                    <button
+                        className="btn-liquidar"
+                        onClick={handleLiquidacion}
+                        disabled={procesando}
+                    >
+                        {procesando ? "PROCESANDO..." : "🚀 FINALIZAR DEVOLUCIÓN"}
+                    </button>
+                ) : (
+                    /* BOTÓN EN ESTADO CERRADO */
+                    <button
+                        className="btn-liquidar"
+                        style={{
+                            backgroundColor: '#2e7d32',
+                            cursor: 'not-allowed',
+                            opacity: 0.8
+                        }}
+                        disabled
+                    >
+                        ✅ ESTA ORDEN DEVUELTA
+                    </button>
+                )}
             </div>
         </div>
     );

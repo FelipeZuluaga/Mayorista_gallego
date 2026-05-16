@@ -1,0 +1,195 @@
+/* Contenedor principal */
+.devoluciones-container {
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+/* Encabezado y botones */
+.header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #eee;
+}
+
+.ruta-title {
+    color: #333;
+    font-size: 1.25rem;
+}
+
+/* Tabla Estilo Excel */
+.planilla-wrapper {
+    border: 1px solid #999;
+    /* Borde exterior de la "hoja" */
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.modern-table {
+    width: 100%;
+    border-collapse: collapse;
+    /* Crucial para el efecto Excel */
+    background-color: #fff;
+}
+
+/* Cabecera (Azul profesional) */
+.modern-table thead tr {
+    background-color: #9b111e;
+    color: white;
+}
+
+.modern-table th {
+    border: 1px solid #9b111e;
+    padding: 10px;
+    font-size: 13px;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+/* Celdas del cuerpo */
+.modern-table td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    font-size: 14px;
+    color: #222;
+}
+
+/* Input Minimalista (sin bordes redondeados para parecer celda de Excel) */
+.input-minimal {
+    width: 60px;
+    border: 1px solid #aaa;
+    padding: 4px;
+    text-align: center;
+    font-size: 14px;
+}
+
+.input-minimal:focus {
+    outline: 2px solid #4a86e8;
+    background-color: #f0f7ff;
+}
+
+/* Filas alternas (Zebra striping) */
+.modern-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+/* Efecto al pasar el mouse */
+.modern-table tbody tr:hover {
+    background-color: #e8f0fe;
+}
+
+/* Mensaje inferior */
+.alert-info-history {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #fff3cd;
+    border: 1px solid #ffeeba;
+    color: #856404;
+    font-size: 0.9rem;
+    border-radius: 4px;
+}
+
+/* Agrega esto a tu CSS si quieres alinear precios a la derecha */
+.modern-table td:nth-child(6),
+.modern-table td:nth-child(7) {
+    text-align: right;
+}
+
+/* Estilo para la tabla en modo lectura (Rojo) */
+.table-readonly thead {
+    background-color: #991b1b !important;
+    color: white !important;
+}
+
+.table-readonly tbody tr {
+    background-color: #fff1f2 !important;
+    border-bottom: 1px solid #fecaca !important;
+}
+
+.table-readonly td {
+    color: #7f1d1d !important;
+}
+
+/* Configuración para Impresión */
+@media print {
+
+    .no-print,
+    .btn-back,
+    .btn-print,
+    .search-container,
+    .footer-actions {
+        display: none !important;
+    }
+
+    body {
+        background-color: white !important;
+    }
+
+    .devoluciones-container {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .modern-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 12px !important;
+    }
+
+    .modern-table th,
+    .modern-table td {
+        border: 1px solid #000 !important;
+        padding: 8px !important;
+    }
+
+    h2 {
+        text-align: center !important;
+        color: black !important;
+        margin-bottom: 20px !important;
+    }
+    
+}
+/* Estilo para el botón de liquidación */
+.btn-liquidar {
+    background-color: #9b111e; /* Rojo elegante */
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%; /* Ocupa el ancho disponible */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-liquidar:hover:not(:disabled) {
+    background-color: #c41221;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-liquidar:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.btn-liquidar:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* Contenedor del footer para centrar o ajustar el botón */
+.footer-actions {
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
+}

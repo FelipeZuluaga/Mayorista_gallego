@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Trash2, UserPlus, ShieldCheck } from "lucide-react";
 import { userService } from "../services/userService";
-import { alertSuccess, alertError, alertConfirm } from "../services/alertService";
+import { alertSuccess, alertError, alertConfirmUsers } from "../services/alertService";
 import "../styles/users.css"; // Nuevo archivo
 
 const ROLES = ["ADMINISTRADOR", "DESPACHADOR", "SOCIO", "NO_SOCIO"];
@@ -9,7 +9,7 @@ const ROLES = ["ADMINISTRADOR", "DESPACHADOR", "SOCIO", "NO_SOCIO"];
 function UsersPage() {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [form, setForm] = useState({ name: "", email: "", password: "", role: "" });
+    const [form, setForm] = useState({ id: "", name: "", password: "", role: "" });
 
     useEffect(() => { loadUsers(); }, []);
 
@@ -28,7 +28,7 @@ function UsersPage() {
         try {
             await userService.create(form);
             alertSuccess("¡Listo!", `${form.name} ahora tiene acceso.`);
-            setForm({ name: "", email: "", password: "", role: "" });
+            setForm({ id: "", name: "", password: "", role: "" });
             loadUsers();
         } catch (err) {
             alertError("Error", "No se pudo registrar.");
@@ -36,7 +36,7 @@ function UsersPage() {
     };
 
     const handleDelete = async (id) => {
-        const confirmed = await alertConfirm("¿Eliminar usuario?", "Esta acción no se puede deshacer.");
+        const confirmed = await alertConfirmUsers("¿Eliminar usuario?", "Esta acción no se puede deshacer.");
         if (confirmed) {
             try {
                 await userService.delete(id);
@@ -52,15 +52,16 @@ function UsersPage() {
             <aside className="user-form-card">
                 <h2><UserPlus size={20} /> Nuevo Acceso</h2>
                 <form onSubmit={handleSubmit}>
+
+                    <div className="form-group">
+                        <label>Código de Usuario</label>
+                        <input type="text" value={form.id} required
+                            onChange={(e) => setForm({ ...form, id: e.target.value })} />
+                    </div>
                     <div className="form-group">
                         <label>Nombre Completo</label>
                         <input type="text" value={form.name} required
                             onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                    </div>
-                    <div className="form-group">
-                        <label>Código de Usuario (Email/ID)</label>
-                        <input type="text" value={form.email} required
-                            onChange={(e) => setForm({ ...form, email: e.target.value })} />
                     </div>
                     <div className="form-group">
                         <label>Contraseña Temporal</label>
@@ -87,7 +88,8 @@ function UsersPage() {
                 <table className="mg-table">
                     <thead>
                         <tr>
-                            <th>Usuario / Código</th>
+                            <th>Código</th>
+                            <th>Usuario</th>
                             <th>Rol Asignado</th>
                             <th style={{textAlign: 'center'}}>Acciones</th>
                         </tr>
@@ -95,9 +97,9 @@ function UsersPage() {
                     <tbody>
                         {users.length > 0 ? users.map((u) => (
                             <tr key={u.id}>
+                                <td>{u.id}</td>
                                 <td>
                                     <strong>{u.name}</strong>
-                                    <div style={{fontSize: '0.75rem', color: 'var(--text-light)'}}>{u.email}</div>
                                 </td>
                                 <td><span className="role-badge">{u.role}</span></td>
                                 <td style={{textAlign: 'center'}}>

@@ -24,7 +24,9 @@
     align-items: center;
     justify-content: center;
     padding: 60px;
-    min-height: 400px; /* Evita que colapse con mucho zoom */
+    min-height: 400px;
+    /* Evita que se pueda seleccionar el texto decorativo */
+    user-select: none; 
 }
 
 .overlay {
@@ -100,31 +102,56 @@
     width: 120px;
     height: auto;
     margin-bottom: 20px;
+
+    /* 1. Hace que la imagen sea invisible para el puntero del mouse */
+    pointer-events: none; 
+
+    /* 2. Evita que se resalte en azul o se seleccione */
+    user-select: none;
+    -webkit-user-select: none;
+
+    /* 3. Asegura que el cursor siempre sea la flecha */
+    cursor: default;
 }
 
 /* --------------------------------------------------------------------------------- */
 /* Inputs (Simplificados) */
 .form-group {
     margin-bottom: 20px;
+    
 }
 
 .form-group label {
     display: block;
     font-size: 0.85rem;
-    font-weight: 600;
+    font-weight: 80px;
     color: var(--text-dark);
     margin-bottom: 8px;
 }
 
 select, input {
     width: 100%;
-    padding: 12px 16px;
+    /* Usamos un padding simétrico (arriba/abajo izquierda/derecha) */
+    padding: 12px 15px; 
+    /* El box-sizing asegura que el padding no aumente el ancho total */
+    box-sizing: border-box; 
     border: 1.5px solid var(--text-muted);
     border-radius: var(--radius-md);
     font-size: 1rem;
+    height: 48px; /* Forzamos una altura idéntica para todos */
     transition: all 0.3s ease;
+    background-color: var(--white);
+    display: block;
 }
-
+/* Ajuste específico para select para que el texto no quede pegado */
+select {
+    cursor: pointer;
+    appearance: none; /* Elimina estilos nativos de algunos navegadores */
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1em;
+}
 select:focus, input:focus {
     outline: none;
     border-color: var(--primary-color);

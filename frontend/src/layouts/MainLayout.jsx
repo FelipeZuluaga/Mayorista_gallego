@@ -16,18 +16,27 @@ function MainLayout({ children }) {
 
     const menuOptions = [
         { to: "/dashboard", label: "Inicio", icon: <Lucide.LayoutDashboard size={18} />, roles: ["ADMINISTRADOR", "DESPACHADOR", "SOCIO", "NO_SOCIO"] },
-        { to: "/AdminDashboard/users", label: "Creaciòn de Usuarios", icon: <Lucide.Users size={18} />, roles: ["ADMINISTRADOR"] },
-        { to: "/Inventory", label: "Ingreso de Productos / Inventario", icon: <Lucide.Package size={18} />, roles: ["ADMINISTRADOR"] },
-        { to: "/despacho", label: "Crear Ruta", icon: <Lucide.ClipboardList size={18} />, roles: ["ADMINISTRADOR"] },
+        { to: "/ventas", label: "Rutas", icon: <Lucide.Navigation size={18} />, roles: ["ADMINISTRADOR"] },
+        { to: "/historial-devoluciones", label: "Devoluciones", icon: <Lucide.AArrowUpIcon size={18} />, roles: ["ADMINISTRADOR", "DESPACHADOR", "SOCIO", "NO_SOCIO"] },
+        //ADMIN
+        //{ to: "/AdminDashboard/users", label: "Creaciòn usuarios", icon: <Lucide.Users size={18} />, roles: ["ADMINISTRADOR"] },
+        { to: "/Inventory", label: "Ingreso Productos / Inventario", icon: <Lucide.Package size={18} />, roles: ["ADMINISTRADOR"] },
+        //{ to: "/despacho", label: "Crear Ruta", icon: <Lucide.ClipboardList size={18} />, roles: ["ADMINISTRADOR"] },
         { to: "/pedidos", label: "Informe de rutas cargadas", icon: <Lucide.Truck size={18} />, roles: ["ADMINISTRADOR"] },
-        { to: "/ventas", label: "Generar una venta", icon: <Lucide.LayoutDashboard size={18} />, roles: ["ADMINISTRADOR"] },
-        { to: "/historial-ventas", label: "Informe de ventas", icon: <Lucide.BarChart3 size={18} />, roles: ["ADMINISTRADOR"] },
+        //{ to: "/ventas", label: "Rutas", icon: <Lucide.LayoutDashboard size={18} />, roles: ["ADMINISTRADOR"] },
+        { to: "/historial-ventas", label: "Venta y liquidación de Rutas", icon: <Lucide.BarChart3 size={18} />, roles: ["ADMINISTRADOR"] },
 
-        { to: "/despacho", label: "Crear Ruta", icon: <Lucide.ClipboardList size={18} />, roles: ["DESPACHADOR"] },
+
+        { to: "/clientes", label: "Informe de clientes", icon: <Lucide.BarChart3 size={18} />, roles: ["ADMINISTRADOR","SOCIO", "NO_SOCIO"] },
+        { to: "/historial-pagos", label: "Pagos", icon: <Lucide.Wallet size={18} />, roles: ["ADMINISTRADOR","SOCIO", "NO_SOCIO"] },
+
+        //DESPACHADOR
+        { to: "/despacho", label: "Despachos", icon: <Lucide.ClipboardList size={18} />, roles: ["ADMINISTRADOR", "DESPACHADOR"] },
         { to: "/pedidos", label: "Informe de rutas cargadas", icon: <Lucide.Truck size={18} />, roles: ["DESPACHADOR"] },
-
+        //SOCIO Y NO SOCIO
         { to: "/ventas", label: "Mis Rutas Cargadas", icon: <Lucide.Navigation size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
-        { to: "/historial-ventas", label: "Mis Clientes", icon: <Lucide.TrendingUp size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
+        { to: "/historial-ventas", label: "Informe de mis rutas", icon: <Lucide.TrendingUp size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
+
     ];
 
     return (
