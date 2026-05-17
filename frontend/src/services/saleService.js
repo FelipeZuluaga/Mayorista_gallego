@@ -75,18 +75,25 @@ export const saleService = {
             throw new Error(errorMsg);
         }
     },
+
+
+
+
+    /** LIQUIDACIÓN SEMANAL*/
+
     /**
      * NUEVO MÉTODO: Obtiene las liquidaciones de toda la semana para la tabla de Pagos.jsx
-     * @param {number|string} userId - ID del vendedor
+     * @param {string} sellerName - Nombre del vendedor (Ej: 'DERWIN', 'OSCAR')
      * @param {string} startDate - Fecha inicial (YYYY-MM-DD)
      * @param {string} endDate - Fecha final (YYYY-MM-DD)
      */
-    getWeeklySettlements: async (userId, startDate, endDate) => {
+    getWeeklySettlements: async (sellerName, startDate, endDate) => {
         try {
             const response = await api.get("/sales/settlements/weekly", {
-                params: { userId, startDate, endDate }
+                // Modificado: Enviamos sellerName para que coincida con el req.query del Backend
+                params: { sellerName, startDate, endDate }
             });
-            return response.data; // Retorna el array de liquidaciones
+            return response.data; // Retorna el array de liquidaciones por días
         } catch (error) {
             console.error("Error en getWeeklySettlements:", error);
             const errorMsg = error.response?.data?.message || "Error al obtener los pagos semanales";
@@ -94,30 +101,17 @@ export const saleService = {
         }
     },
     /**
-     * NUEVO: Envía los datos del cierre de semana para ser guardados en el historial
-     * @param {Object} weeklyData - { userId, rango_fechas, total_ganancia, neto_pagado }
+     * NUEVO: Obtiene todos los cierres de semana calculados e históricos 
+     * para la tabla de administración global.
      */
-    saveWeeklyHistory: async (weeklyData) => {
+    getWeeklyHistory: async () => {
         try {
-            const response = await api.post("/sales/weekly-history/save", weeklyData);
-            return response.data;
+            // Eliminamos el ${userId} de la URL porque el backend ahora 
+            // nos trae la lista agrupada de todos los vendedores.
+            const response = await api.get("/sales/weekly-history");
+            return response.data; // Retorna el array para la tabla "Historial de Liquidaciones Semanal"
         } catch (error) {
-            console.error("Error en saveWeeklyHistory:", error);
-            const errorMsg = error.response?.data?.message || "Error al guardar el cierre de semana";
-            throw new Error(errorMsg);
-        }
-    },
-
-    /**
-     * NUEVO: Obtiene todos los cierres de semana guardados de un usuario
-     * @param {number|string} userId 
-     */
-    getWeeklyHistory: async (userId) => {
-        try {
-            const response = await api.get(`/sales/weekly-history/${userId}`);
-            return response.data; // Retorna el array para la tabla tipo "Venta y liquidación"
-        } catch (error) {
-            console.error("Error en getWeeklyHistory:", error);
+            console.error("Error en saleService.getWeeklyHistory:", error);
             const errorMsg = error.response?.data?.message || "Error al obtener el historial de pagos";
             throw new Error(errorMsg);
         }

@@ -207,101 +207,88 @@ const getSettlementByOrder = async (req, res) => {
     }
 };
 
+
+
+
+// LIQUIDACIÓN SEMANAL
+
 const getWeeklySettlements = async (req, res) => {
-    const { userId, startDate, endDate } = req.query;
+    // Cambiamos userId por sellerName en la desestructuración de la Query
+    const { sellerName, startDate, endDate } = req.query;
 
     try {
         const [rows] = await db.query(`
             SELECT 
-                user_id,
-                SUM(ganancia_vendedor) AS total_ganancia,
-                DATE(created_at) AS fecha,
+                o.seller_name AS vendedor_nombre,
+                SUM(s.ganancia_vendedor) AS total_ganancia,
+                DATE(s.created_at) AS fecha,
                 ELT(
-                    WEEKDAY(created_at) + 1,
+                    WEEKDAY(s.created_at) + 1,
                     'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'
                 ) AS dia_semana
-            FROM m_g_settlements
-            WHERE user_id = ? 
-              AND DATE(created_at) BETWEEN ? AND ?
-            GROUP BY user_id, DATE(created_at), WEEKDAY(created_at)
+            FROM m_g_settlements s
+            INNER JOIN orders o ON s.order_id = o.id
+            WHERE o.seller_name = ? 
+              AND DATE(s.created_at) BETWEEN ? AND ?
+            GROUP BY o.seller_name, DATE(s.created_at), WEEKDAY(s.created_at)
             ORDER BY fecha ASC
-        `, [userId, startDate, endDate]);
+        `, [sellerName, startDate, endDate]); // <-- Filtramos por el nombre del vendedor
 
         res.json(rows);
     } catch (error) {
-        console.error("Error en query semanal:", error);
+        console.error("Error en query semanal por vendedor:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
 
-
+//HISTORIAL  DE LA LIQUIDACIÓN SEMANAL
 const getWeeklyHistory = async (req, res) => {
     try {
-        // Obtenemos TODO el historial y el nombre real desde la tabla 'users'
+        // Aseguramos que los nombres de los meses salgan en español
+        await db.query("SET lc_time_names = 'es_ES'");
+
+        // Consulta unificada sin tablas fantasma y con el rango de Martes a Sábado
         const [rows] = await db.query(
             `SELECT 
-                wh.id, 
-                wh.user_id,
-                wh.rango_fechas, 
-                wh.total_ganancia, 
-                wh.neto_pagado, 
-                wh.fecha_registro,
-                u.name AS vendedor_nombre 
-             FROM weekly_history wh
-             INNER JOIN users u ON wh.user_id = u.id 
-             ORDER BY wh.fecha_registro DESC`
+                -- 1. Generamos el ID único con el Año, la Semana y el Nombre del Vendedor
+                CONCAT(YEAR(s.created_at), '_W', WEEK(s.created_at, 1), '_', REPLACE(o.seller_name, ' ', '')) AS id,
+                
+                -- 2. Nombre del vendedor directo desde la orden
+                UPPER(o.seller_name) AS vendedor_nombre,
+                
+                -- 3. CORREGIDO: Rango de fechas parametrizado estrictamente de Martes a Sábado
+                CONCAT(
+                    DATE_FORMAT(DATE_SUB(s.created_at, INTERVAL IF(WEEKDAY(s.created_at) >= 1, WEEKDAY(s.created_at) - 1, WEEKDAY(s.created_at) + 6) DAY), '%e de %M de %Y'),
+                    ' - ',
+                    DATE_FORMAT(DATE_ADD(DATE_SUB(s.created_at, INTERVAL IF(WEEKDAY(s.created_at) >= 1, WEEKDAY(s.created_at) - 1, WEEKDAY(s.created_at) + 6) DAY), INTERVAL 4 DAY), '%e de %M de %Y')
+                ) AS rango_fechas,
+                
+                -- 4. Suma de las ganancias acumuladas en esa semana
+                SUM(s.ganancia_vendedor) AS total_ganancia,
+                
+                -- 5. Neto pagado referencial directo de las ganancias acumuladas
+                SUM(s.ganancia_vendedor) AS neto_pagado,
+                
+                -- Fecha base (Martes de esa semana) para ordenar de la más nueva a la más vieja
+                DATE_SUB(s.created_at, INTERVAL IF(WEEKDAY(s.created_at) >= 1, WEEKDAY(s.created_at) - 1, WEEKDAY(s.created_at) + 6) DAY) AS fecha_orden
+                
+             FROM m_g_settlements s
+             INNER JOIN orders o ON s.order_id = o.id
+             
+             GROUP BY 
+                YEAR(s.created_at), 
+                WEEK(s.created_at, 1), 
+                o.seller_name
+                
+             ORDER BY 
+                fecha_orden DESC, 
+                vendedor_nombre ASC`
         );
+
         res.json(rows);
     } catch (error) {
+        console.error("Error en getWeeklyHistory Backend:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
-
-
-
-// Función auxiliar para calcular el rango de la semana actual (Martes a Sábado)
-const calcularRangoSemanal = () => {
-    const hoy = new Date();
-    const diaDeLaSemana = hoy.getDay(); // 0: Domingo, 1: Lunes, 2: Martes...
-    
-    // Ajustamos para encontrar el martes de la semana actual
-    // Si hoy es domingo (0) o lunes (1), retrocedemos a la semana anterior o ajustamos
-    const diffAlMartes = diaDeLaSemana >= 2 ? diaDeLaSemana - 2 : diaDeLaSemana + 5;
-    
-    const martes = new Date(hoy);
-    martes.setDate(hoy.getDate() - diffAlMartes);
-    
-    const sabado = new Date(martes);
-    sabado.setDate(martes.getDate() + 4);
-
-    const opciones = { day: '2-digit', month: 'short', year: 'numeric' };
-    return `${martes.toLocaleDateString('es-CO', opciones)} - ${sabado.toLocaleDateString('es-CO', opciones)}`;
-};
-const saveWeeklyHistory = async (req, res) => {
-    const { userId, total_ganancia, neto_pagado } = req.body;
-    
-    // Generamos el rango dinámicamente en lugar de recibirlo del body
-    const rango_dinamico = calcularRangoSemanal();
-
-    try {
-        await db.query(
-            `INSERT INTO weekly_history 
-            (user_id, rango_fechas, total_ganancia, neto_pagado, fecha_registro) 
-            VALUES (?, ?, ?, ?, NOW())`,
-            [userId, rango_dinamico, total_ganancia, neto_pagado]
-        );
-
-        res.status(201).json({ 
-            success: true, 
-            message: `Cierre guardado para el periodo: ${rango_dinamico}` 
-        });
-    } catch (error) {
-        console.error("Error en saveWeeklyHistory:", error);
-        res.status(500).json({ 
-            success: false, 
-            message: "Error al guardar el historial: " + error.message 
-        });
-    }
-};
-
-module.exports = { createSale, getSales, getRutaCompleta, getSettlementByOrder, getWeeklySettlements, getWeeklyHistory ,saveWeeklyHistory};
+module.exports = { createSale, getSales, getRutaCompleta, getSettlementByOrder, getWeeklySettlements, getWeeklyHistory};

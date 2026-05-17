@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { saleService } from '../services/saleService';
 import { useNavigate } from 'react-router-dom';
-import { Eye, DollarSign, Search } from 'lucide-react'; // Añadí Search
+import { Eye, DollarSign, Search } from 'lucide-react';
 import '../styles/devoluciones.css';
 
 export default function HistorialPagos() {
     const [historial, setHistorial] = useState([]);
     const [loading, setLoading] = useState(true);
-    // 1. Estado para el término de búsqueda
     const [busqueda, setBusqueda] = useState("");
-    
+
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -19,11 +18,9 @@ export default function HistorialPagos() {
     const cargarHistorial = async () => {
         try {
             setLoading(true);
-            const user = JSON.parse(localStorage.getItem("user"));
-            if (user?.id) {
-                const data = await saleService.getWeeklyHistory(user.id);
-                setHistorial(data);
-            }
+            // Llamamos al servicio global que computa las semanas de los vendedores automáticamente.
+            const data = await saleService.getWeeklyHistory();
+            setHistorial(data);
         } catch (error) {
             console.error("Error al cargar el historial:", error);
         } finally {
@@ -31,13 +28,14 @@ export default function HistorialPagos() {
         }
     };
 
-    // 2. Lógica de filtrado en tiempo real
+    // Lógica de filtrado en tiempo real
     const historialFiltrado = historial.filter((item) => {
         const termino = busqueda.toLowerCase();
         return (
             item.vendedor_nombre?.toLowerCase().includes(termino) ||
             item.id?.toString().includes(termino) ||
-            item.rango_fechas?.toLowerCase().includes(termino)
+            item.rango_fechas?.toLowerCase().includes(termino) ||
+            item.estado?.toLowerCase().includes(termino)
         );
     });
 
@@ -55,14 +53,14 @@ export default function HistorialPagos() {
                 <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div>
                         <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-                            Historial de Liquidaciones Semanal
+                            HISTORIAL DE LIQUIDACIÓN SEMANAL / PAGOS
                         </h1>
                         <p className="text-gray-500 mt-2 text-lg">
                             Gestiona y visualiza tus pagos semanales de forma organizada.
                         </p>
                     </div>
 
-                    {/* 3. El Buscador UI */}
+                    {/* Buscador UI */}
                     <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <Search className="h-5 w-5 text-gray-400" />
@@ -90,37 +88,74 @@ export default function HistorialPagos() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {/* 4. Usar la lista filtrada aquí */}
                                 {historialFiltrado.length > 0 ? (
                                     historialFiltrado.map((item) => {
-                                        const esLiquidado = item.neto_pagado !== null && item.neto_pagado !== undefined && item.neto_pagado !== 0;
+                                        // NUEVA LÓGICA DE CONTROL BASADA EN EL ESTADO ENUM DE TU BASE DE DATOS
+                                        // Suponiendo que el backend te envía la columna 'status' u 'estado' de la fila
+                                        const estadoFila = item.estado || item.status;
+                                        const esSemanaLiquidada = estadoFila === "SEMANA LIQUIDADA";
+
                                         return (
-                                            <tr key={`${item.id}-${item.vendedor_nombre}`}>
+                                            <tr key={item.id}>
+                                                {/* 1. ID único calculado por el backend */}
                                                 <td className="text-center font-bold">#{item.id}</td>
+
+                                                {/* 2. Nombre del vendedor extraído de la orden */}
                                                 <td className="uppercase text-xs font-semibold">{item.vendedor_nombre || 'Sin nombre'}</td>
+
+                                                {/* 3. Periodo de Liquidación formateado en español */}
                                                 <td className="text-center">{item.rango_fechas}</td>
+
+                                                {/* 4. Estado de la liquidación dinámico */}
                                                 <td className="text-center">
-                                                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${esLiquidado ? 'bg-green-100 text-green-700 border-green-300' : 'bg-gray-100 text-gray-500 border-gray-300'}`}>
-                                                        {esLiquidado ? "Liquidado" : "Pendiente"}
+                                                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${esSemanaLiquidada
+                                                            ? 'bg-green-100 text-green-700 border-green-300'
+                                                            : 'bg-yellow-100 text-yellow-700 border-yellow-300'
+                                                        }`}>
+                                                        {esSemanaLiquidada ? "Semana Liquidada" : "Liquidar Semana"}
                                                     </span>
                                                 </td>
+
+                                                {/* 5. Acciones: Ver / Liquidar semana */}
                                                 <td className="text-center">
                                                     <div className="flex items-center justify-center gap-2">
+                                                        {/* Acción: Ver Detalle (Habilitado siempre para auditar) */}
+                                                        {/* Acción: Ver histórico */}
                                                         <button
-                                                            disabled={!esLiquidado}
                                                             onClick={() => navigate('/pagos-detalle', {
-                                                                state: { datosLiquidacion: item, modoLectura: true }
+                                                                state: {
+                                                                    datosLiquidacion: {
+                                                                        ...item,
+                                                                        // Extraemos solo la parte YYYY-MM-DD del created_at para pasarla como referencia
+                                                                        fecha: item.created_at ? item.created_at.split('T')[0] : null
+                                                                    },
+                                                                    modoLectura: true
+                                                                }
                                                             })}
-                                                            className={`p-1.5 border rounded transition-colors ${esLiquidado ? 'bg-white border-gray-300 hover:bg-gray-100 text-[#9b111e]' : 'text-gray-200 border-gray-100'}`}
-                                                            title="Ver detalle"
+                                                            className="p-1.5 border rounded bg-white border-gray-300 hover:bg-gray-100 text-[#9b111e] transition-colors"
+                                                            title="Ver histórico"
                                                         >
                                                             <Eye className="w-4 h-4" />
                                                         </button>
+
+                                                        {/* Acción: Liquidar semana (Deshabilitado dinámicamente si ya fue liquidada) */}
                                                         <button
-                                                            disabled={esLiquidado}
-                                                            onClick={() => navigate('/pagos-detalle')}
-                                                            className={`p-1.5 border rounded transition-colors ${!esLiquidado ? 'bg-[#9b111e] text-white hover:bg-[#7a0d18]' : 'bg-gray-200 text-gray-400 border-gray-200'}`}
-                                                            title="Liquidar"
+                                                            disabled={esSemanaLiquidada}
+                                                            onClick={() => navigate('/pagos-detalle', {
+                                                                state: {
+                                                                    datosLiquidacion: {
+                                                                        ...item,
+                                                                        // Hacemos exactamente lo mismo aquí para cuando se vaya a liquidar
+                                                                        fecha: item.created_at ? item.created_at.split('T')[0] : null
+                                                                    },
+                                                                    modoLectura: false
+                                                                }
+                                                            })}
+                                                            className={`p-1.5 border rounded transition-colors ${!esSemanaLiquidada
+                                                                    ? 'bg-[#9b111e] text-white hover:bg-[#7a0d18] border-[#9b111e]'
+                                                                    : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                                                }`}
+                                                            title={esSemanaLiquidada ? "Esta semana ya está completamente cerrada" : "Liquidar semana de comisiones"}
                                                         >
                                                             <DollarSign className="w-4 h-4" />
                                                         </button>
@@ -132,7 +167,7 @@ export default function HistorialPagos() {
                                 ) : (
                                     <tr>
                                         <td colSpan="5" className="text-center py-10 text-gray-500 italic">
-                                            No se encontraron resultados para "{busqueda}"
+                                            No se encontraron resultados
                                         </td>
                                     </tr>
                                 )}
