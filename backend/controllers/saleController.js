@@ -241,13 +241,13 @@ const getWeeklySettlements = async (req, res) => {
     }
 };
 
-//HISTORIAL  DE LA LIQUIDACIÓN SEMANAL
+// HISTORIAL DE LA LIQUIDACIÓN SEMANAL
 const getWeeklyHistory = async (req, res) => {
     try {
         // Aseguramos que los nombres de los meses salgan en español
         await db.query("SET lc_time_names = 'es_ES'");
 
-        // Consulta unificada sin tablas fantasma y con el rango de Martes a Sábado
+        // Consulta unificada con cálculo de estado dinámico basado en el status de las órdenes
         const [rows] = await db.query(
             `SELECT 
                 -- 1. Generamos el ID único con el Año, la Semana y el Nombre del Vendedor
@@ -256,7 +256,7 @@ const getWeeklyHistory = async (req, res) => {
                 -- 2. Nombre del vendedor directo desde la orden
                 UPPER(o.seller_name) AS vendedor_nombre,
                 
-                -- 3. CORREGIDO: Rango de fechas parametrizado estrictamente de Martes a Sábado
+                -- 3. Rango de fechas parametrizado estrictamente de Martes a Sábado
                 CONCAT(
                     DATE_FORMAT(DATE_SUB(s.created_at, INTERVAL IF(WEEKDAY(s.created_at) >= 1, WEEKDAY(s.created_at) - 1, WEEKDAY(s.created_at) + 6) DAY), '%e de %M de %Y'),
                     ' - ',
@@ -268,6 +268,12 @@ const getWeeklyHistory = async (req, res) => {
                 
                 -- 5. Neto pagado referencial directo de las ganancias acumuladas
                 SUM(s.ganancia_vendedor) AS neto_pagado,
+                
+                -- 6. ESTADO DINÁMICO: Si la suma de órdenes NO liquidadas es 0, toda la semana está liquidada
+                'LIQUIDAR SEMANA' AS estado,
+                
+                -- 7. IMPORTANTE PARA EL FRONTEND: Enviamos el timestamp máximo para que sirva como 'created_at' de referencia
+                MAX(s.created_at) AS created_at,
                 
                 -- Fecha base (Martes de esa semana) para ordenar de la más nueva a la más vieja
                 DATE_SUB(s.created_at, INTERVAL IF(WEEKDAY(s.created_at) >= 1, WEEKDAY(s.created_at) - 1, WEEKDAY(s.created_at) + 6) DAY) AS fecha_orden

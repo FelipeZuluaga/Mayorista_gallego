@@ -18,7 +18,6 @@ export default function HistorialPagos() {
     const cargarHistorial = async () => {
         try {
             setLoading(true);
-            // Llamamos al servicio global que computa las semanas de los vendedores automáticamente.
             const data = await saleService.getWeeklyHistory();
             setHistorial(data);
         } catch (error) {
@@ -28,14 +27,41 @@ export default function HistorialPagos() {
         }
     };
 
-    // Lógica de filtrado en tiempo real
+    // --- FUNCIÓN DE FORMATEO IDÉNTICA A LA DE DETALLES ---
+    const formatearRangoEstetico = (rangoOriginal, fechaBaseStr) => {
+        if (!fechaBaseStr) return rangoOriginal;
+
+        try {
+            const hoy = new Date(fechaBaseStr + 'T12:00:00');
+            const diaSemana = hoy.getDay();
+            const diferenciaAlMartes = diaSemana >= 2 ? diaSemana - 2 : diaSemana + 5;
+
+            const martes = new Date(hoy);
+            martes.setDate(hoy.getDate() - diferenciaAlMartes);
+
+            const sabado = new Date(martes);
+            sabado.setDate(martes.getDate() + 4);
+
+            const fVista = (d) => d.toLocaleDateString('es-CO', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            }).replace('.', '');
+
+            return `${fVista(martes)} - ${fVista(sabado)}`;
+        } catch (e) {
+            return rangoOriginal;
+        }
+    };
+
+    // Lógica de filtrado en tiempo real (Corregida para el nuevo estado del backend)
     const historialFiltrado = historial.filter((item) => {
         const termino = busqueda.toLowerCase();
         return (
             item.vendedor_nombre?.toLowerCase().includes(termino) ||
             item.id?.toString().includes(termino) ||
             item.rango_fechas?.toLowerCase().includes(termino) ||
-            item.estado?.toLowerCase().includes(termino)
+            item.estado?.toLowerCase().includes(termino) // Ahora busca perfectamente sobre el string calculado de la DB
         );
     });
 
@@ -67,7 +93,7 @@ export default function HistorialPagos() {
                         </div>
                         <input
                             type="text"
-                            placeholder="Buscar por vendedor o ID..."
+                            placeholder="Buscar por vendedor, ID o estado..."
                             className="block w-full md:w-80 pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-[#9b111e] focus:border-[#9b111e] text-sm"
                             value={busqueda}
                             onChange={(e) => setBusqueda(e.target.value)}
@@ -90,44 +116,42 @@ export default function HistorialPagos() {
                             <tbody>
                                 {historialFiltrado.length > 0 ? (
                                     historialFiltrado.map((item) => {
-                                        // NUEVA LÓGICA DE CONTROL BASADA EN EL ESTADO ENUM DE TU BASE DE DATOS
-                                        // Suponiendo que el backend te envía la columna 'status' u 'estado' de la fila
-                                        const estadoFila = item.estado || item.status;
-                                        const esSemanaLiquidada = estadoFila === "SEMANA LIQUIDADA";
+                                        // Leemos directamente la columna calculada del Backend
+                                        const esSemanaLiquidada = item.estado === "SEMANA LIQUIDADA";
+                                        
+                                        // Extraemos la fecha limpia enviada con MAX(s.created_at)
+                                        const fechaLimpia = item.created_at ? item.created_at.split('T')[0] : null;
+
+                                        // Formateamos visualmente el texto para que coincida con la vista de detalles
+                                        const rangoFormateado = formatearRangoEstetico(item.rango_fechas, fechaLimpia);
 
                                         return (
                                             <tr key={item.id}>
-                                                {/* 1. ID único calculado por el backend */}
                                                 <td className="text-center font-bold">#{item.id}</td>
-
-                                                {/* 2. Nombre del vendedor extraído de la orden */}
                                                 <td className="uppercase text-xs font-semibold">{item.vendedor_nombre || 'Sin nombre'}</td>
+                                                
+                                                {/* Despliegue unificado y estético de las fechas */}
+                                                <td className="text-center font-medium text-gray-700">{rangoFormateado}</td>
 
-                                                {/* 3. Periodo de Liquidación formateado en español */}
-                                                <td className="text-center">{item.rango_fechas}</td>
-
-                                                {/* 4. Estado de la liquidación dinámico */}
                                                 <td className="text-center">
                                                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${esSemanaLiquidada
-                                                            ? 'bg-green-100 text-green-700 border-green-300'
-                                                            : 'bg-yellow-100 text-yellow-700 border-yellow-300'
-                                                        }`}>
+                                                        ? 'bg-green-100 text-green-700 border-green-300'
+                                                        : 'bg-yellow-100 text-yellow-700 border-yellow-300'
+                                                    }`}>
                                                         {esSemanaLiquidada ? "Semana Liquidada" : "Liquidar Semana"}
                                                     </span>
                                                 </td>
 
-                                                {/* 5. Acciones: Ver / Liquidar semana */}
                                                 <td className="text-center">
                                                     <div className="flex items-center justify-center gap-2">
-                                                        {/* Acción: Ver Detalle (Habilitado siempre para auditar) */}
                                                         {/* Acción: Ver histórico */}
                                                         <button
                                                             onClick={() => navigate('/pagos-detalle', {
                                                                 state: {
                                                                     datosLiquidacion: {
                                                                         ...item,
-                                                                        // Extraemos solo la parte YYYY-MM-DD del created_at para pasarla como referencia
-                                                                        fecha: item.created_at ? item.created_at.split('T')[0] : null
+                                                                        fecha: fechaLimpia,
+                                                                        rango_fechas: rangoFormateado
                                                                     },
                                                                     modoLectura: true
                                                                 }
@@ -138,23 +162,23 @@ export default function HistorialPagos() {
                                                             <Eye className="w-4 h-4" />
                                                         </button>
 
-                                                        {/* Acción: Liquidar semana (Deshabilitado dinámicamente si ya fue liquidada) */}
+                                                        {/* Acción: Liquidar semana */}
                                                         <button
                                                             disabled={esSemanaLiquidada}
                                                             onClick={() => navigate('/pagos-detalle', {
                                                                 state: {
                                                                     datosLiquidacion: {
                                                                         ...item,
-                                                                        // Hacemos exactamente lo mismo aquí para cuando se vaya a liquidar
-                                                                        fecha: item.created_at ? item.created_at.split('T')[0] : null
+                                                                        fecha: fechaLimpia,
+                                                                        rango_fechas: rangoFormateado
                                                                     },
                                                                     modoLectura: false
                                                                 }
                                                             })}
                                                             className={`p-1.5 border rounded transition-colors ${!esSemanaLiquidada
-                                                                    ? 'bg-[#9b111e] text-white hover:bg-[#7a0d18] border-[#9b111e]'
-                                                                    : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                                                }`}
+                                                                ? 'bg-[#9b111e] text-white hover:bg-[#7a0d18] border-[#9b111e]'
+                                                                : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                                            }`}
                                                             title={esSemanaLiquidada ? "Esta semana ya está completamente cerrada" : "Liquidar semana de comisiones"}
                                                         >
                                                             <DollarSign className="w-4 h-4" />
