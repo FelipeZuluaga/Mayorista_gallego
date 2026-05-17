@@ -24,20 +24,34 @@ function MainLayout({ children }) {
 
     // Lista unificada y sin íconos repetidos por rol
     const menuOptions = [
+        //ADMINISTRADOR
         { to: "/dashboard", label: "Inicio", icon: <Lucide.LayoutDashboard size={18} />, roles: ["ADMINISTRADOR", "DESPACHADOR", "SOCIO", "NO_SOCIO"] },
+
+
+        { to: "/ventas", label: "Rutas", icon: <Lucide.Map size={18} />, roles: ["ADMINISTRADOR"] },
         { to: "/AdminDashboard/users", label: "Creación Usuarios", icon: <Lucide.Users size={18} />, roles: ["ADMINISTRADOR"] },
         { to: "/Inventory", label: "Ingreso Productos / Inventario", icon: <Lucide.Package size={18} />, roles: ["ADMINISTRADOR"] },
-        { to: "/despacho", label: "Despachos", icon: <Lucide.Truck size={18} />, roles: ["ADMINISTRADOR", "DESPACHADOR"] },
-        { to: "/pedidos", label: "Informe de rutas cargadas", icon: <Lucide.ClipboardList size={18} />, roles: ["ADMINISTRADOR", "DESPACHADOR"] },
-        { to: "/ventas", label: "Rutas", icon: <Lucide.Map size={18} />, roles: ["ADMINISTRADOR"] },
-        { to: "/ventas-socio", label: "Mis Rutas Cargadas", icon: <Lucide.Navigation size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
-        { to: "/historial-devoluciones", label: "Informe y proc. Devolución", icon: <Lucide.RotateCcw size={18} />, roles: ["ADMINISTRADOR", "DESPACHADOR", "SOCIO", "NO_SOCIO"] },
+        { to: "/despacho", label: "Despachos", icon: <Lucide.Truck size={18} />, roles: ["ADMINISTRADOR"] },
+        { to: "/pedidos", label: "Informe de Despachos cargadas", icon: <Lucide.ClipboardList size={18} />, roles: ["ADMINISTRADOR"] },
+        { to: "/historial-devoluciones", label: "Informe y proc. Devolución", icon: <Lucide.RotateCcw size={18} />, roles: ["ADMINISTRADOR"] },
+        { to: "/historial-pagos", label: "Historial y proceso de pagos", icon: <Lucide.Wallet size={18} />, roles: ["ADMINISTRADOR"] },
+        { to: "/clientes", label: "Informe de Clientes totales", icon: <Lucide.UserCheck size={18} />, roles: ["ADMINISTRADOR"] },
+        { to: "/ganancias", label: "Ganancias de la mpresa", icon: <Lucide.DollarSign size={18} />, roles: ["ADMINISTRADOR"] },
         { to: "/historial-ventas", label: "Venta y liquidación de Rutas", icon: <Lucide.BarChart3 size={18} />, roles: ["ADMINISTRADOR"] },
-        { to: "/historial-ventas-socio", label: "Informe de mis rutas", icon: <Lucide.TrendingUp size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
-        { to: "/clientes", label: "Informe de Clientes", icon: <Lucide.UserCheck size={18} />, roles: ["ADMINISTRADOR"] },
-        { to: "/clientes-socio", label: "Mis Clientes", icon: <Lucide.Contact size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
-        { to: "/historial-pagos", label: "Historial y proceso de pagos", icon: <Lucide.Wallet size={18} />, roles: ["ADMINISTRADOR", "SOCIO", "NO_SOCIO"] },
-        { to: "/ganancias", label: "Ganancias", icon: <Lucide.DollarSign size={18} />, roles: ["ADMINISTRADOR"] }
+
+        //DESPACHADOR
+        { to: "/despacho", label: "Mis Despachos", icon: <Lucide.Truck size={18} />, roles: ["DESPACHADOR"] },
+        { to: "/pedidos", label: "Informe de Mis Despachos cargadas", icon: <Lucide.ClipboardList size={18} />, roles: ["DESPACHADOR"] },
+        { to: "/historial-devoluciones", label: "Informe y proc. de Mis Devolución", icon: <Lucide.RotateCcw size={18} />, roles: ["DESPACHADOR"] },
+
+
+
+        //SOCIO Y NO SOCIO
+        { to: "/ventas", label: "Mis Rutas Cargadas", icon: <Lucide.Map size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
+        { to: "/historial-ventas", label: "Venta y liquidación de Mis Rutas", icon: <Lucide.BarChart3 size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
+        { to: "/historial-devoluciones", label: "Informe y proc. de Mis Devolución", icon: <Lucide.RotateCcw size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
+        { to: "/clientes", label: "Informe de Mis Clientes", icon: <Lucide.UserCheck size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
+        { to: "/historial-pagos", label: "Historial y proceso de Mis pagos", icon: <Lucide.Wallet size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
     ];
 
     return (
