@@ -5,20 +5,24 @@ import { alertConfirmUsers, alertSuccess, alertError } from '../services/alertSe
 
 export default function Pagos() {
     const navigate = useNavigate();
+    const { state } = useLocation();
+
     const [settlementsWeek, setSettlementsWeek] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [rangoTexto, setRangoTexto] = useState(""); // Estado para el texto visible (05/May...)
+    const [rangoTexto, setRangoTexto] = useState("");
     const [transferenciasRecibidas, setTransferenciasRecibidas] = useState(0);
+
+    // Almacena si la semana ya llegó liquidada desde el componente anterior
+    const [esSemanaLiquidada, setEsSemanaLiquidada] = useState(false);
+    const [cierreGuardado, setCierreGuardado] = useState(null);
 
     const diasSemana = ['Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-    // --- FUNCIÓN PARA CALCULAR LA SEMANA ACTUAL AUTOMÁTICAMENTE ---
-    const obtenerFechasSemana = () => {
-        const hoy = new Date();
-        const diaSemana = hoy.getDay(); // 0: Dom, 1: Lun, 2: Mar...
+    // --- FUNCIÓN PARA CALCULAR LA SEMANA AUTOMÁTICAMENTE O POR PARÁMETRO ---
+    const obtenerFechasSemana = (fechaBaseOpcional) => {
+        const hoy = fechaBaseOpcional ? new Date(fechaBaseOpcional + 'T12:00:00') : new Date();
+        const diaSemana = hoy.getDay();
 
-        // Si hoy es Domingo (0) o Lunes (1), queremos ver la semana que acaba de pasar.
-        // Si es de Martes (2) en adelante, vemos la semana en curso.
         const diferenciaAlMartes = diaSemana >= 2 ? diaSemana - 2 : diaSemana + 5;
 
         const martes = new Date(hoy);
@@ -27,10 +31,16 @@ export default function Pagos() {
         const sabado = new Date(martes);
         sabado.setDate(martes.getDate() + 4);
 
-        // Formato para la API (YYYY-MM-DD)
-        const fISO = (d) => d.toISOString().split('T')[0];
+        const domingo = new Date(martes);
+        domingo.setDate(martes.getDate() + 5);
 
-        // Formato para la Vista e Historial (12/May/2026)
+        const fISO = (d) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const dia = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${dia}`;
+        };
+
         const fVista = (d) => d.toLocaleDateString('es-CO', {
             day: '2-digit',
             month: 'short',
@@ -39,55 +49,101 @@ export default function Pagos() {
 
         return {
             start: fISO(martes),
-            end: fISO(sabado),
+            end: fISO(domingo),
             texto: `${fVista(martes)} - ${fVista(sabado)}`
         };
     };
 
-    // Agrega useLocation para recibir datos del historial
-    const { state } = useLocation();
-
     useEffect(() => {
         const fetchDatosSemanales = async () => {
             try {
-                // 1. Prioridad: Si venimos del historial, usamos el user_id guardado en ese registro.
-                // 2. Si es una liquidación nueva, usamos el del usuario logueado.
-                const targetUserId = state?.datosLiquidacion?.user_id || JSON.parse(localStorage.getItem("user"))?.id;
+                const userLocalStorage = JSON.parse(localStorage.getItem("user"));
+                const targetSellerName = state?.datosLiquidacion?.vendedor_nombre || state?.datosLiquidacion?.vendedor_name || userLocalStorage?.name || userLocalStorage?.username;
 
-                if (!targetUserId) return;
+                if (!targetSellerName) {
+                    console.error("No se encontró el nombre del vendedor para consultar.");
+                    return;
+                }
 
-                const fechas = obtenerFechasSemana();
-                // Si es modo lectura (desde historial), usamos el rango que se guardó en la DB
+                // 🛠️ CORRECCIÓN AQUÍ:
+                // Si la semana ya está liquidada, extraemos el campo correcto de la base de datos
+                if (state?.datosLiquidacion?.estado === 'SEMANA LIQUIDADA') {
+                    setEsSemanaLiquidada(true);
+
+                    // 💡 CAMBIADO: Se añade soporte para 'menos_transferencias' (que es como se llama en tu base de datos)
+                    const valorPrevioInput = Number(
+                        state?.datosLiquidacion?.menos_transferencias ?? 
+                        state?.datosLiquidacion?.menosTransferencias ?? 
+                        0
+                    );
+
+                    setTransferenciasRecibidas(valorPrevioInput);
+                    setCierreGuardado({ valorRegistrado: valorPrevioInput });
+                }
+
+                const fechaReferencia = state?.datosLiquidacion?.fecha;
+                const fechas = obtenerFechasSemana(fechaReferencia);
+
                 setRangoTexto(state?.datosLiquidacion?.rango_fechas || fechas.texto);
 
-                // Llamada a la API con el ID del vendedor específico
-                const data = await saleService.getWeeklySettlements(targetUserId, fechas.start, fechas.end);
+                const data = await saleService.getWeeklySettlements(targetSellerName, fechas.start, fechas.end);
+
+                console.log("Datos que llegaron al Frontend:", data);
                 setSettlementsWeek(data);
             } catch (error) {
                 console.error("Error cargando pagos:", error);
             } finally {
-                setLoading(false);
+                loading && setLoading(false);
             }
         };
         fetchDatosSemanales();
     }, [state]);
 
-    const format = (val) => new Intl.NumberFormat('es-CO', {
-        maximumFractionDigits: 0
-    }).format(val);
+    const format = (val) => {
+        const absoluto = Math.abs(val);
+        const formateado = new Intl.NumberFormat('es-CO', {
+            maximumFractionDigits: 0
+        }).format(absoluto);
+        return val < 0 ? `-${formateado}` : formateado;
+    };
 
-    // LÓGICA DE PROCESAMIENTO DE DATOS
+    // --- LÓGICA DE PROCESAMIENTO ADAPTATIVA ---
     const datosPorDia = diasSemana.reduce((acc, nombreDia) => {
-        const diaBuscado = nombreDia.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const fechaReferencia = state?.datosLiquidacion?.fecha;
+        const fechas = obtenerFechasSemana(fechaReferencia);
+        const fechaBase = new Date(fechas.start + 'T00:00:00');
+
+        const mapaDesplazamientoDias = {
+            'martes': 0, 'miercoles': 1, 'jueves': 2, 'viernes': 3, 'sabado': 4
+        };
+
+        const diaClave = nombreDia.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const diasASumar = mapaDesplazamientoDias[diaClave];
+
+        const fechaTargetObjeto = new Date(fechaBase);
+        fechaTargetObjeto.setDate(fechaBase.getDate() + diasASumar);
+
+        const y = fechaTargetObjeto.getFullYear();
+        const m = String(fechaTargetObjeto.getMonth() + 1).padStart(2, '0');
+        const d = String(fechaTargetObjeto.getDate()).padStart(2, '0');
+        const fechaTargetString = `${y}-${m}-${d}`;
+
         const settlementDia = settlementsWeek.find(s => {
-            if (!s.dia_semana) return false;
-            const diaDB = s.dia_semana.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            return diaDB === diaBuscado;
+            if (!s.fecha) return false;
+            const fechaLimpiaDB = s.fecha.split('T')[0];
+            return fechaLimpiaDB === fechaTargetString;
         });
 
-        acc[nombreDia] = settlementDia
-            ? { ganancia: Number(settlementDia.total_ganancia || 0), falta: Number(settlementDia.total_ganancia || 0) }
-            : { ganancia: 0, falta: 0 };
+        if (settlementDia) {
+            const valorMonto = Number(settlementDia.total_ganancia || 0);
+            acc[nombreDia] = {
+                ganancia: valorMonto,
+                falta: valorMonto
+            };
+        } else {
+            acc[nombreDia] = { ganancia: 0, falta: 0 };
+        }
+
         return acc;
     }, {});
 
@@ -98,33 +154,65 @@ export default function Pagos() {
     const prestamoFijo = Math.abs(faltaTotalGeneral) - (Number(transferenciasRecibidas) || 0);
     const netoFinal = dividido2 - prestamoFijo;
 
+    // --- PROCESAR EL CIERRE CON LOS NUEVOS CAMPOS ---
     const handleCerrarSemana = async () => {
-        // 1. Identificar a quién estamos liquidando
-        // Prioridad al ID que viene del historial/estado, si no, el del usuario actual
-        const targetUserId = state?.datosLiquidacion?.user_id || JSON.parse(localStorage.getItem("user"))?.id;
-
-        const confirmed = await alertConfirmUsers(
-            "¿Finalizar y Cerrar Semana?",
-            `Se guardará el registro para el periodo: ${rangoTexto}`
+        const confirmar = await alertConfirmUsers(
+            "¿Estás seguro?",
+            `Vas a liquidar y cerrar de forma definitiva el periodo:\n${rangoTexto}`
         );
 
-        if (confirmed) {
-            try {
-                const payload = {
-                    userId: targetUserId, // <--- USAR EL ID DEL VENDEDOR DESTINO
-                    rango_fechas: rangoTexto,
-                    total_ganancia: gananciasTotales,
-                    neto_pagado: netoFinal,
-                    transferencias: transferenciasRecibidas,
-                    prestamo: prestamoFijo
-                };
+        if (!confirmar) return;
 
-                await saleService.saveWeeklyHistory(payload);
-                await alertSuccess("¡Semana Cerrada!", "Datos guardados correctamente en el historial.");
-                navigate('/historial-pagos');
-            } catch (error) {
-                alertError("Error al cerrar", error.message || "No se pudo procesar.");
+        try {
+            const valorAEnviar = Number(transferenciasRecibidas) || 0;
+            const userLocalStorage = JSON.parse(localStorage.getItem("user"));
+            const nombreVendedor = state?.datosLiquidacion?.vendedor_nombre || state?.datosLiquidacion?.vendedor_name || userLocalStorage?.name || userLocalStorage?.username;
+
+            let idLiquidacion = state?.datosLiquidacion?.id;
+
+            if (!idLiquidacion) {
+                const fechaReferencia = state?.datosLiquidacion?.fecha || new Date().toISOString();
+                const baseDate = new Date(fechaReferencia);
+                const año = baseDate.getFullYear();
+
+                const inicioAño = new Date(año, 0, 1);
+                const dias = Math.floor((baseDate - inicioAño) / (24 * 60 * 60 * 1000));
+                const semana = Math.ceil((dias + inicioAño.getDay() + 1) / 7);
+
+                const nombreLimpio = nombreVendedor.toUpperCase().replace(/\s+/g, '');
+                idLiquidacion = `${año}_W${semana}_${nombreLimpio}`;
             }
+
+            const payload = {
+                id: idLiquidacion,
+                vendedor_nombre: nombreVendedor,
+                rango_fechas: rangoTexto,
+                total_ganancia: gananciasTotales,
+                dividido_2: dividido2,
+                menos_prestamo: prestamoFijo,
+                neto_pagar: netoFinal,
+                falta_total: faltaTotalGeneral,
+                menosTransferencias: valorAEnviar,
+                prestamo_transferencia: prestamoFijo,
+                status: 'SEMANA LIQUIDADA'
+            };
+
+            console.log("Enviando este cierre al servidor:", payload);
+
+            const response = await saleService.saveWeeklySettlement(payload);
+
+            if (response.success) {
+                await alertSuccess("¡Éxito!", "La semana ha sido guardada en la base de datos de manera definitiva.");
+                setEsSemanaLiquidada(true);
+                setCierreGuardado({
+                    valorRegistrado: valorAEnviar
+                });
+            } else {
+                alertError("Error", response.message || "No se pudo cerrar la semana");
+            }
+        } catch (error) {
+            console.error("Error al cerrar la semana desde UI:", error);
+            alertError("Error de Servidor", error.message);
         }
     };
 
@@ -132,7 +220,6 @@ export default function Pagos() {
 
     return (
         <div className="p-4 bg-white min-h-screen font-sans">
-            {/* Indicador de semana actual */}
             <div className="max-w-[1000px] mx-auto mb-6 bg-blue-50 p-3 rounded-lg border border-blue-100 text-center">
                 <p className="text-blue-800 font-semibold">
                     📅 Periodo de Liquidación: <span className="underline">{rangoTexto}</span>
@@ -140,12 +227,31 @@ export default function Pagos() {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', maxWidth: '1000px', margin: '0 auto 20px auto' }}>
-                <button onClick={() => navigate('/historial-pagos')} className="bg-gray-800 text-white px-4 py-2 rounded shadow hover:bg-gray-700 transition-colors">
-                    📁 Ver Historial de Pagos
+                <button
+                    onClick={() => navigate('/historial-pagos')}
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px',
+                        backgroundColor: '#ffffff', color: '#374151', border: '1px solid #d1d5db',
+                        borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+                        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                    }}
+                >
+                    Ver Historial de Pagos
                 </button>
-                <button onClick={handleCerrarSemana} className="bg-green-600 text-white px-6 py-2 rounded font-bold shadow hover:bg-green-700 transition-transform active:scale-95">
-                    🔒 Finalizar y Cerrar Semana
-                </button>
+
+                {!esSemanaLiquidada && (
+                    <button
+                        onClick={handleCerrarSemana}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 20px',
+                            backgroundColor: '#9b111e', color: '#ffffff', border: '1px solid #9b111e',
+                            borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600',
+                            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                        }}
+                    >
+                        Finalizar y Cerrar Semana
+                    </button>
+                )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'row', gap: '40px', maxWidth: '1000px', margin: '0 auto' }}>
@@ -163,6 +269,7 @@ export default function Pagos() {
                                     </td>
                                 </tr>
                             ))}
+
                             <tr style={{ fontWeight: 'bold', backgroundColor: '#ffff00' }}>
                                 <td style={{ border: '1px solid #ccc', padding: '8px' }}>Ganancias Totales</td>
                                 <td style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'right' }}>$ {format(gananciasTotales)}</td>
@@ -200,6 +307,7 @@ export default function Pagos() {
                                     </td>
                                 </tr>
                             ))}
+
                             <tr style={{ fontWeight: 'bold', color: 'white', backgroundColor: '#ff0000' }}>
                                 <td style={{ border: '1px solid #ccc', padding: '8px' }}>Falta Total</td>
                                 <td style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'right' }}>-{format(Math.abs(faltaTotalGeneral))}</td>
@@ -211,9 +319,14 @@ export default function Pagos() {
                                     <span style={{ marginRight: '4px' }}>$</span>
                                     <input
                                         type="number"
+                                        disabled={esSemanaLiquidada}
                                         value={transferenciasRecibidas}
                                         onChange={(e) => setTransferenciasRecibidas(e.target.value)}
-                                        style={{ width: '100px', textAlign: 'right', border: '1px solid #ccc', borderRadius: '4px' }}
+                                        style={{
+                                            width: '100px', textAlign: 'right', border: '1px solid #ccc', borderRadius: '4px',
+                                            backgroundColor: esSemanaLiquidada ? '#f3f4f6' : '#fff',
+                                            color: esSemanaLiquidada ? '#6b7280' : '#000'
+                                        }}
                                     />
                                 </td>
                             </tr>
@@ -224,6 +337,15 @@ export default function Pagos() {
                                     <span style={{ fontWeight: 'bold' }}>-${format(prestamoFijo)}</span>
                                 </td>
                             </tr>
+
+                            {cierreGuardado && (
+                                <tr style={{ backgroundColor: '#e2f0d9', color: '#385723', fontWeight: 'bold', borderTop: '2px solid #385723' }}>
+                                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>Valor Registrado en menos Transferencias</td>
+                                    <td style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'right' }}>
+                                        $ {format(cierreGuardado.valorRegistrado)}
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>

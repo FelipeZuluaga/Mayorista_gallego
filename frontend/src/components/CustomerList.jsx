@@ -276,7 +276,7 @@ const CustomerList = ({ sellerId }) => {
 
             <div className="inv-page full-layout history-container">
                 <header className="ruta-header-main">
-                    <h1>{user.role === 'ADMINISTRADOR' ? '🚀 Informe de Clientes' : '🚚 Informe de mis rutas'}</h1>
+                    <h1>{user.role === 'ADMINISTRADOR' ? '🚀 Informe de Clientes' : '🚚 Informe de Mi Clientes'}</h1>
                     <p>Viendo clientes del día: <strong>{DIAS_SEMANA[diaSeleccionado]}</strong></p>
                     {user.role === 'ADMINISTRADOR' && (
                         <button

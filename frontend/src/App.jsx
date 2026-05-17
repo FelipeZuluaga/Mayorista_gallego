@@ -24,6 +24,8 @@ import SettlementModule from "./components/SettlementModule.jsx";
 // --- NUEVA IMPORTACIÓN ---
 import Pagos from "./components/Pagos.jsx";
 import HistorialPagos from "./pages/HistorialPagos.jsx";
+import Ganancias from "./components/Ganancias.jsx";
+
 
 export default function AppRouter() {
   return (
@@ -134,6 +136,17 @@ export default function AppRouter() {
             <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO", "NO_SOCIO"]}>
               <MainLayout>
                 <HistorialPagos />
+              </MainLayout>
+            </RoleRoute>
+          }
+        />
+        {/* 🚀 NUEVA RUTA DEFINIDA: MÓDULO DE GANANCIAS HISTÓRICAS */}
+        <Route
+          path="/ganancias"
+          element={
+            <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO", "NO_SOCIO"]}>
+              <MainLayout>
+                <Ganancias />
               </MainLayout>
             </RoleRoute>
           }

@@ -56,3 +56,13 @@
         justify-content: center;
     }
 }
+.footer-support-link {
+    color: inherit; /* Hereda el color que ya tenía el footer */
+    text-decoration: none; /* Quita el subrayado por defecto */
+    transition: opacity 0.2s ease;
+}
+
+.footer-support-link:hover {
+    text-decoration: underline; /* Opcional: se subraya solo cuando pasan el mouse por encima */
+    opacity: 0.8;
+}

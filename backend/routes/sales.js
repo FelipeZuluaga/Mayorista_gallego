@@ -25,20 +25,22 @@ router.get('/settlement/:orderId', saleController.getSettlementByOrder);
 /**
  * Obtiene las liquidaciones de la semana actual para Pagos.jsx
  * Endpoint: GET /api/sales/settlements/weekly
+ * Nota: Los filtros (sellerName, startDate, endDate) viajan en la Query String (?sellerName=DERWIN...)
  */
 router.get('/settlements/weekly', saleController.getWeeklySettlements);
 
 /**
- * NUEVA: Guarda el cierre definitivo de una semana (Crea el registro en el historial)
- * Endpoint: POST /api/sales/weekly-history/save
+ * Obtiene el historial de todos los cierres semanales realizados
+ * Endpoint: GET /api/sales/weekly-history
  */
-router.post('/weekly-history/save', saleController.saveWeeklyHistory);
+router.get('/weekly-history', saleController.getWeeklyHistory);
 
 /**
- * NUEVA: Obtiene el historial de todos los cierres semanales realizados
- * Endpoint: GET /api/sales/weekly-history/:userId
+ * NUEVA: Guarda el cierre de la semana (Líquida y finaliza la semana)
+ * Endpoint: POST /api/sales/weekly-history
  */
-router.get('/weekly-history/:userId', saleController.getWeeklyHistory);
-
+router.post('/weekly-history', saleController.saveWeeklySettlement);
+// ... tus otras rutas
+router.get('/ganancias-vendedores', saleController.getVendedoresGanancias);
 
 module.exports = router;

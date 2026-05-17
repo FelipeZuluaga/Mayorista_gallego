@@ -34,7 +34,24 @@
     padding: 5px;
 }
 
-/* NAVEGACIÓN (Píldora) */
+/* BOTÓN HAMBURGUESA (Oculto por defecto en escritorio) */
+.hamburger-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--white);
+    cursor: pointer;
+    padding: 5px;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+}
+
+.hamburger-btn:active {
+    transform: scale(0.9);
+}
+
+/* NAVEGACIÓN (Píldora en Desktop) */
 .header-nav-menu {
     display: flex;
     gap: 10px;
@@ -54,6 +71,7 @@
     padding: 6px 12px;
     border-radius: 20px;
     transition: all 0.3s ease;
+    white-space: nowrap; /* Evita que el texto se rompa en dos líneas */
 }
 
 .nav-item:hover, .nav-item.active {
@@ -91,28 +109,82 @@
 .user-avatar {
     font-size: 1.5rem;
     color: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
 }
 
 /* CONTENEDOR DE CONTENIDO */
 .admin-container {
-    flex: 1; /* Esto asegura que el footer siempre baje */
+    flex: 1; 
     width: 100%;
     max-width: 1400px;
     margin: 0 auto;
     padding: 30px 20px;
 }
 
-/* RESPONSIVE */
-@media (max-width: 768px) {
-    .admin-header {
-        flex-direction: column;
-        gap: 15px;
-        padding: 20px;
-    }
+
+/* ==========================================================================
+   RESPONSIVE (MENÚ HAMBURGUESA PARA SMARTPHONES Y TABLETS)
+   ========================================================================== */
+@media (max-width: 1024px) { /* Subido a 1024px para prevenir que los módulos se pisen */
     
+    .hamburger-btn {
+        display: flex; /* Mostramos la hamburguesa */
+        order: 2;      /* Lo posicionamos a la derecha del logo */
+    }
+
+    .user-profile-section {
+        margin-left: auto;
+        margin-right: 15px;
+        order: 1; /* El perfil se queda en el medio en tablet/móvil */
+    }
+
+    /* Transformación de la "Píldora" a Menú Desplegable Vertical */
     .header-nav-menu {
+        display: none; /* Oculto por defecto */
+        flex-direction: column;
+        align-items: flex-start;
+        position: absolute;
+        top: 100%; /* Justo debajo del header */
+        left: 0;
         width: 100%;
-        overflow-x: auto; /* Scroll lateral en menú móvil */
+        background: var(--primary-color); /* Mismo color del header */
+        border-radius: 0; /* Quitamos la forma de píldora */
+        padding: 15px 5%;
+        box-shadow: 0 8px 12px rgba(0,0,0,0.2);
+        gap: 5px;
+        box-sizing: border-box;
+    }
+
+    /* Clase activa que inyecta React al presionar la hamburguesa */
+    .header-nav-menu.is-open {
+        display: flex; 
+        animation: slideDown 0.25s ease-out forwards;
+    }
+
+    .nav-item {
+        width: 100%; /* Ocupa todo el ancho en móvil */
+        padding: 10px 15px;
+        border-radius: 8px; /* Cambiado a esquinas sutiles para lista vertical */
         justify-content: flex-start;
+    }
+
+    /* Pequeño ajuste para pantallas muy chicas */
+    @media (max-width: 480px) {
+        .user-info {
+            display: none; /* Oculta nombre/rol en celulares para ganar espacio (se mantiene el avatar) */
+        }
+    }
+}
+
+/* Animación de entrada para el menú desplegable */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
