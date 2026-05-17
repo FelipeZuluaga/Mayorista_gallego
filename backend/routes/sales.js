@@ -20,10 +20,6 @@ router.get('/ruta-completa/:orderId', saleController.getRutaCompleta);
 router.get('/settlement/:orderId', saleController.getSettlementByOrder);
 
 
-
-
-
-
 // --- RUTAS DE PAGOS SEMANALES (TABLA MARTES A SÁBADO) ---
 
 /**
@@ -31,13 +27,19 @@ router.get('/settlement/:orderId', saleController.getSettlementByOrder);
  * Endpoint: GET /api/sales/settlements/weekly
  * Nota: Los filtros (sellerName, startDate, endDate) viajan en la Query String (?sellerName=DERWIN...)
  */
-
 router.get('/settlements/weekly', saleController.getWeeklySettlements);
+
 /**
- * NUEVA: Obtiene el historial de todos los cierres semanales realizados
- * Endpoint: GET /api/sales/weekly-history/:userId
+ * Obtiene el historial de todos los cierres semanales realizados
+ * Endpoint: GET /api/sales/weekly-history
  */
 router.get('/weekly-history', saleController.getWeeklyHistory);
+
+/**
+ * NUEVA: Guarda el cierre de la semana (Líquida y finaliza la semana)
+ * Endpoint: POST /api/sales/weekly-history
+ */
+router.post('/weekly-history', saleController.saveWeeklySettlement);
 
 
 module.exports = router;

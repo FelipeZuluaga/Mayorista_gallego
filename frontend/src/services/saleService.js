@@ -115,5 +115,19 @@ export const saleService = {
             const errorMsg = error.response?.data?.message || "Error al obtener el historial de pagos";
             throw new Error(errorMsg);
         }
+    },
+    /**
+     * NUEVO: Guarda el cierre definitivo de la semana en el historial
+     * @param {Object} weeklyData - { dividido_2, menosTransferencias, status }
+     */
+    saveWeeklySettlement: async (weeklyData) => {
+        try {
+            const response = await api.post("/sales/weekly-history", weeklyData);
+            return response.data; // Retorna { success: true, message: "..." }
+        } catch (error) {
+            console.error("Error en saleService.saveWeeklySettlement:", error);
+            const errorMsg = error.response?.data?.message || "Error al cerrar y registrar la semana";
+            throw new Error(errorMsg);
+        }
     }
 };

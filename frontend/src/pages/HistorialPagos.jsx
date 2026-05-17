@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { saleService } from '../services/saleService';
 import { useNavigate } from 'react-router-dom';
 import { Eye, DollarSign, Search } from 'lucide-react';
-import '../styles/devoluciones.css';
 
 export default function HistorialPagos() {
     const [historial, setHistorial] = useState([]);
     const [loading, setLoading] = useState(true);
     const [busqueda, setBusqueda] = useState("");
-
+    const user = JSON.parse(localStorage.getItem("user"));
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -61,7 +60,8 @@ export default function HistorialPagos() {
             item.vendedor_nombre?.toLowerCase().includes(termino) ||
             item.id?.toString().includes(termino) ||
             item.rango_fechas?.toLowerCase().includes(termino) ||
-            item.estado?.toLowerCase().includes(termino) // Ahora busca perfectamente sobre el string calculado de la DB
+            item.estado?.toLowerCase().includes(termino) ||
+            item.status?.toLowerCase().includes(termino) // Validación extra por si la columna de la DB se llama status
         );
     });
 
@@ -77,26 +77,18 @@ export default function HistorialPagos() {
             <div className="max-w-7xl mx-auto">
                 {/* Encabezado */}
                 <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-                            HISTORIAL DE LIQUIDACIÓN SEMANAL / PAGOS
-                        </h1>
-                        <p className="text-gray-500 mt-2 text-lg">
-                            Gestiona y visualiza tus pagos semanales de forma organizada.
-                        </p>
-                    </div>
-
-                    {/* Buscador UI */}
-                    <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Search className="h-5 w-5 text-gray-400" />
-                        </div>
+                    <header className="ruta-header-main">
+                        <h1>{user.role === 'ADMINISTRADOR' ? '🚀 Historial y proceso de pagos semanal' : '🚚 Informe y proceso de mis Devolucion'}</h1>
+                        <p>GESTION,HISTORIAL DE LIQUIDACIÓN Y PAGOS DE SEMANALES</p>
+                    </header>
+                    <div style={{ marginLeft: 'auto', paddingLeft: '15px', width: '260px', flexShrink: 0 }}>
                         <input
                             type="text"
-                            placeholder="Buscar por vendedor, ID o estado..."
-                            className="block w-full md:w-80 pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-[#9b111e] focus:border-[#9b111e] text-sm"
+                            placeholder="🔍 Buscar por Vendedor"
+                            className="input-search"
                             value={busqueda}
                             onChange={(e) => setBusqueda(e.target.value)}
+                            style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc', width: '100%' }}
                         />
                     </div>
                 </div>
@@ -116,9 +108,10 @@ export default function HistorialPagos() {
                             <tbody>
                                 {historialFiltrado.length > 0 ? (
                                     historialFiltrado.map((item) => {
-                                        // Leemos directamente la columna calculada del Backend
-                                        const esSemanaLiquidada = item.estado === "SEMANA LIQUIDADA";
-                                        
+                                        // 🛠️ CORREGIDO: Ahora evalúa si es "SEMANA LIQUIDADA", "LIQUIDADO" o el campo 'status' de la tabla viene como 'LIQUIDADO'
+                                        const valorEstado = (item.estado || item.status || "").toUpperCase();
+                                        const esSemanaLiquidada = valorEstado === "SEMANA LIQUIDADA" || valorEstado === "LIQUIDADO";
+
                                         // Extraemos la fecha limpia enviada con MAX(s.created_at)
                                         const fechaLimpia = item.created_at ? item.created_at.split('T')[0] : null;
 
@@ -129,7 +122,7 @@ export default function HistorialPagos() {
                                             <tr key={item.id}>
                                                 <td className="text-center font-bold">#{item.id}</td>
                                                 <td className="uppercase text-xs font-semibold">{item.vendedor_nombre || 'Sin nombre'}</td>
-                                                
+
                                                 {/* Despliegue unificado y estético de las fechas */}
                                                 <td className="text-center font-medium text-gray-700">{rangoFormateado}</td>
 
@@ -137,13 +130,14 @@ export default function HistorialPagos() {
                                                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${esSemanaLiquidada
                                                         ? 'bg-green-100 text-green-700 border-green-300'
                                                         : 'bg-yellow-100 text-yellow-700 border-yellow-300'
-                                                    }`}>
+                                                        }`}>
                                                         {esSemanaLiquidada ? "Semana Liquidada" : "Liquidar Semana"}
                                                     </span>
                                                 </td>
 
                                                 <td className="text-center">
-                                                    <div className="flex items-center justify-center gap-2">
+                                                    <div className="flex items-center justify-center gap-2" style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+
                                                         {/* Acción: Ver histórico */}
                                                         <button
                                                             onClick={() => navigate('/pagos-detalle', {
@@ -156,10 +150,26 @@ export default function HistorialPagos() {
                                                                     modoLectura: true
                                                                 }
                                                             })}
-                                                            className="p-1.5 border rounded bg-white border-gray-300 hover:bg-gray-100 text-[#9b111e] transition-colors"
+                                                            style={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '6px',
+                                                                padding: '6px 12px',
+                                                                backgroundColor: '#ffffff',
+                                                                color: '#374151',
+                                                                border: '1px solid #d1d5db',
+                                                                borderRadius: '6px',
+                                                                cursor: 'pointer',
+                                                                fontSize: '12px',
+                                                                fontWeight: '600',
+                                                                transition: 'background-color 0.2s'
+                                                            }}
+                                                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                                                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
                                                             title="Ver histórico"
                                                         >
-                                                            <Eye className="w-4 h-4" />
+                                                            <Eye className="w-4 h-4 text-gray-500" />
+                                                            Ver Histórico
                                                         </button>
 
                                                         {/* Acción: Liquidar semana */}
@@ -175,13 +185,30 @@ export default function HistorialPagos() {
                                                                     modoLectura: false
                                                                 }
                                                             })}
-                                                            className={`p-1.5 border rounded transition-colors ${!esSemanaLiquidada
-                                                                ? 'bg-[#9b111e] text-white hover:bg-[#7a0d18] border-[#9b111e]'
-                                                                : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                                            }`}
+                                                            style={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '6px',
+                                                                padding: '6px 12px',
+                                                                backgroundColor: !esSemanaLiquidada ? '#9b111e' : '#f3f4f6',
+                                                                color: !esSemanaLiquidada ? '#ffffff' : '#9ca3af',
+                                                                border: !esSemanaLiquidada ? '1px solid #9b111e' : '1px solid #e5e7eb',
+                                                                borderRadius: '6px',
+                                                                cursor: !esSemanaLiquidada ? 'pointer' : 'not-allowed',
+                                                                fontSize: '12px',
+                                                                fontWeight: '600',
+                                                                transition: 'background-color 0.2s'
+                                                            }}
+                                                            onMouseOver={(e) => {
+                                                                if (!esSemanaLiquidada) e.currentTarget.style.backgroundColor = '#7a0d18';
+                                                            }}
+                                                            onMouseOut={(e) => {
+                                                                if (!esSemanaLiquidada) e.currentTarget.style.backgroundColor = '#9b111e';
+                                                            }}
                                                             title={esSemanaLiquidada ? "Esta semana ya está completamente cerrada" : "Liquidar semana de comisiones"}
                                                         >
                                                             <DollarSign className="w-4 h-4" />
+                                                            Liquidar Semana
                                                         </button>
                                                     </div>
                                                 </td>

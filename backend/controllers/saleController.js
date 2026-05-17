@@ -247,7 +247,7 @@ const getWeeklyHistory = async (req, res) => {
         // Aseguramos que los nombres de los meses salgan en español
         await db.query("SET lc_time_names = 'es_ES'");
 
-        // Consulta unificada con cálculo de estado dinámico basado en el status de las órdenes
+        // Consulta unificada con cruce dinámico hacia el historial de cierres fijos
         const [rows] = await db.query(
             `SELECT 
                 -- 1. Generamos el ID único con el Año, la Semana y el Nombre del Vendedor
@@ -269,8 +269,8 @@ const getWeeklyHistory = async (req, res) => {
                 -- 5. Neto pagado referencial directo de las ganancias acumuladas
                 SUM(s.ganancia_vendedor) AS neto_pagado,
                 
-                -- 6. ESTADO DINÁMICO: Si la suma de órdenes NO liquidadas es 0, toda la semana está liquidada
-                'LIQUIDAR SEMANA' AS estado,
+                -- 🛠️ CORREGIDO 6. ESTADO DINÁMICO REAL: Si existe registro en weekly_history ponemos 'SEMANA LIQUIDADA', si no 'LIQUIDAR SEMANA'
+                IF(wh.id IS NOT NULL, 'SEMANA LIQUIDADA', 'LIQUIDAR SEMANA') AS estado,
                 
                 -- 7. IMPORTANTE PARA EL FRONTEND: Enviamos el timestamp máximo para que sirva como 'created_at' de referencia
                 MAX(s.created_at) AS created_at,
@@ -281,10 +281,14 @@ const getWeeklyHistory = async (req, res) => {
              FROM m_g_settlements s
              INNER JOIN orders o ON s.order_id = o.id
              
+             -- 🚀 UNIÓN CLAVE: Cruzamos contra el historial por ID calculado para saber si ya se guardó y cerró la semana
+             LEFT JOIN weekly_history wh ON wh.id = CONCAT(YEAR(s.created_at), '_W', WEEK(s.created_at, 1), '_', REPLACE(o.seller_name, ' ', ''))
+             
              GROUP BY 
                 YEAR(s.created_at), 
                 WEEK(s.created_at, 1), 
-                o.seller_name
+                o.seller_name,
+                wh.id -- Se agrega al GROUP BY para respetar el estándar SQL
                 
              ORDER BY 
                 fecha_orden DESC, 
@@ -297,4 +301,57 @@ const getWeeklyHistory = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
-module.exports = { createSale, getSales, getRutaCompleta, getSettlementByOrder, getWeeklySettlements, getWeeklyHistory};
+
+// GUARDAR LIQUIDACIÓN SEMANAL FIJA EN EL HISTORIAL
+const saveWeeklySettlement = async (req, res) => {
+    // Recibimos los datos calculados desde el frontend
+    const { dividido_2, menosTransferencias, status } = req.body;
+    
+    const connection = await db.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        // 1. Insertar la liquidación fija en la base de datos
+        // CORREGIDO: Se quitó la coma después de 'status' y se cerró el paréntesis en VALUES )
+        const [result] = await connection.query(
+            `INSERT INTO weekly_history (
+                dividido_2, 
+                menosTransferencias, 
+                status
+            ) VALUES (?, ?, ?)`,
+            [
+                Number(dividido_2) || 0, 
+                Number(menosTransferencias) || 0, 
+                status || 'SEMANA LIQUIDADA'
+            ]
+        );
+
+        await connection.commit();
+
+        // 2. Responder al frontend con éxito para que pueda redirigir al historial
+        res.status(201).json({
+            success: true,
+            message: "Semana finalizada y cerrada con éxito",
+            insertedId: result.insertId
+        });
+
+    } catch (error) {
+        await connection.rollback();
+        console.error("Error al guardar liquidación semanal:", error);
+        res.status(500).json({ success: false, message: error.message });
+    } finally {
+        connection.release();
+    }
+};
+
+// No olvides exportar la nueva función al final del archivo
+module.exports = {
+    createSale,
+    getSales,
+    getRutaCompleta,
+    getSettlementByOrder,
+    getWeeklySettlements,
+    getWeeklyHistory,
+    saveWeeklySettlement // <-- Agregada aquí
+};
