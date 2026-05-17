@@ -129,5 +129,17 @@ export const saleService = {
             const errorMsg = error.response?.data?.message || "Error al cerrar y registrar la semana";
             throw new Error(errorMsg);
         }
+    },
+    /** 🚀 NUEVO MÉTODO: Obtiene el acumulado global de ganancias por vendedor */
+    getGananciasVendedores: async () => {
+        try {
+            // Llama al endpoint que acabamos de mapear en las rutas del backend
+            const response = await api.get("/sales/ganancias-vendedores");
+            return response.data; // Retorna { success: true, data: [...] }
+        } catch (error) {
+            console.error("Error en saleService.getGananciasVendedores:", error);
+            const errorMsg = error.response?.data?.message || "Error al obtener el consolidado de ganancias";
+            throw new Error(errorMsg);
+        }
     }
 };

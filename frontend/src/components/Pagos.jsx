@@ -58,7 +58,7 @@ export default function Pagos() {
         const fetchDatosSemanales = async () => {
             try {
                 const userLocalStorage = JSON.parse(localStorage.getItem("user"));
-                const targetSellerName = state?.datosLiquidacion?.vendedor_nombre || userLocalStorage?.name || userLocalStorage?.username;
+                const targetSellerName = state?.datosLiquidacion?.vendedor_nombre || state?.datosLiquidacion?.vendedor_name || userLocalStorage?.name || userLocalStorage?.username;
 
                 if (!targetSellerName) {
                     console.error("No se encontró el nombre del vendedor para consultar.");
@@ -66,12 +66,16 @@ export default function Pagos() {
                 }
 
                 // 🛠️ CORRECCIÓN AQUÍ:
-                // Si la semana ya está liquidada, extraemos 'menosTransferencias' de la base de datos
+                // Si la semana ya está liquidada, extraemos el campo correcto de la base de datos
                 if (state?.datosLiquidacion?.estado === 'SEMANA LIQUIDADA') {
                     setEsSemanaLiquidada(true);
 
-                    // CAMBIADO: Ahora lee correctamente 'menosTransferencias' enviado desde el backend/historial
-                    const valorPrevioInput = Number(state?.datosLiquidacion?.menosTransferencias || 0);
+                    // 💡 CAMBIADO: Se añade soporte para 'menos_transferencias' (que es como se llama en tu base de datos)
+                    const valorPrevioInput = Number(
+                        state?.datosLiquidacion?.menos_transferencias ?? 
+                        state?.datosLiquidacion?.menosTransferencias ?? 
+                        0
+                    );
 
                     setTransferenciasRecibidas(valorPrevioInput);
                     setCierreGuardado({ valorRegistrado: valorPrevioInput });
@@ -89,7 +93,7 @@ export default function Pagos() {
             } catch (error) {
                 console.error("Error cargando pagos:", error);
             } finally {
-                setLoading(false);
+                loading && setLoading(false);
             }
         };
         fetchDatosSemanales();
@@ -162,23 +166,43 @@ export default function Pagos() {
         try {
             const valorAEnviar = Number(transferenciasRecibidas) || 0;
             const userLocalStorage = JSON.parse(localStorage.getItem("user"));
-            const nombreVendedor = state?.datosLiquidacion?.vendedor_nombre || userLocalStorage?.name || userLocalStorage?.username;
+            const nombreVendedor = state?.datosLiquidacion?.vendedor_nombre || state?.datosLiquidacion?.vendedor_name || userLocalStorage?.name || userLocalStorage?.username;
 
-            // Enviamos el payload completo estructurado para las nuevas columnas del historial
+            let idLiquidacion = state?.datosLiquidacion?.id;
+
+            if (!idLiquidacion) {
+                const fechaReferencia = state?.datosLiquidacion?.fecha || new Date().toISOString();
+                const baseDate = new Date(fechaReferencia);
+                const año = baseDate.getFullYear();
+
+                const inicioAño = new Date(año, 0, 1);
+                const dias = Math.floor((baseDate - inicioAño) / (24 * 60 * 60 * 1000));
+                const semana = Math.ceil((dias + inicioAño.getDay() + 1) / 7);
+
+                const nombreLimpio = nombreVendedor.toUpperCase().replace(/\s+/g, '');
+                idLiquidacion = `${año}_W${semana}_${nombreLimpio}`;
+            }
+
             const payload = {
-                user_id: nombreVendedor,
+                id: idLiquidacion,
+                vendedor_nombre: nombreVendedor,
                 rango_fechas: rangoTexto,
                 total_ganancia: gananciasTotales,
-                neto_pagado: netoFinal,
-                status: 'SEMANA LIQUIDADA',
                 dividido_2: dividido2,
-                menosTransferencias: valorAEnviar
+                menos_prestamo: prestamoFijo,
+                neto_pagar: netoFinal,
+                falta_total: faltaTotalGeneral,
+                menosTransferencias: valorAEnviar,
+                prestamo_transferencia: prestamoFijo,
+                status: 'SEMANA LIQUIDADA'
             };
+
+            console.log("Enviando este cierre al servidor:", payload);
 
             const response = await saleService.saveWeeklySettlement(payload);
 
             if (response.success) {
-                await alertSuccess("¡Éxito!", "La semana ha sido guardada en la base de datos.");
+                await alertSuccess("¡Éxito!", "La semana ha sido guardada en la base de datos de manera definitiva.");
                 setEsSemanaLiquidada(true);
                 setCierreGuardado({
                     valorRegistrado: valorAEnviar
@@ -215,7 +239,6 @@ export default function Pagos() {
                     Ver Historial de Pagos
                 </button>
 
-                {/* 🚀 EL BOTÓN SE OCULTA SI LA SEMANA YA ESTÁ LIQUIDADA */}
                 {!esSemanaLiquidada && (
                     <button
                         onClick={handleCerrarSemana}
@@ -296,7 +319,7 @@ export default function Pagos() {
                                     <span style={{ marginRight: '4px' }}>$</span>
                                     <input
                                         type="number"
-                                        disabled={esSemanaLiquidada} // 👈 SE INHABILITA SI YA FUE CERRADA
+                                        disabled={esSemanaLiquidada}
                                         value={transferenciasRecibidas}
                                         onChange={(e) => setTransferenciasRecibidas(e.target.value)}
                                         style={{
@@ -315,7 +338,6 @@ export default function Pagos() {
                                 </td>
                             </tr>
 
-                            {/* 🚀 FILA DINÁMICA DE REPORTE FINAL: Se renderiza siempre que 'cierreGuardado' exista */}
                             {cierreGuardado && (
                                 <tr style={{ backgroundColor: '#e2f0d9', color: '#385723', fontWeight: 'bold', borderTop: '2px solid #385723' }}>
                                     <td style={{ border: '1px solid #ccc', padding: '8px' }}>Valor Registrado en menos Transferencias</td>

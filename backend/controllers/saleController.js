@@ -212,6 +212,7 @@ const getSettlementByOrder = async (req, res) => {
 
 // LIQUIDACIÓN SEMANAL
 
+
 const getWeeklySettlements = async (req, res) => {
     // Cambiamos userId por sellerName en la desestructuración de la Query
     const { sellerName, startDate, endDate } = req.query;
@@ -241,99 +242,96 @@ const getWeeklySettlements = async (req, res) => {
     }
 };
 
-// HISTORIAL DE LA LIQUIDACIÓN SEMANAL
-const getWeeklyHistory = async (req, res) => {
-    try {
-        // Aseguramos que los nombres de los meses salgan en español
-        await db.query("SET lc_time_names = 'es_ES'");
-
-        // Consulta unificada con cruce dinámico hacia el historial de cierres fijos
-        const [rows] = await db.query(
-            `SELECT 
-                -- 1. Generamos el ID único con el Año, la Semana y el Nombre del Vendedor
-                CONCAT(YEAR(s.created_at), '_W', WEEK(s.created_at, 1), '_', REPLACE(o.seller_name, ' ', '')) AS id,
-                
-                -- 2. Nombre del vendedor directo desde la orden
-                UPPER(o.seller_name) AS vendedor_nombre,
-                
-                -- 3. Rango de fechas parametrizado estrictamente de Martes a Sábado
-                CONCAT(
-                    DATE_FORMAT(DATE_SUB(s.created_at, INTERVAL IF(WEEKDAY(s.created_at) >= 1, WEEKDAY(s.created_at) - 1, WEEKDAY(s.created_at) + 6) DAY), '%e de %M de %Y'),
-                    ' - ',
-                    DATE_FORMAT(DATE_ADD(DATE_SUB(s.created_at, INTERVAL IF(WEEKDAY(s.created_at) >= 1, WEEKDAY(s.created_at) - 1, WEEKDAY(s.created_at) + 6) DAY), INTERVAL 4 DAY), '%e de %M de %Y')
-                ) AS rango_fechas,
-                
-                -- 4. Suma de las ganancias acumuladas en esa semana
-                SUM(s.ganancia_vendedor) AS total_ganancia,
-                
-                -- 5. Neto pagado referencial directo de las ganancias acumuladas
-                SUM(s.ganancia_vendedor) AS neto_pagado,
-                
-                -- 🛠️ CORREGIDO 6. ESTADO DINÁMICO REAL: Si existe registro en weekly_history ponemos 'SEMANA LIQUIDADA', si no 'LIQUIDAR SEMANA'
-                IF(wh.id IS NOT NULL, 'SEMANA LIQUIDADA', 'LIQUIDAR SEMANA') AS estado,
-                
-                -- 7. IMPORTANTE PARA EL FRONTEND: Enviamos el timestamp máximo para que sirva como 'created_at' de referencia
-                MAX(s.created_at) AS created_at,
-                
-                -- Fecha base (Martes de esa semana) para ordenar de la más nueva a la más vieja
-                DATE_SUB(s.created_at, INTERVAL IF(WEEKDAY(s.created_at) >= 1, WEEKDAY(s.created_at) - 1, WEEKDAY(s.created_at) + 6) DAY) AS fecha_orden
-                
-             FROM m_g_settlements s
-             INNER JOIN orders o ON s.order_id = o.id
-             
-             -- 🚀 UNIÓN CLAVE: Cruzamos contra el historial por ID calculado para saber si ya se guardó y cerró la semana
-             LEFT JOIN weekly_history wh ON wh.id = CONCAT(YEAR(s.created_at), '_W', WEEK(s.created_at, 1), '_', REPLACE(o.seller_name, ' ', ''))
-             
-             GROUP BY 
-                YEAR(s.created_at), 
-                WEEK(s.created_at, 1), 
-                o.seller_name,
-                wh.id -- Se agrega al GROUP BY para respetar el estándar SQL
-                
-             ORDER BY 
-                fecha_orden DESC, 
-                vendedor_nombre ASC`
-        );
-
-        res.json(rows);
-    } catch (error) {
-        console.error("Error en getWeeklyHistory Backend:", error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
-// GUARDAR LIQUIDACIÓN SEMANAL FIJA EN EL HISTORIAL
+// GUARDAR LIQUIDACIÓN SEMANAL
 const saveWeeklySettlement = async (req, res) => {
-    // Recibimos los datos calculados desde el frontend
-    const { dividido_2, menosTransferencias, status } = req.body;
+    // 1. Recibimos TODOS los datos calculados e ingresados desde el frontend
+    const { 
+        id,                     // Ej: '2026_W20_OSCAR'
+        vendedor_nombre,        // Ej: 'OSCAR'
+        rango_fechas,           // Ej: '12 de May de 2026 - 16 de May de 2026'
+        total_ganancia,         // Ej: -20000.00
+        dividido_2,             // Ej: -10000.00
+        menos_prestamo,         // Ej: -20000.00 (Bloque Ganancias)
+        neto_pagar,             // Ej: -30000.00
+        falta_total,            // Ej: -20000.00 (Bloque Transferencias)
+        menosTransferencias,    // El valor del input de texto
+        prestamo_transferencia, // Ej: -20000.00
+        status 
+    } = req.body;
     
+    // Validación rápida para asegurar que no vengan datos vacíos esenciales
+    if (!id || !vendedor_nombre) {
+        return res.status(400).json({ 
+            success: false, 
+            message: "Faltan datos esenciales (id o vendedor_nombre) para cerrar la semana." 
+        });
+    }
+
     const connection = await db.getConnection();
 
     try {
         await connection.beginTransaction();
 
-        // 1. Insertar la liquidación fija en la base de datos
-        // CORREGIDO: Se quitó la coma después de 'status' y se cerró el paréntesis en VALUES )
-        const [result] = await connection.query(
-            `INSERT INTO weekly_history (
-                dividido_2, 
-                menosTransferencias, 
-                status
-            ) VALUES (?, ?, ?)`,
-            [
-                Number(dividido_2) || 0, 
-                Number(menosTransferencias) || 0, 
-                status || 'SEMANA LIQUIDADA'
-            ]
-        );
+        // 2. Insertar o actualizar la liquidación fija en la base de datos (historial_liquidaciones)
+        // CORREGIDO: Se mapearon las columnas idénticas a la Imagen 4 y se ajustaron los VALUES y ON DUPLICATE KEY UPDATE
+        const queryHistorial = `
+            INSERT INTO historial_liquidaciones (
+                id, 
+                vendedor_name, 
+                rango_fechas, 
+                total_ganancia, 
+                dividido_dos, 
+                menos_prestamo, 
+                neto_pagar, 
+                falta_total, 
+                menos_transferencias, 
+                prestamo_transferencia, 
+                estado
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+                total_ganancia = VALUES(total_ganancia),
+                dividido_dos = VALUES(dividido_dos),
+                menos_prestamo = VALUES(menos_prestamo),
+                neto_pagar = VALUES(neto_pagar),
+                falta_total = VALUES(falta_total),
+                menos_transferencias = VALUES(menos_transferencias),
+                prestamo_transferencia = VALUES(prestamo_transferencia),
+                estado = VALUES(estado)
+        `;
+
+        await connection.query(queryHistorial, [
+            id,
+            vendedor_nombre,
+            rango_fechas,
+            Number(total_ganancia) || 0,
+            Number(dividido_2) || 0,
+            Number(menos_prestamo) || 0,
+            Number(neto_pagar) || 0,
+            Number(falta_total) || 0,
+            Number(menosTransferencias) || 0,
+            Number(prestamo_transferencia) || 0,
+            status || 'SEMANA LIQUIDADA'
+        ]);
+
+        // 3. PASO EXTRA RECOMENDADO: Marcar las órdenes de este vendedor como liquidadas
+        // Esto evita que estas mismas órdenes se vuelvan a calcular en futuros cierres.
+        const queryActualizarOrdenes = `
+            UPDATE orders 
+            SET status = 'LIQUIDADO'
+            WHERE seller_name = ? 
+              AND status = 'PENDIENTE'
+        `;
+        
+        // Descomenta la línea de abajo cuando verifiques el flujo de tus órdenes pendientes:
+        // await connection.query(queryActualizarOrdenes, [vendedor_nombre]);
 
         await connection.commit();
 
-        // 2. Responder al frontend con éxito para que pueda redirigir al historial
+        // 4. Responder al frontend con éxito para que pueda redirigir al historial
         res.status(201).json({
             success: true,
-            message: "Semana finalizada y cerrada con éxito",
-            insertedId: result.insertId
+            message: `Semana ${id} finalizada y cerrada con éxito`,
+            id: id
         });
 
     } catch (error) {
@@ -345,6 +343,97 @@ const saveWeeklySettlement = async (req, res) => {
     }
 };
 
+
+// HISTORIAL DE LA LIQUIDACIÓN SEMANAL
+const getWeeklyHistory = async (req, res) => {
+    try {
+        // Aseguramos que los nombres de los meses salgan en español
+        await db.query("SET lc_time_names = 'es_ES'");
+
+        // Consulta unificada con cruce dinámico hacia el historial de cierres fijos
+        const [rows] = await db.query(
+            `SELECT 
+            -- 1. Generamos el ID único con el Año, la Semana y el Nombre del Vendedor
+            CONCAT(YEAR(s.created_at), '_W', WEEK(s.created_at, 1), '_', REPLACE(o.seller_name, ' ', '')) AS id,
+            
+            -- 2. Nombre del vendedor directo desde la orden
+            UPPER(o.seller_name) AS vendedor_nombre,
+            
+            -- 3. Rango de fechas parametrizado estrictamente de Martes a Sábado
+            CONCAT(
+                DATE_FORMAT(DATE_SUB(s.created_at, INTERVAL IF(WEEKDAY(s.created_at) >= 1, WEEKDAY(s.created_at) - 1, WEEKDAY(s.created_at) + 6) DAY), '%e de %M de %Y'),
+                ' - ',
+                DATE_FORMAT(DATE_ADD(DATE_SUB(s.created_at, INTERVAL IF(WEEKDAY(s.created_at) >= 1, WEEKDAY(s.created_at) - 1, WEEKDAY(s.created_at) + 6) DAY), INTERVAL 4 DAY), '%e de %M de %Y')
+            ) AS rango_fechas,
+            
+            -- 4. Suma de las ganancias acumuladas en esa semana
+            SUM(s.ganancia_vendedor) AS total_ganancia,
+            
+            -- 5. Neto pagado referencial directo de las ganancias acumuladas
+            SUM(s.ganancia_vendedor) AS neto_pagado,
+            
+            -- 🛠️ ESTADO DINÁMICO REAL: Apunta a 'historial_liquidaciones' 
+            IF(hl.id IS NOT NULL, 'SEMANA LIQUIDADA', 'LIQUIDAR SEMANA') AS estado,
+            
+            -- 🚀 CAMPOS EXTRAS DEL HISTORIAL: Cruciales para que Pagos.jsx pinte los valores guardados en frío
+            IFNULL(hl.menos_transferencias, 0) AS menos_transferencias,
+            IFNULL(hl.neto_pagar, 0) AS neto_pagar_guardado,
+            
+            -- 7. IMPORTANTE PARA EL FRONTEND: Enviamos el timestamp máximo para usar como fecha de referencia
+            MAX(s.created_at) AS created_at,
+            
+            -- Fecha base (Martes de esa semana) para ordenar de la más nueva a la más vieja
+            DATE_SUB(s.created_at, INTERVAL IF(WEEKDAY(s.created_at) >= 1, WEEKDAY(s.created_at) - 1, WEEKDAY(s.created_at) + 6) DAY) AS fecha_orden
+            
+        FROM m_g_settlements s
+        INNER JOIN orders o ON s.order_id = o.id
+        
+        -- 🚀 CORREGIDO: LEFT JOIN apuntando a tu tabla real verificada en PHPMyAdmin
+        LEFT JOIN historial_liquidaciones hl ON hl.id = CONCAT(YEAR(s.created_at), '_W', WEEK(s.created_at, 1), '_', REPLACE(o.seller_name, ' ', ''))
+        
+        GROUP BY 
+            YEAR(s.created_at), 
+            WEEK(s.created_at, 1), 
+            o.seller_name,
+            hl.id,
+            hl.menos_transferencias,
+            hl.neto_pagar
+            
+        ORDER BY 
+            fecha_orden DESC, 
+            vendedor_nombre ASC`
+        );
+
+        res.json(rows);
+    } catch (error) {
+        console.error("Error en getWeeklyHistory Backend:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// En tu backend: controllers/saleController.js
+const getVendedoresGanancias = async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                vendedor_name AS vendedor,
+                COUNT(id) AS semanas_liquidadas,
+                SUM(dividido_dos) AS ganancias_totales_acumuladas,
+                SUM(neto_pagar) AS saldo_neto_entregado
+            FROM historial_liquidaciones
+            WHERE estado = 'SEMANA LIQUIDADA'
+            GROUP BY vendedor_name
+            ORDER BY ganancias_totales_acumuladas DESC
+        `;
+        
+        const [rows] = await db.query(query); // O como manejes tu instancia de BD
+        res.json({ success: true, data: rows });
+    } catch (error) {
+        console.error("Error al obtener ganancias acumuladas:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 // No olvides exportar la nueva función al final del archivo
 module.exports = {
     createSale,
@@ -353,5 +442,6 @@ module.exports = {
     getSettlementByOrder,
     getWeeklySettlements,
     getWeeklyHistory,
-    saveWeeklySettlement // <-- Agregada aquí
+    saveWeeklySettlement, // <-- Agregada aquí
+    getVendedoresGanancias
 };

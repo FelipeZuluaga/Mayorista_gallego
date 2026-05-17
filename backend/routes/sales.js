@@ -40,6 +40,7 @@ router.get('/weekly-history', saleController.getWeeklyHistory);
  * Endpoint: POST /api/sales/weekly-history
  */
 router.post('/weekly-history', saleController.saveWeeklySettlement);
-
+// ... tus otras rutas
+router.get('/ganancias-vendedores', saleController.getVendedoresGanancias);
 
 module.exports = router;
