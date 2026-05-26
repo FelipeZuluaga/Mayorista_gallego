@@ -34,6 +34,8 @@ app.use("/api/sales", require("./routes/sales"));
 // La ruta final será: http://localhost:3001/api/customers/balances
 app.use("/api/customers", require("./routes/customer"));
 
+// NUEVA: Ruta para Gestión de Descuadres (Faltantes, Perdidos, Pendientes por pagar)
+app.use("/api/descuadres", require("./routes/descuadres"));
 
 // --- Puerto ---
 const PORT = process.env.PORT || 3001;
