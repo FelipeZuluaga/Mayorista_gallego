@@ -13,5 +13,6 @@ router.post('/create', descuadreController.crearDescuadre);
 // Ruta para listar los productos en el select
 router.get('/productos-lista', descuadreController.obtenerListaProductos);
 
+router.put('/:id', descuadreController.actualizarDescuadre);
 
 module.exports = router;

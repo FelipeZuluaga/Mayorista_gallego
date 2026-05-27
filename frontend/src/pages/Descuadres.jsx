@@ -3,18 +3,24 @@ import React, { useState, useEffect } from 'react';
 import { descuadreService } from '../services/descuadreService';
 
 export default function Descuadres() {
+  // Estado para el formulario de creación
   const [formData, setFormData] = useState({
     vendedor: '',
-    producto: '', 
-    cantidad: '1', // Nuevo campo requerido
+    producto: '',
+    cantidad: '1',
     monto: '',
     fecha: '',
     estado: 'Perdido'
   });
 
   const [descuadres, setDescuadres] = useState([]);
-  const [productosDB, setProductosDB] = useState([]); 
+  const [productosDB, setProductosDB] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // ESTADOS PARA LA EDICIÓN EN LÍNEA DE LA TABLA
+  const [editandoId, setEditandoId] = useState(null); // ID del descuadre que se está editando
+  const [editCantidad, setEditCantidad] = useState('');
+  const [editEstado, setEditEstado] = useState('');
 
   const cargarDatosIniciales = async () => {
     setLoading(true);
@@ -24,7 +30,7 @@ export default function Descuadres() {
 
       const productos = await descuadreService.obtenerProductosLista();
       setProductosDB(productos || []);
-      
+
       if (productos && productos.length > 0) {
         setFormData(prev => ({ ...prev, producto: productos[0].name }));
       }
@@ -38,6 +44,41 @@ export default function Descuadres() {
   useEffect(() => {
     cargarDatosIniciales();
   }, []);
+
+  // Activar el modo edición guardando los valores actuales de la fila
+  const iniciarEdicion = (descuadre) => {
+    setEditandoId(descuadre.id);
+    setEditCantidad(descuadre.cantidad);
+    setEditEstado(descuadre.estado);
+  };
+
+  // Cancelar la edición limpiando el ID en edición
+  const cancelarEdicion = () => {
+    setEditandoId(null);
+    setEditCantidad('');
+    setEditEstado('');
+  };
+
+  // Guardar los cambios editados en la tabla
+  const guardarCambiosFila = async (id) => {
+    if (!editCantidad || parseInt(editCantidad) < 1) {
+      return alert("Por favor ingresa una cantidad válida igual o mayor a 1.");
+    }
+    try {
+      await descuadreService.actualizarDescuadre(id, {
+        cantidad: parseInt(editCantidad),
+        estado: editEstado
+      });
+      alert("Registro y Stock actualizados con éxito.");
+      setEditandoId(null); // Salir de modo edición
+
+      // Recargar el historial para ver reflejado el cambio
+      const historial = await descuadreService.obtenerDescuadres();
+      setDescuadres(historial || []);
+    } catch (error) {
+      alert(error.message);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -53,28 +94,24 @@ export default function Descuadres() {
       await descuadreService.crearDescuadre({
         vendedor: formData.vendedor,
         producto: formData.producto,
-        cantidad: parseInt(formData.cantidad), // Enviado como entero
+        cantidad: parseInt(formData.cantidad),
         monto: parseFloat(formData.monto),
         fecha: formData.fecha,
         estado: formData.estado
       });
 
-      alert('Descuadre guardado y stock de producto actualizado correctamente.');
-      
-      // Reseteo del formulario
-      setFormData({ 
-        vendedor: '', 
-        producto: productosDB.length > 0 ? productosDB[0].name : '', 
+      alert('Descuadre guardado y stock actualizado.');
+      setFormData({
+        vendedor: '',
+        producto: productosDB.length > 0 ? productosDB[0].name : '',
         cantidad: '1',
-        monto: '', 
-        fecha: '', 
-        estado: 'Perdido' 
+        monto: '',
+        fecha: '',
+        estado: 'Perdido'
       });
-      
-      // Refrescar tabla automáticamente
+
       const historialActualizado = await descuadreService.obtenerDescuadres();
       setDescuadres(historialActualizado || []);
-
     } catch (error) {
       alert(error.message);
     }
@@ -93,114 +130,71 @@ export default function Descuadres() {
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
       <h2>Módulo de Descuadres e Inventario</h2>
-      <p style={{ color: '#555' }}>Los estados afectarán automáticamente las existencias de stock del producto seleccionado.</p>
+      <p style={{ color: '#555' }}>Administra faltantes. Al editar cantidad o estado, las existencias se recalculan de forma segura.</p>
 
       {/* Formulario de Registro */}
-      <div style={{ backgroundColor: '#1e1e1e', padding: '25px', borderRadius: '8px', marginBottom: '25px', color: '#fff' }}>
+      <div style={{ backgroundColor: '#fff', padding: '25px', borderRadius: '8px', marginBottom: '25px', color: '#070707' }}>
         <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Registrar Nuevo Descuadre</h3>
-        
         <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '15px', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
-          
           <div>
             <label style={{ fontSize: '14px', fontWeight: 'bold' }}>Nombre del Vendedor:</label>
-            <input 
-              type="text" 
-              name="vendedor" 
-              value={formData.vendedor} 
-              onChange={handleChange} 
-              placeholder="Ej. Juan Pérez" 
-              required 
-              style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '6px', border: '1px solid #ccc', color: '#000' }} 
-            />
+            <input type="text" name="vendedor" value={formData.vendedor} onChange={handleChange} required style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '6px', border: '1px solid #ccc', color: '#000' }} />
           </div>
-
-          <div>
-            <label style={{ fontSize: '14px', fontWeight: 'bold' }}>Producto:</label>
-            <select 
-              name="producto" 
-              value={formData.producto} 
-              onChange={handleChange} 
+          <div style={{ gridColumn: 'span 2' }}>
+            <label style={{ fontSize: '13px', fontWeight: '600', color: '#ccc' }}>Producto:</label>
+            <select
+              name="producto"
+              value={formData.producto}
+              onChange={handleChange}
               required
-              style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '6px', border: '1px solid #ccc', backgroundColor: '#fff', color: '#000' }}
+              style={{
+                width: '100%',
+                padding: '10px',
+                marginTop: '8px',
+                borderRadius: '6px',
+                border: '1px solid #444',
+                backgroundColor: '#fff',
+                color: '#050404',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
             >
-              {productosDB.length === 0 ? (
-                <option value="">Cargando productos...</option>
-              ) : (
-                productosDB.map(p => <option key={p.id} value={p.name}>{p.name}</option>)
-              )}
+              {productosDB.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
             </select>
           </div>
-
-          {/* NUEVO CAMPO: CANTIDAD */}
           <div>
             <label style={{ fontSize: '14px', fontWeight: 'bold' }}>Cantidad:</label>
-            <input 
-              type="number" 
-              name="cantidad" 
-              min="1"
-              value={formData.cantidad} 
-              onChange={handleChange} 
-              required 
-              style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '6px', border: '1px solid #ccc', color: '#000' }} 
-            />
+            <input type="number" name="cantidad" min="1" value={formData.cantidad} onChange={handleChange} required style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '6px', border: '1px solid #ccc', color: '#000' }} />
           </div>
-
           <div>
-            <label style={{ fontSize: '14px', fontWeight: 'bold' }}>Monto Cobro ($):</label>
-            <input 
-              type="number" 
-              name="monto" 
-              value={formData.monto} 
-              onChange={handleChange} 
-              placeholder="Ej. 45000" 
-              required 
-              style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '6px', border: '1px solid #ccc', color: '#000' }} 
-            />
+            <label style={{ fontSize: '14px', fontWeight: 'bold' }}>Monto ($):</label>
+            <input type="number" name="monto" value={formData.monto} onChange={handleChange} required style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '6px', border: '1px solid #ccc', color: '#000' }} />
           </div>
-
           <div>
             <label style={{ fontSize: '14px', fontWeight: 'bold' }}>Fecha:</label>
-            <input 
-              type="date" 
-              name="fecha" 
-              value={formData.fecha} 
-              onChange={handleChange} 
-              required 
-              style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '6px', border: '1px solid #ccc', color: '#000' }} 
-            />
+            <input type="date" name="fecha" value={formData.fecha} onChange={handleChange} required style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '6px', border: '1px solid #ccc', color: '#000' }} />
           </div>
-
           <div>
             <label style={{ fontSize: '14px', fontWeight: 'bold' }}>Tipo / Estado:</label>
-            <select 
-              name="estado" 
-              value={formData.estado} 
-              onChange={handleChange} 
-              style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '6px', border: '1px solid #ccc', backgroundColor: '#fff', color: '#000' }}
-            >
+            <select name="estado" value={formData.estado} onChange={handleChange} style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '6px', border: '1px solid #ccc', backgroundColor: '#fff', color: '#000' }}>
               <option value="Perdido">Perdido</option>
               <option value="No se encontro">No se encontró</option>
               <option value="Pendiente por pagar">Pendiente por pagar</option>
               <option value="Pagado">Pagado</option>
             </select>
           </div>
-
-          <button 
-            type="submit" 
-            style={{ gridColumn: '1 / -1', padding: '12px', backgroundColor: '#007acc', color: 'white', border: 'none', borderRadius: '6px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', marginTop: '10px' }}
-          >
+          <button type="submit" style={{ gridColumn: '1 / -1', padding: '12px', backgroundColor: '#7a0d18', color: 'white', border: 'none', borderRadius: '6px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', marginTop: '10px' }}>
             Guardar Descuadre
           </button>
         </form>
       </div>
 
-      {/* Tabla de Historial Actualizada */}
+      {/* Tabla de Historial con Botón de Acción Incorporado */}
       <h3 style={{ marginBottom: '15px' }}>Historial de Descuadres</h3>
-      
       {loading ? (
         <p>Cargando información...</p>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff', boxShadow: '0 2px 5px rgba(188, 7, 7, 0.1)' }}>
           <thead>
             <tr style={{ backgroundColor: '#333', color: 'white', textAlign: 'left' }}>
               <th style={{ padding: '12px' }}>ID</th>
@@ -210,36 +204,81 @@ export default function Descuadres() {
               <th style={{ padding: '12px' }}>Cant.</th>
               <th style={{ padding: '12px' }}>Monto</th>
               <th style={{ padding: '12px' }}>Tipo / Estado</th>
+              <th style={{ padding: '12px', textAlign: 'center' }}>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {descuadres.length === 0 ? (
               <tr>
-                <td colSpan="7" style={{ padding: '12px', textAlign: 'center', color: '#888' }}>No hay descuadres registrados en el sistema.</td>
+                <td colSpan="8" style={{ padding: '12px', textAlign: 'center', color: '#888' }}>No hay descuadres registrados.</td>
               </tr>
             ) : (
-              descuadres.map((d) => (
-                <tr key={d.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '12px', color: '#666' }}>#{d.id}</td>
-                  <td style={{ padding: '12px' }}>{d.fecha ? d.fecha.substring(0, 10) : 'N/A'}</td>
-                  <td style={{ padding: '12px' }}>{d.vendedor}</td>
-                  <td style={{ padding: '12px' }}>{d.producto}</td>
-                  <td style={{ padding: '12px', fontWeight: 'bold' }}>{d.cantidad}</td>
-                  <td style={{ padding: '12px', fontWeight: 'bold' }}>${parseFloat(d.monto).toLocaleString()}</td>
-                  <td style={{ padding: '12px' }}>
-                    <span style={{ 
-                      backgroundColor: obtenerColorEstado(d.estado) + '22', 
-                      color: obtenerColorEstado(d.estado), 
-                      padding: '5px 10px', 
-                      borderRadius: '4px', 
-                      fontWeight: 'bold',
-                      fontSize: '13px'
-                    }}>
-                      {d.estado}
-                    </span>
-                  </td>
-                </tr>
-              ))
+              descuadres.map((d) => {
+                const estaEditando = editandoId === d.id;
+                return (
+                  <tr key={d.id} style={{ borderBottom: '1px solid #eee', backgroundColor: estaEditando ? '#f9f9f9' : '#fff' }}>
+                    <td style={{ padding: '12px', color: '#666' }}>#{d.id}</td>
+                    <td style={{ padding: '12px' }}>{d.fecha ? d.fecha.substring(0, 10) : 'N/A'}</td>
+                    <td style={{ padding: '12px' }}>{d.vendedor}</td>
+                    <td style={{ padding: '12px' }}>{d.producto}</td>
+
+                    {/* COLUMNA CANTIDAD (Editable o Fija) */}
+                    <td style={{ padding: '12px', fontWeight: 'bold' }}>
+                      {estaEditando ? (
+                        <input
+                          type="number"
+                          min="1"
+                          value={editCantidad}
+                          onChange={(e) => setEditCantidad(e.target.value)}
+                          style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #aaa' }}
+                        />
+                      ) : (
+                        d.amount || d.cantidad // Mapea cantidad devuelta de la DB
+                      )}
+                    </td>
+
+                    <td style={{ padding: '12px', fontWeight: 'bold' }}>${parseFloat(d.monto).toLocaleString()}</td>
+
+                    {/* COLUMNA ESTADO (Editable o Fija) */}
+                    <td style={{ padding: '12px' }}>
+                      {estaEditando ? (
+                        <select
+                          value={editEstado}
+                          onChange={(e) => setEditEstado(e.target.value)}
+                          style={{ padding: '5px', borderRadius: '4px', border: '1px solid #aaa' }}
+                        >
+                          <option value="Perdido">Perdido</option>
+                          <option value="No se encontro">No se encontró</option>
+                          <option value="Pendiente por pagar">Pendiente por pagar</option>
+                          <option value="Pagado">Pagado</option>
+                        </select>
+                      ) : (
+                        <span style={{ backgroundColor: obtenerColorEstado(d.estado) + '22', color: obtenerColorEstado(d.estado), padding: '5px 10px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
+                          {d.estado}
+                        </span>
+                      )}
+                    </td>
+
+                    {/* ACCIONES DINÁMICAS */}
+                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                      {estaEditando ? (
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <button onClick={() => guardarCambiosFila(d.id)} style={{ backgroundColor: '#2ecc71', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                            Guardar
+                          </button>
+                          <button onClick={cancelarEdicion} style={{ backgroundColor: '#95a5a6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                            X
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => iniciarEdicion(d)} style={{ backgroundColor: '#9b111e', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}>
+                          Editar
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

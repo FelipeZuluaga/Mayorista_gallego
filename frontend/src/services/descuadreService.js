@@ -37,6 +37,16 @@ export const descuadreService = {
             const message = error.response?.data?.message || "Error al cargar productos";
             throw new Error(message);
         }
+    },
+    // Actualizar cantidad y estado de un descuadre específico
+    actualizarDescuadre: async (id, data) => {
+        try {
+            const response = await api.put(`/descuadres/${id}`, data);
+            return response.data;
+        } catch (error) {
+            const message = error.response?.data?.message || "Error al actualizar el descuadre";
+            throw new Error(message);
+        }
     }
 };
 

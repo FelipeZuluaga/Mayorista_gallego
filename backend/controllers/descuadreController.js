@@ -93,8 +93,87 @@ const obtenerListaProductos = async (req, res) => {
     }
 };
 
+const actualizarDescuadre = async (req, res) => {
+    const connection = await db.getConnection();
+    try {
+        const { id } = req.params;
+        const { cantidad, estado } = req.body; 
+
+        if (cantidad === undefined || !estado) {
+            return res.status(400).json({
+                success: false,
+                message: "La cantidad y el estado son requeridos para actualizar."
+            });
+        }
+
+        await connection.beginTransaction();
+
+        // Paso A: Obtener cómo estaba el descuadre originalmente antes del cambio
+        const [original] = await connection.query(
+            "SELECT producto, cantidad AS cant_vieja, estado AS estado_viejo FROM descuadres WHERE id = ?",
+            [id]
+        );
+
+        if (original.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ success: false, message: "Descuadre no encontrado." });
+        }
+
+        const { producto, cant_vieja, estado_viejo } = original[0];
+
+        // Paso B: REVERTIR POR COMPLETO EL EFECTO ANTERIOR (Dejar el stock como si este descuadre nunca hubiera existido)
+        if (estado_viejo === "Pagado") {
+            // Si antes era Pagado, asumíamos stock limpio, por ende para neutralizarlo NO sumábamos ni restábamos.
+            // (Si en tu lógica previa 'Pagado' sumaba stock extra sobre el valor original, se restaría aquí, 
+            // pero lo correcto para el inventario real es que 'Pagado' mantenga el stock intacto).
+            // Si antes NO restó stock, revertirlo significa no hacer nada:
+            // No hacemos operación de stock.
+        } else {
+            // Si antes era Perdido, No se encontró o Pendiente por pagar, HABÍA RESTADO stock.
+            // Para revertirlo y regresarlo a su estado natural, SUMAMOS la cantidad vieja.
+            await connection.query("UPDATE products SET stock = stock + ? WHERE name = ?", [cant_vieja, producto]);
+        }
+
+        // Paso C: APLICAR EL NUEVO ESTADO SOBRE EL STOCK NEUTRALIZADO
+        if (estado === "Pagado") {
+            // Si el nuevo estado es 'Pagado', el producto está legalizado/físicamente correcto,
+            // por lo tanto NO debe restar nada del stock general de la bodega.
+            // No hacemos operación de stock (se queda con el stock recuperado en el Paso B).
+        } else {
+            // Si el nuevo estado es 'Perdido', 'No se encontro' o 'Pendiente por pagar',
+            // el producto sigue faltando en la vida real, por ende RESTAMOS la nueva cantidad ingresada.
+            await connection.query("UPDATE products SET stock = stock - ? WHERE name = ?", [parseInt(cantidad), producto]);
+        }
+
+        // Paso D: Actualizar definitivamente el registro del descuadre
+        const queryUpdate = `
+            UPDATE descuadres 
+            SET cantidad = ?, estado = ?, fecha = NOW() 
+            WHERE id = ?
+        `;
+        await connection.query(queryUpdate, [parseInt(cantidad), estado, id]);
+
+        // Confirmar la transacción en MySQL sin duplicados
+        await connection.commit();
+
+        res.json({
+            success: true,
+            message: "Descuadre actualizado con éxito y stock recalculado correctamente."
+        });
+
+    } catch (error) {
+        await connection.rollback();
+        console.error("Error al actualizar descuadre:", error);
+        res.status(500).json({ success: false, message: error.message });
+    } finally {
+        connection.release();
+    }
+};
+
+// REEMPLAZA TU MODULE.EXPORTS AL FINAL DEL ARCHIVO PARA INCLUIRLO:
 module.exports = {
     obtenerDescuadres,
     crearDescuadre,
-    obtenerListaProductos
+    obtenerListaProductos,
+    actualizarDescuadre // <-- Nueva función
 };
