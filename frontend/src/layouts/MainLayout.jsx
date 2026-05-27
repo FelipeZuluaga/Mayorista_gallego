@@ -34,11 +34,7 @@ function MainLayout({ children }) {
         { to: "/despacho", label: "Despachos", icon: <Lucide.Truck size={18} />, roles: ["ADMINISTRADOR"] },
         { to: "/pedidos", label: "Informe de Despachos cargadas", icon: <Lucide.ClipboardList size={18} />, roles: ["ADMINISTRADOR"] },
         { to: "/historial-devoluciones", label: "Informe y proc. Devolución", icon: <Lucide.RotateCcw size={18} />, roles: ["ADMINISTRADOR"] },
-        { to: "/historial-pagos", label: "Historial y proceso de pagos", icon: <Lucide.Wallet size={18} />, roles: ["ADMINISTRADOR"] },
-        { to: "/clientes", label: "Informe de Clientes totales", icon: <Lucide.UserCheck size={18} />, roles: ["ADMINISTRADOR"] },
-        { to: "/ganancias", label: "Ganancias de la mpresa", icon: <Lucide.DollarSign size={18} />, roles: ["ADMINISTRADOR"] },
-        { to: "/historial-ventas", label: "Venta y liquidación de Rutas", icon: <Lucide.BarChart3 size={18} />, roles: ["ADMINISTRADOR"] },
-
+    
         //DESPACHADOR
         { to: "/despacho", label: "Mis Despachos", icon: <Lucide.Truck size={18} />, roles: ["DESPACHADOR"] },
         { to: "/pedidos", label: "Informe de Mis Despachos cargadas", icon: <Lucide.ClipboardList size={18} />, roles: ["DESPACHADOR"] },

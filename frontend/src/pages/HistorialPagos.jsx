@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { saleService } from '../services/saleService';
 import { useNavigate } from 'react-router-dom';
-import { Eye, DollarSign, Search } from 'lucide-react';
+import { Eye, DollarSign } from 'lucide-react';
 
 export default function HistorialPagos() {
     const [historial, setHistorial] = useState([]);
@@ -10,8 +10,8 @@ export default function HistorialPagos() {
     const user = JSON.parse(localStorage.getItem("user"));
     const navigate = useNavigate();
 
-
     const esAdmin = user?.role === 'ADMINISTRADOR';
+
     useEffect(() => {
         cargarHistorial();
     }, []);
@@ -20,7 +20,22 @@ export default function HistorialPagos() {
         try {
             setLoading(true);
             const data = await saleService.getWeeklyHistory();
-            setHistorial(data);
+            
+            // --- FILTRADO POR ROL (FRONTEND) ---
+            // Si no es Administrador, filtramos para que solo vea sus propios registros
+            if (!esAdmin && user) {
+                // Ajusta 'user.name' o 'user.username' según cómo guardes el nombre en tu localStorage
+                const nombreUsuarioLogueado = (user.name || user.username || "").toLowerCase();
+                
+                const datosFiltradosPorUsuario = data.filter(item => 
+                    item.vendedor_nombre?.toLowerCase() === nombreUsuarioLogueado
+                );
+                setHistorial(datosFiltradosPorUsuario);
+            } else {
+                // Si es Administrador, ve todo el historial completo
+                setHistorial(data);
+            }
+
         } catch (error) {
             console.error("Error al cargar el historial:", error);
         } finally {
@@ -28,7 +43,7 @@ export default function HistorialPagos() {
         }
     };
 
-    // --- FUNCIÓN DE FORMATEO IDÉNTICA A LA DE DETALLES ---
+    // --- FUNCIÓN DE FORMATEO CORREGIDA ---
     const formatearRangoEstetico = (rangoOriginal, fechaBaseStr) => {
         if (!fechaBaseStr) return rangoOriginal;
 
@@ -38,7 +53,7 @@ export default function HistorialPagos() {
             const diferenciaAlMartes = diaSemana >= 2 ? diaSemana - 2 : diaSemana + 5;
 
             const martes = new Date(hoy);
-            martes.setDate(hoy.getDate() - diferenciaAlMartes);
+            martes.setDate(hoy.getDate() - diferenciaAlMartes); // Se quitó el 'const' repetido
 
             const sabado = new Date(martes);
             sabado.setDate(martes.getDate() + 4);
@@ -55,7 +70,7 @@ export default function HistorialPagos() {
         }
     };
 
-    // Lógica de filtrado en tiempo real (Corregida para el nuevo estado del backend)
+    // Lógica de filtrado en tiempo real (Sobre los datos ya segmentados por rol)
     const historialFiltrado = historial.filter((item) => {
         const termino = busqueda.toLowerCase();
         return (
@@ -63,7 +78,7 @@ export default function HistorialPagos() {
             item.id?.toString().includes(termino) ||
             item.rango_fechas?.toLowerCase().includes(termino) ||
             item.estado?.toLowerCase().includes(termino) ||
-            item.status?.toLowerCase().includes(termino) // Validación extra por si la columna de la DB se llama status
+            item.status?.toLowerCase().includes(termino)
         );
     });
 
