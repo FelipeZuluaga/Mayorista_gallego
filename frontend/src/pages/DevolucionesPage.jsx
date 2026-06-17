@@ -168,10 +168,19 @@ export default function DevolucionesPage() {
         }
     };
 
-    const itemsFiltrados = itemsDevolver.filter(item =>
-        item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.codg_barras.includes(searchTerm)
-    );
+    // Filtramos los ítems y luego los ordenamos para que los que tienen "TRAE" > 0 suban al principio
+    const itemsFiltrados = itemsDevolver
+        .filter(item =>
+            item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            item.codg_barras.includes(searchTerm)
+        )
+        .sort((a, b) => {
+            // Si 'b' tiene cantidad y 'a' no, 'b' sube (devoluciones primero)
+            const aTieneDevolucion = a.cantidad_a_devolver > 0 ? 1 : 0;
+            const bTieneDevolucion = b.cantidad_a_devolver > 0 ? 1 : 0;
+
+            return bTieneDevolucion - aTieneDevolucion;
+        });
 
     const totalSuma = itemsDevolver.reduce((acc, item) => {
         const venta = item.despachado - item.cantidad_a_devolver;
@@ -190,7 +199,7 @@ export default function DevolucionesPage() {
             <div className="header-actions">
                 <button className="btn-back" onClick={() => navigate(-1)}>← Volver</button>
 
-                <h3 style={{ margin: 0, color: '#333', textTransform: 'uppercase',}}>
+                <h3 style={{ margin: 0, color: '#333', textTransform: 'uppercase', }}>
                     HOJA DE DEVOLUCIÓN
                 </h3>
             </div>
@@ -228,40 +237,54 @@ export default function DevolucionesPage() {
                             <th>VENTA</th>
                             <th>PRECIO</th>
                             <th>TOTAL</th>
+                            <th>DESCAUDRE</th>
                         </tr>
                     </thead>
                     <tbody>
                         {itemsFiltrados.map((item) => {
-                            const venta = item.despachado - item.cantidad_a_devolver;
+                            // 1. Cálculos
+                            const despachado = Number(item.despachado) || 0;
+                            const trae = Number(item.cantidad_a_devolver) || 0;
+                            const venta = despachado - trae; // Lo que se vendió
+                            const descuadre = trae - venta;   // Operación solicitada: TRAE - VENTA
                             const total = venta * item.precio_base;
+
                             return (
                                 <tr key={item.product_id} style={{ backgroundColor: esLiquidado ? '#f8f9fa' : '' }}>
                                     <td className="text-center">{item.codg_barras}</td>
                                     <td>{item.product_name}</td>
-                                    <td className="text-center">{item.despachado}</td>
-                                    <td>
-                                        <td>
-                                            <input
-                                                type="number"
-                                                className="input-minimal"
-                                                value={item.cantidad_a_devolver}
-                                                onChange={(e) => handleCantidadChange(item.product_id, e.target.value)}
-                                                // Bloqueo total si ya se devolvió o liquidó
-                                                readOnly={esLiquidado}
-                                                style={{
-                                                    backgroundColor: esLiquidado ? 'transparent' : '#fff',
-                                                    border: esLiquidado ? 'none' : '1px solid #ccc',
-                                                    textAlign: 'center',
-                                                    fontWeight: 'bold',
-                                                    color: esLiquidado ? '#d32f2f' : '#000',
-                                                    pointerEvents: esLiquidado ? 'none' : 'auto' // Evita clics
-                                                }}
-                                            />
-                                        </td>
+                                    <td className="text-center">{despachado}</td>
+
+                                    {/* Campo TRAE (Input) */}
+                                    <td className="text-center">
+                                        <input
+                                            type="number"
+                                            className="input-minimal"
+                                            value={trae}
+                                            onChange={(e) => handleCantidadChange(item.product_id, e.target.value)}
+                                            readOnly={esLiquidado}
+                                            style={{
+                                                backgroundColor: esLiquidado ? 'transparent' : '#fff',
+                                                border: esLiquidado ? 'none' : '1px solid #ccc',
+                                                textAlign: 'center',
+                                                fontWeight: 'bold',
+                                                color: esLiquidado ? '#d32f2f' : '#000',
+                                                pointerEvents: esLiquidado ? 'none' : 'auto'
+                                            }}
+                                        />
                                     </td>
+
+                                    {/* Campo VENTA */}
                                     <td className="text-center">{venta}</td>
+
+
+                                    {/* Campos PRECIO y TOTAL */}
                                     <td className="text-right">{item.precio_base.toLocaleString()}</td>
                                     <td className="text-right">{total.toLocaleString()}</td>
+                                    {/* NUEVO: Campo DESCUADRE (TRAE - VENTA) */}
+                                    <td className="text-center" style={{ fontWeight: 'bold', color: descuadre !== 0 ? 'red' : 'inherit' }}>
+                                        {descuadre}
+                                    </td>
                                 </tr>
                             );
                         })}

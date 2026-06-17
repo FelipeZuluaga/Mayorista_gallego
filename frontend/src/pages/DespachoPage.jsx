@@ -61,7 +61,7 @@ export default function DespachoPage() {
     const handleConfirmar = async () => {
         // Validación: Ahora solo pedimos el nombre del receptor (vendedor o cliente)
         if (!sellerName.trim()) {
-            return alertError("Campo vacío", "Ingresa el nombre de la persona o local que recibe.");
+            return alertError("Campo vacío", "Ingresa el codigo de usuario asignado.");
         }
 
         const items = Object.keys(quantities)

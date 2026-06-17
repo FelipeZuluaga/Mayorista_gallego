@@ -252,7 +252,7 @@ export default function PedidosPage() {
         switch (user?.role?.toUpperCase()) {
             case 'ADMINISTRADOR':
                 return {
-                    title: "Panel de Control Global",
+                    title: "Informe de Despachos cargados",
                     subtitle: "Supervisión total de ventas, despachos y stock"
                 };
             case 'DESPACHADOR':
@@ -550,9 +550,14 @@ export default function PedidosPage() {
                                     style={{ width: '100%', padding: '10px', borderRadius: '8px' }}
                                 >
                                     <option value="" disabled>Seleccione para añadir...</option>
-                                    {allProducts.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock})</option>
-                                    ))}
+                                    {allProducts
+                                        .filter(p => p.stock > 0) // <--- ESTA ES LA LÍNEA CLAVE
+                                        .map(p => (
+                                            <option key={p.id} value={p.id}>
+                                                {p.name} (Stock: {p.stock})
+                                            </option>
+                                        ))
+                                    }
                                 </select>
                             </div>
 

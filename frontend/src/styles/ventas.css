@@ -1181,3 +1181,8 @@ input::-webkit-inner-spin-button {
     border: none;
     font-weight: 600;
 }
+/* Aumenta el ancho específicamente para los inputs de precio en la tabla */
+.input-modern.price {
+    width: 140px; /* Ajusta este valor según cuánto espacio necesites */
+    min-width: 120px;
+}

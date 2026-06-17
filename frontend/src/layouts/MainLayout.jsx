@@ -32,7 +32,7 @@ function MainLayout({ children }) {
         { to: "/AdminDashboard/users", label: "Creación Usuarios", icon: <Lucide.Users size={18} />, roles: ["ADMINISTRADOR"] },
         { to: "/Inventory", label: "Ingreso Productos / Inventario", icon: <Lucide.Package size={18} />, roles: ["ADMINISTRADOR"] },
         { to: "/despacho", label: "Despachos", icon: <Lucide.Truck size={18} />, roles: ["ADMINISTRADOR"] },
-        { to: "/pedidos", label: "Informe de Despachos cargadas", icon: <Lucide.ClipboardList size={18} />, roles: ["ADMINISTRADOR"] },
+        { to: "/pedidos", label: "Informe de Despachos cargados", icon: <Lucide.ClipboardList size={18} />, roles: ["ADMINISTRADOR"] },
         { to: "/historial-devoluciones", label: "Informe y proc. Devolución", icon: <Lucide.RotateCcw size={18} />, roles: ["ADMINISTRADOR"] },
     
         //DESPACHADOR
