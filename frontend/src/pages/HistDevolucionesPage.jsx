@@ -62,12 +62,12 @@ export default function HistDevolucionesPage() {
                 return {
                     codg_barras: inv.codg_barras,
                     product_name: inv.product_name,
-                    despachado: inv.despachado, // Esto es el "LLEVA"
-                    precio_base: inv.precio_base, // Esto es el "PRECIO"
-                    cantidad_devuelta: devolucion ? devolucion.cantidad_devuelta : 0 // Esto es el "TRAE"
+                    despachado: inv.despachado,
+                    precio_base: inv.precio_base,
+                    vendido: inv.vendido || 0, // <--- NUEVO: Traemos la venta real
+                    cantidad_devuelta: devolucion ? devolucion.cantidad_devuelta : 0
                 };
             });
-
             setDetalleSeleccionado({
                 id: orden.id,
                 vendedor: orden.seller_name,
@@ -86,7 +86,7 @@ export default function HistDevolucionesPage() {
     return (
         <div className="p-6">
             <header className="ruta-header-main">
-                <h1>{user.role === 'ADMINISTRADOR' ? '🚀 Informe y proceso de Devolucion' : '🚚 Informe y proceso de mis Devolucion'}</h1>
+                <h1>{user.role === 'ADMINISTRADOR' ? '🚀 Historial y proceso de Devolucion y Descuadres' : '🚚 Historial y proceso de mis Devolucion y Descuadres'}</h1>
                 <p>Viendo rutas del día: <strong>{DIAS_SEMANA[diaSeleccionado]}</strong></p>
             </header>
 
@@ -288,17 +288,25 @@ export default function HistDevolucionesPage() {
                                             <th style={{ textAlign: 'center' }}>VENTA</th>
                                             <th style={{ textAlign: 'right' }}>PRECIO</th>
                                             <th style={{ textAlign: 'right' }}>TOTAL</th>
+                                            <th style={{ textAlign: 'center' }}>DESCUADRE</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {detalleSeleccionado?.items.length > 0 ? (
                                             detalleSeleccionado.items.map((item, idx) => {
-                                                // Cálculos basados en la lógica de DevolucionesPage_2.jsx
                                                 const lleva = Number(item.despachado) || 0;
                                                 const trae = Number(item.cantidad_devuelta) || 0;
-                                                const venta = lleva - trae;
+
+                                                // 1. Usamos la venta real que viene desde la base de datos
+                                                const venta = Number(item.vendido) || 0;
+
+                                                // 2. Cálculo del descuadre: lo que físicamente trajo menos lo que debió sobrar (lleva - venta)
+                                                const descuadre = trae - (lleva - venta);
+
                                                 const precio = Number(item.precio_base) || 0;
-                                                const totalRow = venta * precio;
+
+                                                // 3. Multiplicación de LLEVA x PRECIO para el Total
+                                                const totalRow = lleva * precio;
 
                                                 return (
                                                     <tr key={idx}>
@@ -309,18 +317,28 @@ export default function HistDevolucionesPage() {
                                                         <td style={{ textAlign: 'center' }}>{venta}</td>
                                                         <td style={{ textAlign: 'right' }}>$ {precio.toLocaleString()}</td>
                                                         <td style={{ textAlign: 'right', fontWeight: 'bold' }}>$ {totalRow.toLocaleString()}</td>
+
+                                                        {/* 4. Nueva celda para mostrar el descuadre (Se pinta en rojo si no es 0) */}
+                                                        <td style={{
+                                                            textAlign: 'center',
+                                                            fontWeight: 'bold',
+                                                            color: descuadre !== 0 ? 'red' : 'inherit'
+                                                        }}>
+                                                            {descuadre}
+                                                        </td>
                                                     </tr>
                                                 );
                                             })
                                         ) : (
                                             <tr>
-                                                <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>No hay productos registrados.</td>
+                                                <td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>No hay productos registrados.</td>
                                             </tr>
                                         )}
                                     </tbody>
                                 </table>
 
                                 {/* SECCIÓN DE TOTAL SURTIDO (Igual a la imagen) */}
+                                {/* SECCIÓN DE TOTAL SURTIDO CORREGIDA */}
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
                                     <div style={{
                                         backgroundColor: '#f8f9fa', border: '1px solid #ccc',
@@ -330,8 +348,11 @@ export default function HistDevolucionesPage() {
                                         <span style={{ fontWeight: 'bold', color: '#333' }}>TOTAL SURTIDO:</span>
                                         <span style={{ fontWeight: 'bold', color: '#d32f2f', fontSize: '1.3rem' }}>
                                             $ {detalleSeleccionado?.items.reduce((acc, item) => {
-                                                const venta = (Number(item.despachado) || 0) - (Number(item.cantidad_devuelta) || 0);
-                                                return acc + (venta * (Number(item.precio_base) || 0));
+                                                // Multiplicamos directamente LLEVA (despachado) x PRECIO (precio_base)
+                                                const lleva = Number(item.despachado) || 0;
+                                                const precio = Number(item.precio_base) || 0;
+
+                                                return acc + (lleva * precio);
                                             }, 0).toLocaleString()}
                                         </span>
                                     </div>

@@ -64,8 +64,12 @@ export default function DevolucionesPage() {
                         product_name: item.product_name || 'Producto',
                         despachado: Number(item.despachado) || 0,
                         precio_base: Number(item.precio_base) || 0,
-                        // Si existe en la DB, usamos esa cantidad; si no, 0
-                        cantidad_a_devolver: registroPrevio ? Number(registroPrevio.cantidad_devuelta) : 0
+
+                        // <--- NUEVO: Guardamos lo vendido que ya calculó el backend
+                        vendido: Number(item.vendido) || 0,
+
+                        // Si existe en la DB, usamos esa cantidad; si no, por defecto calculamos: despachado - vendido
+                        cantidad_a_devolver: registroPrevio ? Number(registroPrevio.cantidad_devuelta) : (Number(item.despachado) - Number(item.vendido))
                     };
                 });
 
@@ -133,38 +137,43 @@ export default function DevolucionesPage() {
     };
 
     const handleLiquidacion = async () => {
-        if (esLiquidado) return;
-        setProcesando(true);
+        if (esLiquidado) return; //
+        setProcesando(true); //
 
         try {
             const devolucionesParaEnviar = itemsDevolver
-                .filter(item => item.cantidad_a_devolver > 0)
-                .map(item => ({
-                    order_id: orderId,
-                    product_id: item.product_id,
-                    quantity: item.cantidad_a_devolver
-                }));
+                .filter(item => item.cantidad_a_devolver > 0) //[cite: 1]
+                .map(item => {
+                    const despachado = Number(item.despachado) || 0; //[cite: 1]
+                    const trae = Number(item.cantidad_a_devolver) || 0; //[cite: 1]
+                    const venta = despachado - trae; // Lo que realmente se vendió[cite: 1]
+
+                    return {
+                        order_id: orderId, //[cite: 1]
+                        product_id: item.product_id, //[cite: 1]
+                        quantity: trae, // Cantidad devuelta[cite: 1]
+                        sold_quantity: venta // <--- NUEVO: Cantidad vendida de este producto
+                    };
+                });
 
             // 1. Procesar los items devueltos (si hay alguno)
             if (devolucionesParaEnviar.length > 0) {
-                await orderService.processReturn({
-                    order_id: orderId,
-                    items: devolucionesParaEnviar
+                await orderService.processReturn({ //[cite: 1]
+                    order_id: orderId, //[cite: 1]
+                    items: devolucionesParaEnviar //[cite: 1]
                 });
             }
 
             // 2. Aseguramos el cambio de estado a 'DEVOLUCION'
-            await orderService.updateOrderStatus(orderId, 'DEVOLUCION');
+            await orderService.updateOrderStatus(orderId, 'DEVOLUCION'); //[cite: 1]
 
-            // 3. CAMBIO: En lugar de ir a /liquidacion-ruta/, volvemos al historial
-            // Usamos una pequeña alerta de éxito opcional para confirmar al usuario
-            navigate("/historial-devoluciones");
+            navigate("/historial-devoluciones"); //[cite: 1]
 
         } catch (error) {
-            console.error(error);
-            alertError("Error", "No se pudo completar el proceso de devolución");
+            console.error(error); //[cite: 1]
+            alertError("Error", "No se pudo completar el proceso de devolución"); //[cite: 1]
         } finally {
-            setProcesando(false);
+            setProcesando(false); //[cite: 1]
         }
     };
 
@@ -183,8 +192,9 @@ export default function DevolucionesPage() {
         });
 
     const totalSuma = itemsDevolver.reduce((acc, item) => {
-        const venta = item.despachado - item.cantidad_a_devolver;
-        return acc + (venta * item.precio_base);
+        const despachado = Number(item.despachado) || 0; // Representa el "LLEVA"
+        const precio = Number(item.precio_base) || 0;
+        return acc + (despachado * precio);
     }, 0);
 
     // Función para disparar la impresión del navegador
@@ -245,9 +255,13 @@ export default function DevolucionesPage() {
                             // 1. Cálculos
                             const despachado = Number(item.despachado) || 0;
                             const trae = Number(item.cantidad_a_devolver) || 0;
-                            const venta = despachado - trae; // Lo que se vendió
-                            const descuadre = trae - venta;   // Operación solicitada: TRAE - VENTA
-                            const total = venta * item.precio_base;
+
+                            // <--- MODIFICADO: Ahora toma el valor real vendido desde la base de datos
+                            const venta = Number(item.vendido) || 0;
+
+                            // El descuadre se calcula en base a lo que devolvió físicamente vs lo que debería haber sobrado
+                            const descuadre = trae - (despachado - venta);
+                            const total = despachado * item.precio_base;
 
                             return (
                                 <tr key={item.product_id} style={{ backgroundColor: esLiquidado ? '#f8f9fa' : '' }}>
@@ -274,14 +288,13 @@ export default function DevolucionesPage() {
                                         />
                                     </td>
 
-                                    {/* Campo VENTA */}
+                                    {/* Campo VENTA (Mostrará los "5" artículos vendidos de tu base de datos) */}
                                     <td className="text-center">{venta}</td>
 
-
-                                    {/* Campos PRECIO y TOTAL */}
                                     <td className="text-right">{item.precio_base.toLocaleString()}</td>
                                     <td className="text-right">{total.toLocaleString()}</td>
-                                    {/* NUEVO: Campo DESCUADRE (TRAE - VENTA) */}
+
+                                    {/* Campo DESCAUDRE */}
                                     <td className="text-center" style={{ fontWeight: 'bold', color: descuadre !== 0 ? 'red' : 'inherit' }}>
                                         {descuadre}
                                     </td>

@@ -335,7 +335,6 @@ const updateOrderStatus = async (req, res) => {
 const getTruckInventory = async (req, res) => {
     const { orderId } = req.params;
     try {
-        // Esta consulta busca lo que se despachó y le resta lo que se vendió en esa orden
         const [rows] = await db.query(
             `SELECT
                 p.barcode AS codg_barras,
@@ -354,12 +353,13 @@ const getTruckInventory = async (req, res) => {
             [orderId]
         );
 
-        // Calculamos el sobrante real
+        // MAPEO CORREGIDO: Agregamos "vendido" al objeto de respuesta
         const stockEnCamion = rows.map(item => ({
-            codg_barras:item.codg_barras,
+            codg_barras: item.codg_barras,
             product_id: item.product_id,
             product_name: item.product_name,
             despachado: item.despachado,
+            vendido: item.vendido, // <--- ¡FALTABA ESTA LÍNEA!
             cantidad_sobrante: item.despachado - item.vendido,
             precio_base: item.precio_base,
         }));
