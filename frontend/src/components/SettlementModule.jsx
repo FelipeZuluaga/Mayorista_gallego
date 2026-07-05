@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { orderService } from '../services/orderService';
-// Importamos tus alertas personalizadas
-import { alertSuccess, alertError, alertConfirmUsers } from '../services/alertService'; 
+import { alertSuccess, alertError, alertConfirmUsers } from '../services/alertService';
+import '../styles/SettlementModule.css'; // Importamos el nuevo archivo CSS
 
 const SettlementModule = () => {
     const { orderId } = useParams();
     const navigate = useNavigate();
-    const location = useLocation(); 
-    
-    const totalSurtidoDesdePlanilla = location.state?.totalSurtido;
+    const location = useLocation();
+
+    const totalSurtidoDesdePlanilla = location.state?.totalSurtido; 
+// Ahora pasará a valer 88000 de forma fija y limpia.
 
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState(null);
@@ -49,14 +50,14 @@ const SettlementModule = () => {
     const efectivoEntregadoReal = parseFloat(efectivoFisico || 0);
 
     const ganancia_vendedor = recaude_abono - venta_hoy - (gastoAlmuerzo + gastoGasolina);
-    const falta = ganancia_vendedor + efectivoEntregadoReal;
-    const totalSaldoFinal = debe_ruta + venta_hoy - recaude_abono;
 
-    // FUNCIÓN MEJORADA CON SWEETALERT
+    // Valores ficticios o mapeados desde tu backend según requieras
+    const efectivoAEntregar = 0;
+    const prestamoOTransferencia = 0;
+
     const handleFinalizar = async () => {
         if (isClosed) return;
 
-        // 1. Pedir confirmación antes de proceder
         const confirmed = await alertConfirmUsers(
             "¿Finalizar Liquidación?",
             "Verifica que los valores sean correctos antes de continuar."
@@ -75,18 +76,14 @@ const SettlementModule = () => {
                 valor_gasolina: gastoGasolina * 1000,
                 ganancia_vendedor: ganancia_vendedor,
                 efectivo_fisico: efectivoEntregadoReal * 1000,
-                diferencia: falta,
+                diferencia: ganancia_vendedor + efectivoEntregadoReal,
                 status: 'LIQUIDADO'
             };
 
             await orderService.settleOrder(orderId, settlementData);
-            
-            // 2. Alerta de éxito profesional
             await alertSuccess("Liquidación guardada", "Los datos se han registrado con éxito.");
-            
             navigate(`/ventas-detalle/${orderId}`);
         } catch (error) {
-            // 3. Alerta de error clara
             alertError("Error al finalizar", error.message || "Ocurrió un problema al guardar los datos.");
         } finally {
             setIsSaving(false);
@@ -94,113 +91,105 @@ const SettlementModule = () => {
     };
 
     return (
-        <div className="container py-4" style={{ maxWidth: '650px' }}>
-            <div className="card shadow-lg border-0 rounded-4 overflow-hidden">
-                <div className={`p-4 text-center ${isClosed ? 'bg-secondary' : 'bg-primary'} text-white`}>
-                    <p className="text-uppercase mb-1 fw-bold opacity-75 small">Módulo de Liquidación</p>
-                    <h4 className="mb-0 fw-bold">
-                        {isClosed ? `RUTA #${orderId} - CERRADA` : `CIERRE DE CAJA #${orderId}`}
-                    </h4>
-                </div>
-
-                <div className="card-body p-4 bg-light">
-                    <div className="bg-white p-3 rounded-3 shadow-sm mb-4">
-                        <div className="row align-items-center">
-                            <div className="col-7 border-end">
-                                <small className="text-muted d-block text-uppercase fw-bold" style={{fontSize: '0.7rem'}}>TOTAL CARTERA FECHA: </small>
-                                <span className="h5 mb-0 text-dark">$ {debe_ruta.toLocaleString()}</span>
-                            </div>
-                            <div className="col-5">
-                                <small className="text-muted d-block text-uppercase fw-bold" style={{fontSize: '0.7rem'}}>TOTAL CARTERA SIGUIENTE SEMANA: </small>
-                                <span className="h5 mb-0 text-success fw-bold">$ {recaude_abono.toLocaleString()}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <h6 className="fw-bold mb-3 text-muted px-1">Gastos de Ruta (en Miles)</h6>
-                    <div className="row g-3 mb-4">
-                        <div className="col-6">
-                            <div className="input-group">
-                                <span className="input-group-text bg-white border-end-0">🍱</span>
-                                <div className="form-floating">
-                                    <input 
-                                        type="number" 
-                                        className="form-control border-start-0 ps-0" 
-                                        id="almuerzo" 
-                                        placeholder="0"
-                                        value={valorAlmuerzo}
-                                        onChange={(e) => setValorAlmuerzo(e.target.value)}
-                                        disabled={isClosed}
-                                    />
-                                    <label htmlFor="almuerzo">Almuerzo</label>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="col-6">
-                            <div className="input-group">
-                                <span className="input-group-text bg-white border-end-0">⛽</span>
-                                <div className="form-floating">
-                                    <input 
-                                        type="number" 
-                                        className="form-control border-start-0 ps-0" 
-                                        id="gasolina" 
-                                        placeholder="0"
-                                        value={valorGasolina}
-                                        onChange={(e) => setValorGasolina(e.target.value)}
-                                        disabled={isClosed}
-                                    />
-                                    <label htmlFor="gasolina">Gasolina</label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="row g-3 mb-4">
-                        <div className="col-12">
-                            <div className="d-flex justify-content-between align-items-center bg-white p-3 rounded-3 shadow-sm">
-                                <div>
-                                    <small className="text-muted d-block fw-bold" style={{fontSize: '0.7rem'}}>SURTIDO</small>
-                                    <span className="h5 fw-bold text-danger">-$ {venta_hoy.toLocaleString()}</span>
-                                </div>
-                                <div className="text-end">
-                                    <small className="text-muted d-block fw-bold" style={{fontSize: '0.7rem'}}>GANANCIA NETA</small>
-                                    <span className="h5 fw-bold text-dark">$ {ganancia_vendedor.toLocaleString()}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-4 shadow-sm border border-primary border-2 mb-4 text-center">
-                        <label className="form-label fw-bold text-primary text-uppercase mb-3">COBRO</label>
-                        <div className="d-flex align-items-center justify-content-center">
-                            <span className="display-6 fw-bold text-primary me-2">$</span>
+        <div className="settlement-container">
+            <table className="settlement-table">
+                <tbody>
+                    {/* 1. COBRO */}
+                    <tr>
+                        <td className="label-cell">COBRO</td>
+                        <td className="value-cell input-cell">
+                            <span className="currency-symbol">$</span>
                             <input
                                 type="number"
-                                className="form-control form-control-lg text-center border-0 fw-bold p-0"
-                                style={{ fontSize: '3rem', width: '200px', outline: 'none', boxShadow: 'none' }}
                                 value={efectivoFisico}
                                 onChange={(e) => setEfectivoFisico(e.target.value)}
                                 onFocus={(e) => e.target.select()}
                                 disabled={isClosed}
                                 placeholder="0"
                             />
-                        </div>
-                    </div>
+                        </td>
+                    </tr>
 
-                    <button
-                        className={`btn ${isClosed ? 'btn-secondary' : 'btn-primary'} btn-lg w-100 py-3 rounded-3 fw-bold shadow`}
-                        onClick={handleFinalizar}
-                        disabled={isClosed || isSaving}
-                    >
-                        {isClosed ? (
-                            <span><i className="bi bi-check-circle-fill me-2"></i>ORDEN LIQUIDADA</span>
-                        ) : isSaving ? (
-                            <span><span className="spinner-border spinner-border-sm me-2"></span>GUARDANDO...</span>
-                        ) : (
-                            "FINALIZAR LIQUIDACIÓN"
-                        )}
-                    </button>
-                </div>
+                    {/* 2. ALMUERZO */}
+                    <tr>
+                        <td className="label-cell">ALMUERZO</td>
+                        <td className="value-cell input-cell">
+                            <span className="currency-symbol">$</span>
+                            <input
+                                type="number"
+                                value={valorAlmuerzo}
+                                onChange={(e) => setValorAlmuerzo(e.target.value)}
+                                disabled={isClosed}
+                                placeholder="0"
+                            />
+                        </td>
+                    </tr>
+
+                    {/* 3. GASOLINA */}
+                    <tr>
+                        <td className="label-cell">GASOLINA</td>
+                        <td className="value-cell input-cell">
+                            <span className="currency-symbol">$</span>
+                            <input
+                                type="number"
+                                value={valorGasolina}
+                                onChange={(e) => setValorGasolina(e.target.value)}
+                                disabled={isClosed}
+                                placeholder="0"
+                            />
+                        </td>
+                    </tr>
+
+                    {/* 4. SURTIDO */}
+                    <tr>
+                        <td className="label-cell">SURTIDO</td>
+                        <td className="value-cell">${venta_hoy.toLocaleString()}</td>
+                    </tr>
+
+                    {/* 5. GANANCIA / PERDIDA NETA */}
+                    <tr className={ganancia_vendedor < 0 ? "loss-row" : "highlight-row"}>
+                        <td className="label-cell">
+                            {ganancia_vendedor < 0 ? "PERDIDA NETA" : "GANANCIA NETA"}
+                        </td>
+                        <td className="value-cell">
+                            ${ganancia_vendedor.toLocaleString()}
+                        </td>
+                    </tr>
+
+                    {/* EFECTIVO A ENTREGAR */}
+                    <tr>
+                        <td className="label-cell">EFECTIVO A ENTREGAR</td>
+                        <td className="value-cell">${efectivoAEntregar.toLocaleString()}</td>
+                    </tr>
+
+                    {/* PRESTAMO O TRANSFERENCIA */}
+                    <tr>
+                        <td className="label-cell">PRESTAMO O TRANSFERENCIA</td>
+                        <td className="value-cell">${prestamoOTransferencia.toLocaleString()}</td>
+                    </tr>
+
+                    {/* 6. TOTAL CARTERA FECHA */}
+                    <tr>
+                        <td className="label-cell">TOTAL CARTERA FECHA</td>
+                        <td className="value-cell">${debe_ruta.toLocaleString()}</td>
+                    </tr>
+
+                    {/* 7. TOTAL CARTERA SIGUIENTE SEMANA */}
+                    <tr>
+                        <td className="label-cell">TOTAL CARTERA SIGUIENTE SEMANA</td>
+                        <td className="value-cell">${recaude_abono.toLocaleString()}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div className="button-container">
+                <button
+                    className={`btn-submit ${isClosed ? 'closed' : ''}`}
+                    onClick={handleFinalizar}
+                    disabled={isClosed || isSaving}
+                >
+                    {isClosed ? "ORDEN LIQUIDADA" : isSaving ? "GUARDANDO..." : "FINALIZAR LIQUIDACIÓN"}
+                </button>
             </div>
         </div>
     );

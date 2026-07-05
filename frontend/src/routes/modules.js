@@ -12,7 +12,7 @@ export const modulesByRole = {
         { title: "Informe de Clientes", path: "/clientes", iconName: "UserCheck" }, // Cambiado a UserCheck (antes repetía BarChart3)
         { title: "Historial y proceso de pagos semanal", path: "/historial-pagos", iconName: "Wallet" },
         { title: "Ganancias de la empresa", path: "/ganancias", iconName: "DollarSign" }, // Cambiado a DollarSign (antes repetía ClipboardList)
-        { title: "Descuadres", path: "/descuadres", iconName: "TrendingDown" }
+        //{ title: "Descuadres", path: "/descuadres", iconName: "TrendingDown" }
     ],
     DESPACHADOR: [
         { title: "Mis Despachos", path: "/despacho", iconName: "Truck" },

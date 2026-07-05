@@ -1,0 +1,128 @@
+/* Contenedor unificado */
+.settlement-container {
+    max-width: 500px;
+    margin: 2rem auto;
+    font-family: 'Arial', sans-serif;
+}
+
+/* Tabla principal */
+.settlement-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #f4f7f9;
+}
+
+/* Unificación de tamaño para todas las celdas de la tabla */
+.settlement-table td {
+    border: 1px solid #c5d0de;
+    padding: 0 15px; /* Controlado por altura fija para simetría absoluta */
+    height: 45px; 
+    font-size: 13px;
+    font-weight: bold;
+    color: #334155;
+    vertical-align: middle;
+    box-sizing: border-box;
+}
+
+/* Columna de etiquetas */
+.label-cell {
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    width: 70%;
+}
+
+/* Columna de valores de texto fijos */
+.value-cell {
+    text-align: right;
+    width: 30%;
+    color: #0f172a;
+}
+
+/* Fila de ganancia destacada en amarillo */
+.settlement-table .highlight-row td {
+    background-color: #fef08a !important;
+    color: #000000;
+}
+
+/* Contenedores de inputs alineados exactamente igual que las celdas de texto */
+.input-cell {
+    display: flex !important;
+    justify-content: space-between; /* El símbolo $ a la izquierda dentro de la celda y número a la derecha */
+    align-items: center;
+    background-color: transparent;
+    height: 100%;
+    width: 100%;
+}
+
+.currency-symbol {
+    color: #334155;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+/* Unificación estricta del tamaño de la tipografía dentro de los inputs */
+.input-cell input {
+    flex-grow: 1;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+    text-align: right;
+    font-weight: bold;
+    color: #0f172a;
+    font-size: 13px; /* Mismo tamaño que las celdas normales */
+    font-family: 'Arial', sans-serif;
+    outline: none;
+    padding: 0;
+}
+
+/* Remover flechas nativas en navegadores de los campos numéricos */
+.input-cell input::-webkit-outer-spin-button,
+.input-cell input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.input-cell input[type=number] {
+    -moz-appearance: textfield;
+}
+
+/* Botón inferior */
+.button-container {
+    margin-top: 1.5rem;
+    text-align: center;
+}
+
+.btn-submit {
+    width: 100%;
+    padding: 12px;
+    background-color: #8b0000;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 14px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background-color 0.2s;
+}
+
+.btn-submit:hover {
+    background-color: #a00000;
+}
+
+.btn-submit:disabled {
+    background-color: #94a3b8;
+    cursor: not-allowed;
+}
+/* Fila de GANANCIA NETA (Resaltada en amarillo si es positivo o cero) */
+.settlement-table .highlight-row td {
+    background-color: #fef08a !important; /* Amarillo suave */
+    color: #000000 !important;
+}
+
+/* Fila de PERDIDA NETA (Resaltada en rojo si es negativo) */
+.settlement-table .loss-row td {
+    background-color: #fee2e2 !important; /* Rojo / Rosado suave para que no canse la vista */
+    color: #991b1b !important;            /* Texto en rojo oscuro para alta legibilidad */
+}

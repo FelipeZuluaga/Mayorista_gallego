@@ -20,6 +20,7 @@ export default function VentasDetalleReadOnly() {
             try {
                 setLoading(true);
                 const [dataPlanilla, dataSettlement] = await Promise.all([
+                    
                     saleService.getRutaCompleta(orderId),
                     saleService.getSettlementByOrder(orderId)
                 ]);
@@ -52,6 +53,7 @@ export default function VentasDetalleReadOnly() {
         };
         fetchData();
     }, [orderId]);
+
     // --- FUNCIÓN PARA GENERAR EL TICKET (FORMATO 80MM) ---
     const generarFacturaTicket = (item) => {
         // Definimos el ancho real de la impresora térmica estándar
@@ -220,11 +222,10 @@ export default function VentasDetalleReadOnly() {
                 <table className="excel-table summary-table" style={{ width: '400px' }}>
                     <tbody>
                         {/* ... (filas anteriores de cartera y cobro se mantienen igual) */}
-                        <tr><th>TOTAL CARTERA FECHA</th><td style={{ textAlign: 'right' }}>${Number(settlement?.cartera_anterior || 0).toLocaleString()}</td></tr>
-                        <tr><th>TOTAL CARTERA SIGUIENTE SEMANA</th><td style={{ textAlign: 'right' }}>${totalSaldoFinal.toLocaleString()}</td></tr>
                         <tr><th>COBRO</th><td style={{ textAlign: 'right' }}>${Number(settlement?.total_recaudado || 0).toLocaleString()}</td></tr>
 
                         <tr><th>ALMUERZO</th><td style={{ textAlign: 'right' }}>${(Number(settlement?.valor_almuerzo || 0) / 1000).toLocaleString()}</td></tr>
+
                         <tr><th>GASOLINA</th><td style={{ textAlign: 'right' }}>${(Number(settlement?.valor_gasolina || 0) / 1000).toLocaleString()}</td></tr>
 
                         <tr><th>SURTIDO</th><td style={{ textAlign: 'right' }}>${Number(settlement?.ventas_totales || 0).toLocaleString()}</td></tr>
@@ -241,14 +242,12 @@ export default function VentasDetalleReadOnly() {
                                 ${Number(settlement?.ganancia_vendedor || 0).toLocaleString()}
                             </td>
                         </tr>
-
                         <tr style={{ borderTop: '2px solid #333' }}>
                             <th>EFECTIVO A ENTREGAR</th>
                             <td style={{ textAlign: 'right', color: '#2f855a' }}>
                                 ${(Number(settlement?.efectivo_fisico || 0) / 1000).toLocaleString()}
                             </td>
-                        </tr>
-
+                        </tr>     
                         <tr style={{ borderTop: '2px solid #333' }}>
                             <th>PRESTAMO O TRANSFERENCIA</th>
                             <td style={{ textAlign: 'right' }}>
@@ -260,6 +259,11 @@ export default function VentasDetalleReadOnly() {
                                 ).toLocaleString()}
                             </td>
                         </tr>
+                        <tr><th>TOTAL CARTERA FECHA</th><td style={{ textAlign: 'right' }}>${Number(settlement?.cartera_anterior || 0).toLocaleString()}</td></tr>
+                        <tr><th>TOTAL CARTERA SIGUIENTE SEMANA</th><td style={{ textAlign: 'right' }}>${totalSaldoFinal.toLocaleString()}</td></tr>
+
+
+                        
                     </tbody>
                 </table>
             </div>
