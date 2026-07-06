@@ -156,11 +156,11 @@ const SettlementModule = () => {
                         </td>
                     </tr>
 
-                    {/* EFECTIVO A ENTREGAR */}
+                    {/* EFECTIVO A ENTREGAR 
                     <tr>
                         <td className="label-cell">EFECTIVO A ENTREGAR</td>
                         <td className="value-cell">${efectivoAEntregar.toLocaleString()}</td>
-                    </tr>
+                    </tr>*/}
 
                     {/* PRESTAMO O TRANSFERENCIA */}
                     <tr>

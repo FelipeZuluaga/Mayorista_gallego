@@ -7,7 +7,7 @@ export const modulesByRole = {
         
         { title: "Informe de Despachos cargados", path: "/pedidos", iconName: "ClipboardList" },
         { title: "Rutas", path: "/ventas", iconName: "Map" }, // Cambiado de LayoutDashboard a Map para diferenciarlo de gráficos
-        { title: "Informe y proceso de Devolución", path: "/historial-devoluciones", iconName: "RotateCcw" },
+        { title: "Historial y proceso de Devolucion y Descuadres", path: "/historial-devoluciones", iconName: "RotateCcw" },
         { title: "Venta y liquidación de Rutas", path: "/historial-ventas", iconName: "BarChart3" },
         { title: "Informe de Clientes", path: "/clientes", iconName: "UserCheck" }, // Cambiado a UserCheck (antes repetía BarChart3)
         { title: "Historial y proceso de pagos semanal", path: "/historial-pagos", iconName: "Wallet" },
