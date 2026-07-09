@@ -164,7 +164,9 @@ export default function VentasDetalleReadOnly() {
     if (loading) return <div className="inv-page">Cargando Planilla...</div>;
 
     const fechaHoy = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
-    const totalSaldoFinal = filteredData.reduce((acc, item) => acc + (Number(item.debe || 0) - Number(item.abono || 0)), 0);
+
+
+    const totalSaldoFinal = filteredData.reduce((acc, item) => acc + (Number(item.venta || 0) + Number(item.debe || 0)), 0);
 
     // Por esto (dentro del componente antes del return):
     const fechaRutaFormateada = headerInfo.date;
@@ -191,7 +193,7 @@ export default function VentasDetalleReadOnly() {
                     </thead>
                     <tbody>
                         {filteredData.map((item, idx) => {
-                            const saldoFinal = Number(item.debe || 0) - Number(item.abono || 0);
+                            const saldoFinal = Number(item.venta || 0) + Number(item.debe || 0);
                             return (
                                 <tr key={idx} className={`fila-${item.estado?.toLowerCase()}`}>
                                     <td>{item.posicion || idx + 1}</td>
@@ -201,6 +203,7 @@ export default function VentasDetalleReadOnly() {
                                     <td style={{ textAlign: 'right' }}>${Number(item.venta || 0).toLocaleString()}</td>
                                     <td style={{ textAlign: 'right' }}>${Number(item.debe || 0).toLocaleString()}</td>
                                     <td style={{ textAlign: 'right', color: '#3182ce' }}>${Number(item.abono || 0).toLocaleString()}</td>
+
                                     <td style={{ textAlign: 'right', fontWeight: 'bold' }}>${saldoFinal.toLocaleString()}</td>
 
 
@@ -261,9 +264,6 @@ export default function VentasDetalleReadOnly() {
                         </tr>
                         <tr><th>TOTAL CARTERA FECHA</th><td style={{ textAlign: 'right' }}>${Number(settlement?.cartera_anterior || 0).toLocaleString()}</td></tr>
                         <tr><th>TOTAL CARTERA SIGUIENTE SEMANA</th><td style={{ textAlign: 'right' }}>${totalSaldoFinal.toLocaleString()}</td></tr>
-
-
-                        
                     </tbody>
                 </table>
             </div>

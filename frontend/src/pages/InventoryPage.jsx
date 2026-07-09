@@ -273,7 +273,14 @@ export default function InventoryPage() {
             setForm(prev => ({ ...prev, category_id: "" }));
         }
     };
-
+    // Quita todo lo que no sea número y agrega los puntos de miles
+    const formatColombianPesos = (value) => {
+        if (!value) return "";
+        const cleanValue = value.toString().replace(/\D/g, ""); // Elimina letras o puntos previos
+        return new Intl.NumberFormat("es-CO", {
+            maximumFractionDigits: 0
+        }).format(cleanValue);
+    };
     return (
         <div className="inv-page full-layout">
             <div className="module-intro">
@@ -373,12 +380,12 @@ export default function InventoryPage() {
                                 {categories.map(c => (
                                     <option key={c.id} value={c.id}>{c.name}</option>
                                 ))}
-                                <option 
-                                    value="ADD_NEW" 
-                                    style={{ 
-                                        fontWeight: 'bold', 
-                                        color: '#9b111e', 
-                                        backgroundColor: '#f8f9fa' 
+                                <option
+                                    value="ADD_NEW"
+                                    style={{
+                                        fontWeight: 'bold',
+                                        color: '#9b111e',
+                                        backgroundColor: '#f8f9fa'
                                     }}
                                 >
                                     + AGREGAR NUEVA...
@@ -395,12 +402,15 @@ export default function InventoryPage() {
                                 <div className="input-with-icon">
                                     <span>$</span>
                                     <input
-                                        type="number"
-                                        value={form.prices[c.id]}
-                                        onChange={(e) => setForm({
-                                            ...form,
-                                            prices: { ...form.prices, [c.id]: e.target.value },
-                                        })}
+                                        type="text" // <-- Cambiado de 'number' a 'text'
+                                        value={formatColombianPesos(form.prices[c.id])} // <-- Aplicamos el formato visual
+                                        onChange={(e) => {
+                                            const rawValue = e.target.value.replace(/\D/g, ""); // Nos quedamos solo con los números para el estado
+                                            setForm({
+                                                ...form,
+                                                prices: { ...form.prices, [c.id]: rawValue },
+                                            });
+                                        }}
                                         required
                                     />
                                 </div>
@@ -555,12 +565,15 @@ export default function InventoryPage() {
                                         <div className="input-with-icon">
                                             <span>$</span>
                                             <input
-                                                type="number"
-                                                value={form.prices[c.id]}
-                                                onChange={(e) => setForm({
-                                                    ...form,
-                                                    prices: { ...form.prices, [c.id]: e.target.value }
-                                                })}
+                                                type="text" // <-- Cambiado a 'text' para que acepte los puntos
+                                                value={formatColombianPesos(form.prices[c.id])} // <-- Aplicamos la función aquí también
+                                                onChange={(e) => {
+                                                    const rawValue = e.target.value.replace(/\D/g, ""); // Extrae solo los dígitos para el estado
+                                                    setForm({
+                                                        ...form,
+                                                        prices: { ...form.prices, [c.id]: rawValue }
+                                                    });
+                                                }}
                                             />
                                         </div>
                                     </div>

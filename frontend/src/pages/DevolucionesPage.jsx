@@ -191,10 +191,11 @@ export default function DevolucionesPage() {
             return bTieneDevolucion - aTieneDevolucion;
         });
 
+    // CAMBIO AQUÍ: Reduce acumulando (venta * precio) de cada ítem
     const totalSuma = itemsDevolver.reduce((acc, item) => {
-        const despachado = Number(item.despachado) || 0; // Representa el "LLEVA"
-        const precio = Number(item.precio_base) || 0;
-        return acc + (despachado * precio);
+        const venta = Number(item.vendido) || 0; // Tomamos la cantidad vendida
+        const precio = Number(item.precio_base) || 0; // Tomamos el precio base
+        return acc + (venta * precio);
     }, 0);
 
     // Función para disparar la impresión del navegador
@@ -256,12 +257,14 @@ export default function DevolucionesPage() {
                             const despachado = Number(item.despachado) || 0;
                             const trae = Number(item.cantidad_a_devolver) || 0;
 
-                            // <--- MODIFICADO: Ahora toma el valor real vendido desde la base de datos
+                            // Toma el valor real vendido desde la base de datos
                             const venta = Number(item.vendido) || 0;
 
                             // El descuadre se calcula en base a lo que devolvió físicamente vs lo que debería haber sobrado
                             const descuadre = trae - (despachado - venta);
-                            const total = despachado * item.precio_base;
+
+                            // CAMBIO AQUÍ: Ahora multiplica VENTA por el precio base
+                            const total = venta * item.precio_base;
 
                             return (
                                 <tr key={item.product_id} style={{ backgroundColor: esLiquidado ? '#f8f9fa' : '' }}>

@@ -153,8 +153,7 @@ export default function HistDevolucionesPage() {
                                         </span>
                                     </td>
 
-                                    {/* COLUMNA DE ACCIONES CON 3 BOTONES DISTINTOS */}
-                                    {/* COLUMNA DE ACCIONES CON VALIDACIONES */}
+                                    {/* COLUMNA DE ACCIONES CON VALIDACIONES DE ROL */}
                                     <td style={{ width: '300px' }}>
                                         <div style={{
                                             display: 'flex',
@@ -162,32 +161,33 @@ export default function HistDevolucionesPage() {
                                             justifyContent: 'center'
                                         }}>
 
-                                            {/* 1. BOTÓN DEVOLUCIÓN: Habilitado solo si está EN RUTA o DESPACHADO */}
+                                            {/* 1. BOTÓN DEVOLUCIÓN */}
                                             <button
                                                 onClick={() => navigate("/devoluciones", { state: { orderId: orden.id } })}
-                                                disabled={status === 'LIQUIDADO' || status === 'DEVOLUCION'}
+                                                // Habilitado si el rol es ADMINISTRADOR, si no, se valida el estado
+                                                disabled={user.role !== 'ADMINISTRADOR' && (status === 'LIQUIDADO' || status === 'DEVOLUCION')}
                                                 title="Iniciar Devolución"
                                                 style={{
-                                                    backgroundColor: (status === 'LIQUIDADO' || status === 'DEVOLUCION') ? '#ccc' : '#9b111e',
+                                                    backgroundColor: (user.role !== 'ADMINISTRADOR' && (status === 'LIQUIDADO' || status === 'DEVOLUCION')) ? '#ccc' : '#9b111e',
                                                     color: 'white',
                                                     border: 'none',
                                                     padding: '8px 12px',
                                                     borderRadius: '5px',
-                                                    cursor: (status === 'LIQUIDADO' || status === 'DEVOLUCION') ? 'not-allowed' : 'pointer',
+                                                    cursor: (user.role !== 'ADMINISTRADOR' && (status === 'LIQUIDADO' || status === 'DEVOLUCION')) ? 'not-allowed' : 'pointer',
                                                     fontSize: '12px',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     gap: '4px',
-                                                    opacity: (status === 'LIQUIDADO' || status === 'DEVOLUCION') ? 0.6 : 1,
+                                                    opacity: (user.role !== 'ADMINISTRADOR' && (status === 'LIQUIDADO' || status === 'DEVOLUCION')) ? 0.6 : 1,
                                                     flex: 1
                                                 }}
                                             >
                                                 🔄 Devolución
                                             </button>
 
-                                            {/* 2. BOTÓN VER: Habilitado solo si ya hay una devolución o está liquidado */}
+                                            {/* 2. BOTÓN VER (Mantiene su comportamiento intacto) */}
                                             <button
-                                                onClick={() => verDetalle(orden)} // Ahora llama a la función local
+                                                onClick={() => verDetalle(orden)}
                                                 disabled={status !== 'DEVOLUCION' && status !== 'LIQUIDADO'}
                                                 title="Ver Detalles"
                                                 style={{
@@ -208,24 +208,24 @@ export default function HistDevolucionesPage() {
                                                 👁️ Ver
                                             </button>
 
-                                            {/* 3. BOTÓN LIQUIDAR: Solo para ADMIN y si el estado es DEVOLUCION */}
-                                            {/* 3. BOTÓN LIQUIDAR: Actualizado para ir a /liquidacion-ruta/:orderId */}
+                                            {/* 3. BOTÓN LIQUIDAR */}
                                             <button
                                                 onClick={() => navigate(`/liquidacion-ruta/${orden.id}`)}
-                                                disabled={status !== 'DEVOLUCION' || user.role !== 'ADMINISTRADOR'}
+                                                // Si es ADMINISTRADOR siempre se habilita, de lo contrario evalúa si está en DEVOLUCION
+                                                disabled={user.role !== 'ADMINISTRADOR' && status !== 'DEVOLUCION'}
                                                 title="Realizar Liquidación"
                                                 style={{
-                                                    backgroundColor: (status !== 'DEVOLUCION' || user.role !== 'ADMINISTRADOR') ? '#ccc' : '#166534',
+                                                    backgroundColor: (user.role !== 'ADMINISTRADOR' && status !== 'DEVOLUCION') ? '#ccc' : '#166534',
                                                     color: 'white',
                                                     border: 'none',
                                                     padding: '8px 12px',
                                                     borderRadius: '5px',
-                                                    cursor: (status !== 'DEVOLUCION' || user.role !== 'ADMINISTRADOR') ? 'not-allowed' : 'pointer',
+                                                    cursor: (user.role !== 'ADMINISTRADOR' && status !== 'DEVOLUCION') ? 'not-allowed' : 'pointer',
                                                     fontSize: '12px',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     gap: '4px',
-                                                    opacity: (status !== 'DEVOLUCION' || user.role !== 'ADMINISTRADOR') ? 0.6 : 1,
+                                                    opacity: (user.role !== 'ADMINISTRADOR' && status !== 'DEVOLUCION') ? 0.6 : 1,
                                                     flex: 1
                                                 }}
                                             >
@@ -305,8 +305,8 @@ export default function HistDevolucionesPage() {
 
                                                 const precio = Number(item.precio_base) || 0;
 
-                                                // 3. Multiplicación de LLEVA x PRECIO para el Total
-                                                const totalRow = lleva * precio;
+                                                // CAMBIO AQUÍ: Multiplicación de VENTA x PRECIO para el Total de la fila
+                                                const totalRow = venta * precio;
 
                                                 return (
                                                     <tr key={idx}>
@@ -318,7 +318,7 @@ export default function HistDevolucionesPage() {
                                                         <td style={{ textAlign: 'right' }}>$ {precio.toLocaleString()}</td>
                                                         <td style={{ textAlign: 'right', fontWeight: 'bold' }}>$ {totalRow.toLocaleString()}</td>
 
-                                                        {/* 4. Nueva celda para mostrar el descuadre (Se pinta en rojo si no es 0) */}
+                                                        {/* 4. Nueva celda para mostrar el descuadre */}
                                                         <td style={{
                                                             textAlign: 'center',
                                                             fontWeight: 'bold',
@@ -337,7 +337,6 @@ export default function HistDevolucionesPage() {
                                     </tbody>
                                 </table>
 
-                                {/* SECCIÓN DE TOTAL SURTIDO (Igual a la imagen) */}
                                 {/* SECCIÓN DE TOTAL SURTIDO CORREGIDA */}
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
                                     <div style={{
@@ -348,11 +347,11 @@ export default function HistDevolucionesPage() {
                                         <span style={{ fontWeight: 'bold', color: '#333' }}>TOTAL SURTIDO:</span>
                                         <span style={{ fontWeight: 'bold', color: '#d32f2f', fontSize: '1.3rem' }}>
                                             $ {detalleSeleccionado?.items.reduce((acc, item) => {
-                                                // Multiplicamos directamente LLEVA (despachado) x PRECIO (precio_base)
-                                                const lleva = Number(item.despachado) || 0;
+                                                // CAMBIO AQUÍ: Multiplicamos directamente VENTA (vendido) x PRECIO (precio_base)
+                                                const venta = Number(item.vendido) || 0;
                                                 const precio = Number(item.precio_base) || 0;
 
-                                                return acc + (lleva * precio);
+                                                return acc + (venta * precio);
                                             }, 0).toLocaleString()}
                                         </span>
                                     </div>

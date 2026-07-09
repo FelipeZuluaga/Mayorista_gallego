@@ -42,15 +42,27 @@ const SettlementModule = () => {
     const isClosed = data?.status === 'LIQUIDADO';
     if (loading) return <div className="p-5 text-center mt-5"><div className="spinner-border text-primary" role="status"></div><p className="mt-2">Calculando balance de ruta...</p></div>;
 
+
+
+    //CALCULOS DE LA LIQUIDACIÓN DIARIA
+
+    //COBRO
     const recaude_abono = parseFloat(data?.total_recaudado || 0);
     const debe_ruta = parseFloat(data?.cartera_anterior || 0);
+
+    //SURTIDO ESPERAR QUE RESPONDAN CUAL PRECIO VA
     const venta_hoy = totalSurtidoDesdePlanilla !== undefined ? parseFloat(totalSurtidoDesdePlanilla) : parseFloat(data?.ventas_totales_hoy || 0);
+
+
     const gastoAlmuerzo = parseFloat(valorAlmuerzo || 0);
     const gastoGasolina = parseFloat(valorGasolina || 0);
+
+    //EFECTIVO A ENTREGAR
     const efectivoEntregadoReal = parseFloat(efectivoFisico || 0);
 
-    const ganancia_vendedor = recaude_abono - venta_hoy - (gastoAlmuerzo + gastoGasolina);
-
+    //GANANCIA NETA O PERDIDA NETA
+    const ganancia_vendedor = recaude_abono - (gastoAlmuerzo + gastoGasolina) - venta_hoy;
+    
     // Valores ficticios o mapeados desde tu backend según requieras
     const efectivoAEntregar = 0;
     const prestamoOTransferencia = 0;
@@ -97,6 +109,11 @@ const SettlementModule = () => {
                     {/* 1. COBRO */}
                     <tr>
                         <td className="label-cell">COBRO</td>
+                        <td className="value-cell">${recaude_abono.toLocaleString()}</td>
+                    </tr>
+
+                    {/*<tr>
+                        <td className="label-cell">COBRO</td>
                         <td className="value-cell input-cell">
                             <span className="currency-symbol">$</span>
                             <input
@@ -108,7 +125,7 @@ const SettlementModule = () => {
                                 placeholder="0"
                             />
                         </td>
-                    </tr>
+                    </tr> */}
 
                     {/* 2. ALMUERZO */}
                     <tr>
@@ -156,8 +173,22 @@ const SettlementModule = () => {
                         </td>
                     </tr>
 
-                    {/* EFECTIVO A ENTREGAR 
+                    {/* EFECTIVO A ENTREGAR >*/}
                     <tr>
+                        <td className="label-cell">EFECTIVO A ENTREGAR</td>
+                        <td className="value-cell input-cell">
+                            <span className="currency-symbol">$</span>
+                            <input
+                                type="number"
+                                value={efectivoFisico}
+                                onChange={(e) => efectivoAEntregar(e.target.value)}
+                                onFocus={(e) => e.target.select()}
+                                disabled={isClosed}
+                                placeholder="0"
+                            />
+                        </td>
+                    </tr>
+                    {/*<tr>
                         <td className="label-cell">EFECTIVO A ENTREGAR</td>
                         <td className="value-cell">${efectivoAEntregar.toLocaleString()}</td>
                     </tr>*/}
