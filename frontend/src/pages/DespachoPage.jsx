@@ -136,7 +136,7 @@ export default function DespachoPage() {
             <div className="inv-card full-width-card">
                 <div className="form-grid">
                     <div className="input-group">
-                        <label><Truck size={14} /> Tipo de Lista de Precios</label>
+                        <label><Truck size={14} /> Tipo de Lista de Precios y cliente</label>
                         <select value={customerTypeId} onChange={(e) => setCustomerTypeId(e.target.value)}>
                             <option value="1">CLIENTE</option>        {/* ID 1 en BD es CLIENTE */}
                             <option value="2">SOCIO</option>          {/* ID 2 en BD es SOCIO */}
@@ -212,10 +212,11 @@ export default function DespachoPage() {
                     <table className="inv-table">
                         <thead>
                             <tr>
+                                <th>Código</th> {/* Nueva columna añadida */}
                                 <th>Producto</th>
                                 <th>Stock Actual</th>
                                 <th>Precio Unit.</th>
-                                <th width="120">Cant. a Despachar</th>
+                                <th width="120">LLEVA</th>
                                 <th className="col-total">Subtotal</th>
                             </tr>
                         </thead>
@@ -223,19 +224,22 @@ export default function DespachoPage() {
                             {products
                                 .filter(p =>
                                     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                    (p.barcode && p.barcode.includes(searchTerm)) // También filtra por lo que escribas en el buscador principal
+                                    (p.barcode && p.barcode.includes(searchTerm))
                                 )
-                                // ORDENAMIENTO: Si tiene cantidad > 0, va primero
                                 .sort((a, b) => {
                                     const qtyA = Number(quantities[a.id]) || 0;
                                     const qtyB = Number(quantities[b.id]) || 0;
 
-                                    if (qtyA > 0 && qtyB === 0) return -1; // a va primero
-                                    if (qtyA === 0 && qtyB > 0) return 1;  // b va primero
-                                    return 0; // se mantienen igual si ambos tienen o no tienen
+                                    if (qtyA > 0 && qtyB === 0) return -1;
+                                    if (qtyA === 0 && qtyB > 0) return 1;
+                                    return 0;
                                 })
                                 .map(p => (
                                     <tr key={p.id} className={Number(quantities[p.id]) > 0 ? "row-selected" : ""}>
+                                        {/* 1. Muestra el código de barras aquí de primeras */}
+                                        <td className="font-mono text-gray-500">{p.barcode || "-"}</td>
+
+                                        {/* 2. El nombre del producto pasa a ser la segunda columna */}
                                         <td className="font-bold">{p.name}</td>
                                         <td>
                                             <span className={`badge-stock ${p.stock < 10 ? 'stock-low' : ''}`}>
