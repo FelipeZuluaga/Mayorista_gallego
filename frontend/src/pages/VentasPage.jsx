@@ -188,10 +188,6 @@ export default function VentasPage() {
     const [globalSearchTerm, setGlobalSearchTerm] = useState("");
     const [allCustomers, setAllCustomers] = useState([]);
     const [showModal, setShowModal] = useState(false);
-
-
-
-
     const loadPendingOrders = async () => {
         try {
             setLoading(true);
@@ -768,6 +764,43 @@ export default function VentasPage() {
         // Abre en una pestaña nueva
         window.open(`https://wa.me/${numeroLimpio}`, "_blank");
     };
+
+    // --- CÁLCULO DE TOTALES PARA EL PIE DE PÁGINA ---
+    const totalesPlanilla = useMemo(() => {
+        // Filtramos exactamente igual que lo haces en el tbody
+        const clientesFiltrados = planilla.filter(cliente =>
+            cliente.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            cliente.address.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        return clientesFiltrados.reduce((acc, cliente) => {
+            const totalVentaHoy = Number(calcularTotalFila(cliente) || 0);
+            const deudaPrevia = Number(cliente.total_debt || 0);
+            const amountPaid = Number(cliente.amount_paid || 0);
+            const nuevoSaldo = deudaPrevia + totalVentaHoy - amountPaid;
+
+            return {
+                totalDebe: acc.totalDebe + deudaPrevia,
+                totalAbono: acc.totalAbono + amountPaid,
+                totalSaldoFinal: acc.totalSaldoFinal + nuevoSaldo
+            };
+        }, { totalDebe: 0, totalAbono: 0, totalSaldoFinal: 0 });
+    }, [planilla, searchTerm, orderItems]); // Se recalcula si cambia la planilla, la búsqueda o los productos
+
+    // Agrega esto arriba en el archivo
+    const formatearMiles = (valor) => {
+        if (valor === undefined || valor === null || valor === "") return "";
+        // Quita todo lo que no sea número y lo formatea con puntos
+        const numero = valor.toString().replace(/\D/g, "");
+        return numero ? Number(numero).toLocaleString("es-CO") : "";
+    };
+
+    const desformatearMiles = (valor) => {
+        if (!valor) return 0;
+        // Quita los puntos para volverlo un número operable
+        return Number(valor.toString().replace(/\./g, ""));
+    };
+
     if (loading) return <div className="loading-screen">Cargando...</div>;
     return (
         <div className="ventas-container">
@@ -1224,6 +1257,25 @@ export default function VentasPage() {
                                     })
                                 }
                             </tbody>
+                            {/* --- AQUÍ AGREGAMOS LA FILA DE TOTALES --- */}
+                            <tfoot style={{ backgroundColor: '#f8fafc', fontWeight: 'bold', borderTop: '2px solid #cbd5e1' }}>
+                                <tr>
+                                    <td colSpan="5" style={{ textAlign: 'right', padding: '12px', color: '#475569' }}>TOTALES:</td>
+                                    <td style={{ color: '#0f172a', padding: '12px' }}>
+                                        ${totalesPlanilla.totalDebe.toLocaleString()}
+                                    </td>
+                                    <td style={{ color: '#0f172a', padding: '12px' }}>
+                                        ${totalesPlanilla.totalAbono.toLocaleString()}
+                                    </td>
+                                    <td style={{
+                                        padding: '12px',
+                                        color: totalesPlanilla.totalSaldoFinal > 0 ? '#dc2626' : '#16a34a'
+                                    }}>
+                                        ${totalesPlanilla.totalSaldoFinal.toLocaleString()}
+                                    </td>
+                                    <td colSpan="2"></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
 
