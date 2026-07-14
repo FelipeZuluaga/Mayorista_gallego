@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { returnsService } from "../services/returnsService";
+import { settlementService } from "../services/settlementService";
 import { orderService } from "../services/orderService";
 import { alertError } from "../services/alertService";
 import "../styles/devoluciones.css";
@@ -31,8 +33,9 @@ export default function DevolucionesPage() {
             try {
                 // 1. Consultar estado de la orden y el historial de devoluciones en paralelo
                 const [infoOrden, historialDB] = await Promise.all([
-                    orderService.settleOrder(orderId),
-                    orderService.getReturnHistory(orderId)
+                    settlementService.settleOrder(orderId),
+
+                    returnsService.getReturnHistory(orderId)
                 ]);
                 // NUEVO: Seteamos el nombre del vendedor y la fecha actual
                 setNombreVendedor(infoOrden.seller_name || "VENDEDOR NO IDENTIFICADO");
@@ -51,7 +54,7 @@ export default function DevolucionesPage() {
                 setEsLiquidado(isLiq);
 
                 // 2. Obtener el inventario que se despachó originalmente
-                const dataInventario = sobrantes || await orderService.getTruckInventory(orderId);
+                const dataInventario = sobrantes || await returnsService.getTruckInventory(orderId);
 
                 // 3. Mapear los productos cruzando la información
                 const itemsMapeados = dataInventario.map(item => {
@@ -158,7 +161,7 @@ export default function DevolucionesPage() {
 
             // 1. Procesar los items devueltos (si hay alguno)
             if (devolucionesParaEnviar.length > 0) {
-                await orderService.processReturn({ //[cite: 1]
+                await returnsService.processReturn({ //[cite: 1]
                     order_id: orderId, //[cite: 1]
                     items: devolucionesParaEnviar //[cite: 1]
                 });

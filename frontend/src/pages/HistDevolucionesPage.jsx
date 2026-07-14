@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { orderService } from "../services/orderService";
+import { returnsService } from "../services/returnsService";
 import { alertError } from "../services/alertService";
 
 
@@ -52,8 +53,8 @@ export default function HistDevolucionesPage() {
         try {
             // 1. Llamamos a ambos servicios en paralelo para tener la info completa
             const [historialDB, inventarioOriginal] = await Promise.all([
-                orderService.getReturnHistory(orden.id),
-                orderService.getTruckInventory(orden.id) // Este trae lo que "LLEVA" y el PRECIO
+                returnsService.getReturnHistory(orden.id),
+                returnsService.getTruckInventory(orden.id) // Este trae lo que "LLEVA" y el PRECIO
             ]);
 
             // 2. Cruzamos la información como lo haces en DevolucionesPage

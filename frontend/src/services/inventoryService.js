@@ -1,3 +1,4 @@
+// SERVICES: inventoryService.js
 import api from "./api";
 
 // Función auxiliar para obtener el rol del usuario desde el almacenamiento local
@@ -14,20 +15,21 @@ export const inventoryService = {
     // Obtener todos los productos con sus categorías y precios agrupados
     getProducts: async () => {
         const res = await api.get("/inventory", getHeaders());
-        return res.data;
+        // Retornamos directamente el array de productos alojado en .data
+        return res.data.data; 
     },
 
     // Obtener las categorías para llenar el select del formulario
     getCategories: async () => {
         const res = await api.get("/inventory/categories", getHeaders());
-        return res.data;
+        // Retornamos el array de categorías alojado en .data
+        return res.data.data;
     },
 
-    // --- NUEVA FUNCIÓN: Crear una categoría desde el select ---
+    // Crear una categoría desde el select
     createCategory: async (categoryData) => {
-        // Asumiendo que tu endpoint en el backend es /inventory/categories
         const res = await api.post("/inventory/categories", categoryData, getHeaders());
-        return res.data;
+        return res.data; // Devuelve el mensaje de éxito y el nuevo ID
     },
     
     // Crear un nuevo producto junto con su array de precios
@@ -42,7 +44,7 @@ export const inventoryService = {
         return res.data;
     },
 
-    // Eliminar producto (el backend se encarga de borrar los precios por la transacción)
+    // Eliminar producto
     deleteProduct: async (id) => {
         const res = await api.delete(`/inventory/${id}`, getHeaders());
         return res.data;

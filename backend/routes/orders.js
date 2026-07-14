@@ -22,25 +22,4 @@ router.put('/update-full/:id', orderController.updateOrderItems);
 // ELIMINACIÓN: Borra el pedido y restaura el stock al inventario
 router.delete('/delete/:id', orderController.deleteOrder);
 
-/**
- * NUEVA RUTA: Procesar devolución de sobrantes
- * Esta ruta permite que al terminar una ruta, los productos no vendidos
- * regresen automáticamente al stock central de la tabla 'products'.
- */
-router.post('/process-return', orderController.processReturn);
-router.get('/return-history/:orderId', orderController.getReturnHistory);
-router.put('/update-status/:id', orderController.updateOrderStatus);
-
-
-
-
-router.get('/truck-inventory/:orderId', orderController.getTruckInventory);
-
-
-
-router.post('/mark-liquidated/:orderId', orderController.markAsLiquidated);
-// ESTA ES LA NUEVA RUTA PARA LA LIQUIDACIÓN MONETARIA (RUTA 1, 2 Y 3)
-router.post('/settle/:orderId', orderController.settleOrder);
-
-
 module.exports = router;

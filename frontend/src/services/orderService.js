@@ -82,47 +82,6 @@ export const orderService = {
         }
     },
 
-    /**
-     * Obtener vendedores filtrados por Rol.
-     */
-    getVendedoresPorRol: async (roleId) => {
-        try {
-            const response = await api.get("/orders/vendedores-filtrados", {
-                params: { role_id: roleId }
-            });
-            return response.data;
-        } catch (error) {
-            console.error("Error al obtener vendedores filtrados:", error);
-            throw error.response?.data?.message || "Error al filtrar usuarios";
-        }
-    },
-
-    //DEVOLUCION
-
-    /**
-     * NUEVO: Procesar la devolución de productos sobrantes al inventario.
-     * Envía: { order_id, items: [{product_id, quantity}, ...] }
-     */
-    processReturn: async (returnData) => {
-        try {
-            const response = await api.post("/orders/process-return", returnData);
-            return response.data;
-        } catch (error) {
-            console.error("Error en processReturn:", error.response?.data);
-            throw error.response?.data?.message || "Error al procesar la devolución de productos";
-        }
-    },
-
-    // Dentro de orderService.js
-    getReturnHistory: async (orderId) => {
-        try {
-            const response = await api.get(`/orders/return-history/${orderId}`);
-            return response.data;
-        } catch (error) {
-            throw error.response?.data?.message || "Error al obtener historial";
-        }
-    },
-
     // orderService.js
     updateOrderStatus: async (orderId, status) => {
         try {
@@ -133,48 +92,4 @@ export const orderService = {
             throw error.response?.data?.message || "Error al actualizar el estado";
         }
     },
-
-    //-----------------------------------------------------------------------------------------------------------------------
-
-    /**
-     * NUEVO - INVENTARIO ACTUAL EN CAMIÓN: 
-     * Calcula: (Cantidad Despachada) - (Cantidad Vendida en Sales).
-     * Esto es lo que permite que la devolución muestre los sobrantes reales.
-     */
-    getTruckInventory: async (orderId) => {
-        try {
-            const response = await api.get(`/orders/truck-inventory/${orderId}`);
-            return response.data;
-        } catch (error) {
-            throw error.response?.data?.message || "Error al calcular inventario del camión";
-        }
-    },
-
-
-    //------------------------------------------------------------------------------------------------------------------------
-
-    //lIQUIDACION
-    markAsLiquidated: async (orderId) => {
-        try {
-            const response = await api.post(`/orders/mark-liquidated/${orderId}`);
-            return response.data;
-        } catch (error) {
-            throw error.response?.data?.message || "Error al marcar la orden como liquidada";
-        }
-    },
-    /**
-     * LIQUIDACIÓN ECONÓMICA: 
-     * Procesa ventas, devoluciones, abonos y calcula el 50/50 y faltantes.
-     * Envía: { abonosManuales, efectivoEntregado, costoProducto }
-     */
-    settleOrder: async (orderId, settlementData) => {
-        try {
-            const response = await api.post(`/orders/settle/${orderId}`, settlementData);
-            return response.data;
-        } catch (error) {
-            console.error("Error en settleOrder:", error.response?.data);
-            throw error.response?.data?.message || "Error al procesar la liquidación económica";
-        }
-    }
-
 };
