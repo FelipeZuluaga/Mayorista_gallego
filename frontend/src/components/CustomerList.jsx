@@ -10,7 +10,7 @@ const CustomerList = ({ sellerId }) => {
     const [vendedorSeleccionado, setVendedorSeleccionado] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [clienteEdicion, setClienteEdicion] = useState(null);
-    const DIAS_SEMANA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const DIAS_SEMANA = ["Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     const [diaSeleccionado, setDiaSeleccionado] = useState(new Date().getDay());
 
     const user = JSON.parse(localStorage.getItem("user"));
@@ -249,7 +249,7 @@ const CustomerList = ({ sellerId }) => {
                                             <option value="NO_VISITADO">No Visitado</option>
                                         </select>
                                     </div>
-
+                                    {/* DEUDA TOTAL*/}
                                     <div style={styles.inputGroup}>
                                         <label style={styles.label}>Deuda Total ($)</label>
                                         <input

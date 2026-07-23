@@ -100,7 +100,6 @@ const createSale = async (req, res) => {
         connection.release();
     }
 };
-// RUTA
 const getSales = async (req, res) => {
     try {
         // Obtenemos un resumen de las rutas liquidadas
@@ -171,8 +170,6 @@ const getRutaCompleta = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
-
-// No olvides exportar la nueva función al final del archivo
 module.exports = {
     createSale,
     getSales,

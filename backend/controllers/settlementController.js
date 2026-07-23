@@ -110,7 +110,9 @@ const getSettlementByOrder = async (req, res) => {
                 diferencia, 
                 created_at 
             FROM m_g_settlements 
-            WHERE order_id = ?
+            WHERE order_id = ? 
+            ORDER BY created_at DESC 
+            LIMIT 1;
         `, [orderId]);
 
         // Retornamos el primer resultado (debería ser único por orden)

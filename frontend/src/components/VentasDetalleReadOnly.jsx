@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ChevronLeft, Printer, MapPin, Phone, FileText } from "lucide-react";
+import { settlementService } from "../services/settlementService";
 import { saleService } from "../services/saleService";
 import { alertError } from "../services/alertService";
 import jsPDF from "jspdf";
@@ -22,7 +23,7 @@ export default function VentasDetalleReadOnly() {
                 const [dataPlanilla, dataSettlement] = await Promise.all([
                     
                     saleService.getRutaCompleta(orderId),
-                    saleService.getSettlementByOrder(orderId)
+                    settlementService.getSettlementByOrder(orderId)
                 ]);
 
                 setRutaData(dataPlanilla);

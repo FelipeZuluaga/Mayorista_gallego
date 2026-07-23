@@ -1,8 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { returnsService } from "../services/returnsService";
-import { settlementService } from "../services/settlementService";
-import { orderService } from "../services/orderService";
 import { alertError } from "../services/alertService";
 import "../styles/devoluciones.css";
 
@@ -33,7 +31,7 @@ export default function DevolucionesPage() {
             try {
                 // 1. Consultar estado de la orden y el historial de devoluciones en paralelo
                 const [infoOrden, historialDB] = await Promise.all([
-                    settlementService.settleOrder(orderId),
+                    returnsService.settleOrder(orderId),
 
                     returnsService.getReturnHistory(orderId)
                 ]);
@@ -168,7 +166,7 @@ export default function DevolucionesPage() {
             }
 
             // 2. Aseguramos el cambio de estado a 'DEVOLUCION'
-            await orderService.updateOrderStatus(orderId, 'DEVOLUCION'); //[cite: 1]
+            await returnsService.updateOrderStatus(orderId, 'DEVOLUCION'); //[cite: 1]
 
             navigate("/historial-devoluciones"); //[cite: 1]
 

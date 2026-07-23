@@ -7,23 +7,15 @@ import { alertError } from "../services/alertService";
 
 export default function HistDevolucionesPage() {
     const [ordenes, setOrdenes] = useState([]);
-    // --- NUEVOS ESTADOS PARA FILTROS ---
     const [filtroId, setFiltroId] = useState("");
     const [filtroVendedor, setFiltroVendedor] = useState("");
-
     const navigate = useNavigate();
-    const DIAS_SEMANA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const DIAS_SEMANA = ["","","Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     const [diaSeleccionado, setDiaSeleccionado] = useState(new Date().getDay());
     const user = JSON.parse(localStorage.getItem("user"));
-
-    //---------------------------------------------
-    // Ver lo que devolvi 
-
     const [modalOpen, setModalOpen] = useState(false);
     const [detalleSeleccionado, setDetalleSeleccionado] = useState(null);
     const [loadingDetalle, setLoadingDetalle] = useState(false);
-
-    //----------------------------------------------
 
     useEffect(() => {
         cargarOrdenes();
@@ -34,30 +26,23 @@ export default function HistDevolucionesPage() {
         setOrdenes(data || []);
     };
 
-    // --- LÓGICA DE FILTRADO COMBINADA ---
     const ordenesFiltradas = ordenes.filter((o) => {
         const coincideDia = new Date(o.created_at).getDay() === diaSeleccionado;
         const coincideId = o.id.toString().includes(filtroId);
-        // Usamos seller_name o user_id dependiendo de lo que tengas disponible
         const nombreVendedor = o.seller_name;
         const coincideVendedor = nombreVendedor.toLowerCase().includes(filtroVendedor.toLowerCase());
 
         return coincideDia && coincideId && coincideVendedor;
     });
 
-
-    // Modifica esta función dentro de HistDevolucionesPage.jsx
     const verDetalle = async (orden) => {
         setLoadingDetalle(true);
         setModalOpen(true);
         try {
-            // 1. Llamamos a ambos servicios en paralelo para tener la info completa
             const [historialDB, inventarioOriginal] = await Promise.all([
                 returnsService.getReturnHistory(orden.id),
-                returnsService.getTruckInventory(orden.id) // Este trae lo que "LLEVA" y el PRECIO
+                returnsService.getTruckInventory(orden.id)
             ]);
-
-            // 2. Cruzamos la información como lo haces en DevolucionesPage
             const itemsCompletos = inventarioOriginal.map(inv => {
                 const devolucion = historialDB.find(h => h.product_id === inv.product_id);
                 return {
@@ -65,7 +50,7 @@ export default function HistDevolucionesPage() {
                     product_name: inv.product_name,
                     despachado: inv.despachado,
                     precio_base: inv.precio_base,
-                    vendido: inv.vendido || 0, // <--- NUEVO: Traemos la venta real
+                    vendido: inv.vendido || 0,
                     cantidad_devuelta: devolucion ? devolucion.cantidad_devuelta : 0
                 };
             });
@@ -73,7 +58,7 @@ export default function HistDevolucionesPage() {
                 id: orden.id,
                 vendedor: orden.seller_name,
                 fecha: new Date(orden.created_at).toLocaleDateString(),
-                items: itemsCompletos // Ahora sí tiene todos los campos necesarios
+                items: itemsCompletos
             });
         } catch (err) {
             console.error(err);
@@ -94,7 +79,7 @@ export default function HistDevolucionesPage() {
             <div className="dias-selector-container">
                 {DIAS_SEMANA.map((dia, index) => (
                     <button
-                        key={dia}
+                        key={index} //   Solución rápida y segura para arrays estáticos
                         onClick={() => setDiaSeleccionado(index)}
                         className={`btn-dia ${diaSeleccionado === index ? 'selected' : ''}`}
                     >
@@ -102,8 +87,6 @@ export default function HistDevolucionesPage() {
                     </button>
                 ))}
             </div>
-
-            {/* --- CONTENEDOR DE BUSCADORES --- */}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', marginTop: '10px' }}>
                 <input
                     type="text"
@@ -127,6 +110,7 @@ export default function HistDevolucionesPage() {
                     <tr>
                         <th>ID Orden</th>
                         <th>Vendedor</th>
+                        <th>Fecha Despacho</th>
                         <th>Estado</th>
                         <th style={{ textAlign: 'center' }}>Accion</th>
                     </tr>
@@ -135,11 +119,26 @@ export default function HistDevolucionesPage() {
                     {ordenesFiltradas.length > 0 ? (
                         ordenesFiltradas.map((orden) => {
                             const status = orden.status;
+                            const fechaFormateada = orden.created_at
+                                ? new Date(orden.created_at).toLocaleDateString('es-ES', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })
+                                : 'Sin fecha';
 
                             return (
                                 <tr key={orden.id}>
                                     <td style={{ fontWeight: 'bold' }}>#{orden.id}</td>
                                     <td>{orden.seller_name || `ID: ${orden.user_id}`}</td>
+
+                                    {/* NUEVA CELDA CON LA FECHA */}
+                                    <td style={{ color: '#555', fontSize: '13px' }}>
+                                        {fechaFormateada}
+                                    </td>
+
                                     <td>
                                         <span style={{
                                             padding: '4px 8px',
@@ -153,19 +152,14 @@ export default function HistDevolucionesPage() {
                                             {status || 'PENDIENTE'}
                                         </span>
                                     </td>
-
-                                    {/* COLUMNA DE ACCIONES CON VALIDACIONES DE ROL */}
                                     <td style={{ width: '300px' }}>
                                         <div style={{
                                             display: 'flex',
                                             gap: '6px',
                                             justifyContent: 'center'
                                         }}>
-
-                                            {/* 1. BOTÓN DEVOLUCIÓN */}
                                             <button
                                                 onClick={() => navigate("/devoluciones", { state: { orderId: orden.id } })}
-                                                // Habilitado si el rol es ADMINISTRADOR, si no, se valida el estado
                                                 disabled={user.role !== 'ADMINISTRADOR' && (status === 'LIQUIDADO' || status === 'DEVOLUCION')}
                                                 title="Iniciar Devolución"
                                                 style={{
@@ -186,7 +180,7 @@ export default function HistDevolucionesPage() {
                                                 🔄 Devolución
                                             </button>
 
-                                            {/* 2. BOTÓN VER (Mantiene su comportamiento intacto) */}
+                                            {/* 2. BOTÓN VER */}
                                             <button
                                                 onClick={() => verDetalle(orden)}
                                                 disabled={status !== 'DEVOLUCION' && status !== 'LIQUIDADO'}
@@ -208,11 +202,8 @@ export default function HistDevolucionesPage() {
                                             >
                                                 👁️ Ver
                                             </button>
-
-                                            {/* 3. BOTÓN LIQUIDAR */}
                                             <button
                                                 onClick={() => navigate(`/liquidacion-ruta/${orden.id}`)}
-                                                // Si es ADMINISTRADOR siempre se habilita, de lo contrario evalúa si está en DEVOLUCION
                                                 disabled={user.role !== 'ADMINISTRADOR' && status !== 'DEVOLUCION'}
                                                 title="Realizar Liquidación"
                                                 style={{
@@ -239,15 +230,13 @@ export default function HistDevolucionesPage() {
                         })
                     ) : (
                         <tr>
-                            <td colSpan="4" style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                            <td colSpan="5" style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
                                 No se encontraron órdenes.
                             </td>
                         </tr>
                     )}
                 </tbody>
             </table>
-            {/* --- MODAL DE DETALLES (AGREGADA AQUÍ) --- */}
-            {/* --- MODAL DE DETALLES ACTUALIZADA --- */}
             {modalOpen && (
                 <div style={{
                     position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
@@ -297,18 +286,10 @@ export default function HistDevolucionesPage() {
                                             detalleSeleccionado.items.map((item, idx) => {
                                                 const lleva = Number(item.despachado) || 0;
                                                 const trae = Number(item.cantidad_devuelta) || 0;
-
-                                                // 1. Usamos la venta real que viene desde la base de datos
                                                 const venta = Number(item.vendido) || 0;
-
-                                                // 2. Cálculo del descuadre: lo que físicamente trajo menos lo que debió sobrar (lleva - venta)
                                                 const descuadre = trae - (lleva - venta);
-
                                                 const precio = Number(item.precio_base) || 0;
-
-                                                // CAMBIO AQUÍ: Multiplicación de VENTA x PRECIO para el Total de la fila
                                                 const totalRow = venta * precio;
-
                                                 return (
                                                     <tr key={idx}>
                                                         <td style={{ fontSize: '0.85rem' }}>{item.codg_barras}</td>
@@ -318,8 +299,6 @@ export default function HistDevolucionesPage() {
                                                         <td style={{ textAlign: 'center' }}>{venta}</td>
                                                         <td style={{ textAlign: 'right' }}>$ {precio.toLocaleString()}</td>
                                                         <td style={{ textAlign: 'right', fontWeight: 'bold' }}>$ {totalRow.toLocaleString()}</td>
-
-                                                        {/* 4. Nueva celda para mostrar el descuadre */}
                                                         <td style={{
                                                             textAlign: 'center',
                                                             fontWeight: 'bold',
@@ -337,8 +316,6 @@ export default function HistDevolucionesPage() {
                                         )}
                                     </tbody>
                                 </table>
-
-                                {/* SECCIÓN DE TOTAL SURTIDO CORREGIDA */}
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
                                     <div style={{
                                         backgroundColor: '#f8f9fa', border: '1px solid #ccc',
@@ -357,8 +334,6 @@ export default function HistDevolucionesPage() {
                                         </span>
                                     </div>
                                 </div>
-
-                                {/* Botones de Acción Inferiores - No se imprimen */}
                                 <div className="no-print" style={{ marginTop: '25px', display: 'flex', gap: '10px' }}>
                                     <button
                                         onClick={() => window.print()}
