@@ -39,18 +39,6 @@ export const orderService = {
     },
 
     /**
-     * ACTUALIZAR: Modificar datos básicos (ej: nombre del receptor).
-     */
-    updateOrder: async (orderId, updateData) => {
-        try {
-            const response = await api.put(`/orders/update/${orderId}`, updateData);
-            return response.data;
-        } catch (error) {
-            throw error.response?.data?.message || "Error al actualizar el pedido";
-        }
-    },
-
-    /**
      * EDICIÓN COMPLETA Y DINÁMICA: 
      * Envía seller_name, customer_type_id y el array de items.
      * Coincide con tu ruta Backend: router.put('/update-full/:id', ...)
@@ -79,17 +67,6 @@ export const orderService = {
             return response.data;
         } catch (error) {
             throw error.response?.data?.message || "Error al eliminar el pedido y restaurar stock";
-        }
-    },
-
-    // orderService.js
-    updateOrderStatus: async (orderId, status) => {
-        try {
-            // Asegúrate de que esta ruta coincida con tu backend
-            const response = await api.put(`/orders/update-status/${orderId}`, { status });
-            return response.data;
-        } catch (error) {
-            throw error.response?.data?.message || "Error al actualizar el estado";
         }
     },
 };

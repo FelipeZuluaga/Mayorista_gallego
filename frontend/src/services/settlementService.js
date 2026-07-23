@@ -12,10 +12,6 @@ const getHeaders = () => {
 };
 
 export const settlementService = {
-    /**
-     * Obtener vendedores filtrados por Rol.
-     * Si esta ruta se maneja en el router de orders u otro, asegúrate de dejar el prefijo correcto.
-     */
     getVendedoresPorRol: async (roleId) => {
         try {
             // Se asume que este endpoint se encuentra en la sección de orders o users
@@ -29,23 +25,6 @@ export const settlementService = {
             throw error.response?.data?.message || "Error al filtrar usuarios";
         }
     },
-
-    /**
-     * Actualiza el estado de una orden.
-     */
-    updateOrderStatus: async (orderId, status) => {
-        try {
-            const response = await api.put(`/orders/update-status/${orderId}`, { status }, getHeaders());
-            return response.data;
-        } catch (error) {
-            console.error("Error al actualizar el estado de la orden:", error);
-            throw error.response?.data?.message || "Error al actualizar el estado";
-        }
-    },
-
-    /**
-     * Marcar una orden físicamente como LIQUIDADO.
-     */
     markAsLiquidated: async (orderId) => {
         try {
             // CORREGIDO: Apunta a /settlement según tu server.js
@@ -56,26 +35,6 @@ export const settlementService = {
             throw error.response?.data?.message || "Error al marcar la orden como liquidada";
         }
     },
-
-    /**
-     * LIQUIDACIÓN ECONÓMICA DIARIA: 
-     * Procesa ventas, devoluciones, abonos y calcula el 50/50 y faltantes.
-     * Envía: { user_id, total_recaudado, ventas_totales, cartera_anterior, valor_almuerzo, valor_gasolina, ganancia_vendedor, efectivo_fisico, diferencia }
-     */
-    settleOrder: async (orderId, settlementData) => {
-        try {
-            // CORREGIDO: Apunta a /settlement según tu server.js
-            const response = await api.post(`/settlement/settle/${orderId}`, settlementData, getHeaders());
-            return response.data;
-        } catch (error) {
-            console.error("Error en settleOrder:", error.response?.data);
-            throw error.response?.data?.message || "Error al procesar la liquidación económica";
-        }
-    },
-
-    /**
-     * Obtiene la liquidación diaria consolidada ya guardada de una orden.
-     */
     getSettlementByOrder: async (orderId) => {
         try {
             if (!orderId) throw new Error("ID de orden no proporcionado");
@@ -87,10 +46,6 @@ export const settlementService = {
             throw error.response?.data?.message || "Error al obtener los datos de liquidación";
         }
     },
-
-    /**
-     * Obtiene las liquidaciones de toda la semana para la tabla de pagos de un vendedor.
-     */
     getWeeklySettlements: async (sellerName, startDate, endDate) => {
         try {
             // CORREGIDO: Apunta a /settlement según tu server.js
@@ -104,10 +59,6 @@ export const settlementService = {
             throw error.response?.data?.message || "Error al obtener los pagos semanales";
         }
     },
-
-    /**
-     * Obtiene todos los cierres de semana calculados e históricos para la administración.
-     */
     getWeeklyHistory: async () => {
         try {
             // CORREGIDO: Apunta a /settlement según tu server.js
@@ -118,10 +69,6 @@ export const settlementService = {
             throw error.response?.data?.message || "Error al obtener el historial de pagos";
         }
     },
-
-    /**
-     * Guarda el cierre definitivo de una semana completa en frío.
-     */
     saveWeeklySettlement: async (weeklyData) => {
         try {
             // CORREGIDO: Apunta a /settlement según tu server.js
@@ -132,10 +79,6 @@ export const settlementService = {
             throw error.response?.data?.message || "Error al cerrar y registrar la semana";
         }
     },
-
-    /** 
-     * Obtiene el acumulado global de ganancias e historial por vendedor.
-     */
     getGananciasVendedores: async () => {
         try {
             // CORREGIDO: Apunta a /settlement según tu server.js

@@ -90,7 +90,7 @@ export default function DespachoPage() {
                 });
 
                 await alertSuccess("Despacho Exitoso", "El stock ha sido actualizado correctamente.");
-                navigate("/pedidos"); // Cambia esto por tu ruta de historial si es diferente
+                navigate("/historialDespachos");
             } catch (err) {
                 alertError("Error de Proceso", err);
             } finally {
@@ -136,7 +136,7 @@ export default function DespachoPage() {
             <div className="inv-card full-width-card">
                 <div className="form-grid">
                     <div className="input-group">
-                        <label><Truck size={14} /> Tipo de Lista de Precios y cliente</label>
+                        <label><Truck size={14} /> Tipo de cliente</label>
                         <select value={customerTypeId} onChange={(e) => setCustomerTypeId(e.target.value)}>
                             <option value="1">CLIENTE</option>        {/* ID 1 en BD es CLIENTE */}
                             <option value="2">SOCIO</option>          {/* ID 2 en BD es SOCIO */}
@@ -146,11 +146,10 @@ export default function DespachoPage() {
                     </div>
 
                     <div className="input-group">
-                        <label><User size={14} /> Vendedor / Receptor / Cliente</label>
+                        <label><User size={14} /> Codigo vendedor </label>
                         <input
                             value={sellerName}
                             onChange={e => setSellerName(e.target.value)}
-                            placeholder="Nombre de quien recibe la mercancía"
                         />
                     </div>
                 </div>
@@ -212,7 +211,7 @@ export default function DespachoPage() {
                     <table className="inv-table">
                         <thead>
                             <tr>
-                                <th>Código</th> {/* Nueva columna añadida */}
+                                <th>Código</th>
                                 <th>Producto</th>
                                 <th>Stock Actual</th>
                                 <th>Precio Unit.</th>
@@ -236,10 +235,7 @@ export default function DespachoPage() {
                                 })
                                 .map(p => (
                                     <tr key={p.id} className={Number(quantities[p.id]) > 0 ? "row-selected" : ""}>
-                                        {/* 1. Muestra el código de barras aquí de primeras */}
                                         <td className="font-mono text-gray-500">{p.barcode || "-"}</td>
-
-                                        {/* 2. El nombre del producto pasa a ser la segunda columna */}
                                         <td className="font-bold">{p.name}</td>
                                         <td>
                                             <span className={`badge-stock ${p.stock < 10 ? 'stock-low' : ''}`}>
@@ -265,8 +261,6 @@ export default function DespachoPage() {
                         </tbody>
                     </table>
                 </div>
-
-                {/* SECCIÓN MODIFICADA: Ahora es 'sticky' para que no se pierda al hacer scroll */}
                 <div className="form-actions" style={{
                     marginTop: '30px',
                     display: 'flex',

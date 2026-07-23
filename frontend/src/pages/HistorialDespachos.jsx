@@ -7,7 +7,7 @@ import {
     X, Eye, Edit3, Save, Trash2, Plus, Minus,
 } from "lucide-react";
 
-export default function PedidosPage() {
+export default function HistorialDespachos() {
     const [orders, setOrders] = useState([]);
     const [allProducts, setAllProducts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -252,12 +252,12 @@ export default function PedidosPage() {
         switch (user?.role?.toUpperCase()) {
             case 'ADMINISTRADOR':
                 return {
-                    title: "Informe de Despachos cargados",
-                    subtitle: "Supervisión total de ventas, despachos y stock"
+                    title: "Historial de Despachos cargados",
+                    subtitle: "Supervisión total de despachos"
                 };
             case 'DESPACHADOR':
                 return {
-                    title: "Gestión de Despachos",
+                    title: "Historial de Mis Despachos cargados",
                     subtitle: "Control de salida de mercancía y pedidos activos"
                 };
             default:

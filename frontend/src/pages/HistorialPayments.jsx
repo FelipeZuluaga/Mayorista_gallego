@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { saleService } from '../services/saleService';
+import { settlementService } from '../services/settlementService';
 import { useNavigate } from 'react-router-dom';
 import { Eye, DollarSign } from 'lucide-react';
 
-export default function HistorialPagos() {
+export default function HistorialPayments() {
     const [historial, setHistorial] = useState([]);
     const [loading, setLoading] = useState(true);
     const [busqueda, setBusqueda] = useState("");
@@ -19,7 +19,7 @@ export default function HistorialPagos() {
     const cargarHistorial = async () => {
         try {
             setLoading(true);
-            const data = await saleService.getWeeklyHistory();
+            const data = await settlementService.getWeeklyHistory();
             
             // --- FILTRADO POR ROL (FRONTEND) ---
             // Si no es Administrador, filtramos para que solo vea sus propios registros
@@ -95,7 +95,7 @@ export default function HistorialPagos() {
                 {/* Encabezado */}
                 <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <header className="ruta-header-main">
-                        <h1>{esAdmin ? '🚀 Historial y proceso de pagos semanal' : '🚚 Mi historial y proceso de pagos semanal'}</h1>
+                        <h1>{esAdmin ? '🚀 Historial y Proceso de Pagos Semanal' : '🚚 Mi Historial y Proceso de Pagos Semanal'}</h1>
                         <p>{esAdmin ? 'GESTIÓN, HISTORIAL DE LIQUIDACIÓN Y PAGOS SEMANALES' : 'HISTORIAL DE LIQUIDACIÓN Y PAGOS SEMANALES'}</p>
                     </header>
                     <div style={{ marginLeft: 'auto', paddingLeft: '15px', width: '260px', flexShrink: 0 }}>

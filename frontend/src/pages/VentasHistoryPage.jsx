@@ -12,7 +12,7 @@ export default function VentasHistoryPage() {
     const [vendedorSeleccionado, setVendedorSeleccionado] = useState("");
     
     const navigate = useNavigate();
-    const DIAS_SEMANA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const DIAS_SEMANA = ["", "", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     const [diaSeleccionado, setDiaSeleccionado] = useState(new Date().getDay());
     const user = JSON.parse(localStorage.getItem("user"));
 
@@ -78,7 +78,7 @@ export default function VentasHistoryPage() {
     return (
         <div className="inv-page full-layout history-container">
             <header className="ruta-header-main">
-                <h1>{user.role === 'ADMINISTRADOR' ? '🚀 Venta y liquidación de Rutas' : '🚚 Informe de Venta y liquidación de mis Rutas'}</h1>
+                <h1>{user.role === 'ADMINISTRADOR' ? '🚀 Historial de Rutas y Liquidación diaria' : '🚚 Mi Historial de Rutas y Liquidación diaria'}</h1>
                 <p>Viendo rutas del día: <strong>{DIAS_SEMANA[diaSeleccionado]}</strong></p>
             </header>
             

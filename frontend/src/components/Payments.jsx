@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { saleService } from '../services/saleService';
+import { settlementService } from '../services/settlementService';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { alertConfirmUsers, alertSuccess, alertError } from '../services/alertService';
 
-export default function Pagos() {
+export default function Payments() {
     const navigate = useNavigate();
     const { state } = useLocation();
 
@@ -86,7 +86,7 @@ export default function Pagos() {
 
                 setRangoTexto(state?.datosLiquidacion?.rango_fechas || fechas.texto);
 
-                const data = await saleService.getWeeklySettlements(targetSellerName, fechas.start, fechas.end);
+                const data = await settlementService.getWeeklySettlements(targetSellerName, fechas.start, fechas.end);
 
                 console.log("Datos que llegaron al Frontend:", data);
                 setSettlementsWeek(data);
@@ -199,7 +199,7 @@ export default function Pagos() {
 
             console.log("Enviando este cierre al servidor:", payload);
 
-            const response = await saleService.saveWeeklySettlement(payload);
+            const response = await settlementService.saveWeeklySettlement(payload);
 
             if (response.success) {
                 await alertSuccess("¡Éxito!", "La semana ha sido guardada en la base de datos de manera definitiva.");

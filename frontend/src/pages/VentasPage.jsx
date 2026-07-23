@@ -17,8 +17,6 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useNavigate } from "react-router-dom";
 
-// --- 1. MOVER EL MODAL FUERA DEL COMPONENTE PRINCIPAL ---
-// Esto evita que el input pierda el foco al escribir.
 const ModalProductos = ({
     show,
     onClose,
@@ -158,7 +156,7 @@ export default function VentasPage() {
     const [loading, setLoading] = useState(true);
     const [orderItems, setOrderItems] = useState([]);
     const [planilla, setPlanilla] = useState([]);
-    const DIAS_SEMANA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const DIAS_SEMANA = ["", "", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     const [diaSeleccionado, setDiaSeleccionado] = useState(new Date().getDay());
     // ESTADOS PARA FILTRADO DINÁMICO
     const [filterID, setFilterID] = useState("");
@@ -802,6 +800,7 @@ export default function VentasPage() {
     };
 
     if (loading) return <div className="loading-screen">Cargando...</div>;
+
     return (
         <div className="ventas-container">
             {/* MODAL DE PRODUCTOS - Solo se muestra si hay un cliente seleccionado */}
@@ -1204,16 +1203,18 @@ export default function VentasPage() {
                                                 {/* Mostramos Deuda Previa */}
                                                 <td>${deudaPrevia.toLocaleString()}</td>
                                                 {/* ABONO RECIBIDO*/}
+                                                {/* ABONO RECIBIDO CON FORMATO DE MILES COP */}
                                                 <td>
                                                     <input
-                                                        type="number"
+                                                        type="text"
                                                         className="input-celda"
-                                                        value={cliente.amount_paid || ""}
+                                                        value={formatearMiles(cliente.amount_paid)}
                                                         disabled={esLleso}
                                                         placeholder="0"
-                                                        onChange={(e) =>
-                                                            updateCelda(idx, "amount_paid", Number(e.target.value) || 0)
-                                                        }
+                                                        onChange={(e) => {
+                                                            const valorLimpio = desformatearMiles(e.target.value);
+                                                            updateCelda(idx, "amount_paid", valorLimpio);
+                                                        }}
                                                     />
                                                 </td>
                                                 {/* CELDA DE NUEVO SALDO (Ahora sí existe la variable) */}
