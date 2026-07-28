@@ -93,9 +93,19 @@ export default function HistorialDespachos() {
         }
     };
 
-    const handleRemoveItem = (index) => {
-        const newItems = editForm.items.filter((_, i) => i !== index);
-        setEditForm({ ...editForm, items: newItems });
+    const handleRemoveItem = async (index) => {
+        // Obtenemos el producto a eliminar para mostrar su nombre en el mensaje (opcional)
+        const itemToRemove = editForm.items[index];
+
+        const confirm = await alertConfirm(
+            "¿Eliminar producto?",
+            `¿Estás seguro de quitar "${itemToRemove.product_name}" de este pedido?`
+        );
+
+        if (confirm.isConfirmed) {
+            const newItems = editForm.items.filter((_, i) => i !== index);
+            setEditForm({ ...editForm, items: newItems });
+        }
     };
 
     const handleAddItem = (productId) => {

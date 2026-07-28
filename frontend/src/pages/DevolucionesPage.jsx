@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { returnsService } from "../services/returnsService";
-import { alertError } from "../services/alertService";
+import { alertError, alertConfirmUsers } from "../services/alertService";
 import "../styles/devoluciones.css";
 
 export default function DevolucionesPage() {
@@ -14,13 +14,15 @@ export default function DevolucionesPage() {
     const [loading, setLoading] = useState(true);
     const [procesando, setProcesando] = useState(false);
 
-    // NUEVO: Estado para saber si la liquidación ya está cerrada
+    // Estado para saber si la orden ya está totalmente liquidada
     const [esLiquidado, setEsLiquidado] = useState(false);
 
-    // NUEVO: Estados para encabezado dinámico
+    // Estados para el encabezado dinámico
     const [nombreVendedor, setNombreVendedor] = useState("");
     const [fechaDevolucion, setFechaDevolucion] = useState("");
 
+    const [barcodeInput, setBarcodeInput] = useState("");
+    const barcodeInputRef = useRef(null);
     const barcodeBuffer = useRef("");
 
     useEffect(() => {
@@ -32,31 +34,24 @@ export default function DevolucionesPage() {
                 // 1. Consultar estado de la orden y el historial de devoluciones en paralelo
                 const [infoOrden, historialDB] = await Promise.all([
                     returnsService.settleOrder(orderId),
-
                     returnsService.getReturnHistory(orderId)
                 ]);
-                // NUEVO: Seteamos el nombre del vendedor y la fecha actual
+
                 setNombreVendedor(infoOrden.seller_name || "VENDEDOR NO IDENTIFICADO");
                 setFechaDevolucion(new Date().toLocaleDateString());
 
-
-                // --- LÓGICA DE BLOQUEO ACTUALIZADA ---
-                // Verificamos si el estado es DEVOLUCION o LIQUIDADO
-                const estadoActual = String(infoOrden.status).trim().toUpperCase();
-                const yaFinalizado = estadoActual === 'DEVOLUCION' || estadoActual === 'LIQUIDADO';
-
-                setEsLiquidado(yaFinalizado);
-
-                // FORZAMOS EL ESTADO: Asegúrate de que infoOrden.status sea 'LIQUIDADO'
-                const isLiq = String(infoOrden.status).trim().toUpperCase() === 'LIQUIDADO';
-                setEsLiquidado(isLiq);
+                // --- LÓGICA DE BLOQUEO CORREGIDA ---
+                // Solo se bloquea si la orden ya fue LIQUIDADA por el administrador.
+                // Si está en 'DEVOLUCION', permite re-ingresar y actualizar.
+                const estadoActual = String(infoOrden.status || '').trim().toUpperCase();
+                const ordenCerrada = estadoActual === 'LIQUIDADO';
+                setEsLiquidado(ordenCerrada);
 
                 // 2. Obtener el inventario que se despachó originalmente
                 const dataInventario = sobrantes || await returnsService.getTruckInventory(orderId);
 
-                // 3. Mapear los productos cruzando la información
+                // 3. Mapear los productos cruzando la información previa de la BD
                 const itemsMapeados = dataInventario.map(item => {
-                    // Buscamos si este producto específico está en el historial de la DB
                     const registroPrevio = historialDB.find(h => h.product_id === item.product_id);
 
                     return {
@@ -65,17 +60,18 @@ export default function DevolucionesPage() {
                         product_name: item.product_name || 'Producto',
                         despachado: Number(item.despachado) || 0,
                         precio_base: Number(item.precio_base) || 0,
-
-                        // <--- NUEVO: Guardamos lo vendido que ya calculó el backend
                         vendido: Number(item.vendido) || 0,
-
-                        // Si existe en la DB, usamos esa cantidad; si no, por defecto calculamos: despachado - vendido
-                        cantidad_a_devolver: registroPrevio ? Number(registroPrevio.cantidad_devuelta) : (Number(item.despachado) - Number(item.vendido))
+                        // Si existe registro previo de devolución en BD, usamos esa cantidad;
+                        // de lo contrario, calculamos: despachado - vendido
+                        cantidad_a_devolver: registroPrevio 
+                            ? Number(registroPrevio.cantidad_devuelta) 
+                            : (Number(item.despachado) - Number(item.vendido))
                     };
                 });
 
                 setItemsDevolver(itemsMapeados);
             } catch (err) {
+                console.error(err);
                 alertError("Error", "No se pudo cargar la información de la planilla.");
             } finally {
                 setLoading(false);
@@ -85,12 +81,10 @@ export default function DevolucionesPage() {
         inicializarPagina();
     }, [orderId, sobrantes, navigate]);
 
-    // LÓGICA DE ESCANEO (Bloqueada si esLiquidado es true)
-    // LÓGICA DE ESCANEO CORREGIDA
+    // LÓGICA DE ESCANEO POR TECLADO
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (esLiquidado) return;
-
             if (document.activeElement.tagName === "INPUT" && document.activeElement.type === "text") return;
 
             if (e.key === "Enter") {
@@ -98,11 +92,9 @@ export default function DevolucionesPage() {
                 if (code) {
                     setItemsDevolver(prev => prev.map(item => {
                         if (item.codg_barras === code) {
-                            // VALIDACIÓN: Solo sumar si lo que trae es MENOR a lo que lleva (despachado)
                             if (item.cantidad_a_devolver < item.despachado) {
                                 return { ...item, cantidad_a_devolver: item.cantidad_a_devolver + 1 };
                             } else {
-                                // Opcional: Podrías lanzar una alerta aquí si intentan pistolear de más
                                 console.warn("Límite alcanzado para este producto");
                                 return item;
                             }
@@ -120,16 +112,43 @@ export default function DevolucionesPage() {
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [esLiquidado, itemsDevolver]); // Añadimos itemsDevolver a las dependencias para tener los datos frescos
+    }, [esLiquidado]);
+
+    useEffect(() => {
+        if (!loading && !esLiquidado && barcodeInputRef.current) {
+            barcodeInputRef.current.focus();
+        }
+    }, [loading, esLiquidado]);
+
+    const handleBarcodeScan = (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            const code = barcodeInput.trim();
+
+            if (code) {
+                setItemsDevolver((prev) =>
+                    prev.map((item) => {
+                        if (item.codg_barras === code) {
+                            if (item.cantidad_a_devolver < item.despachado) {
+                                return { ...item, cantidad_a_devolver: item.cantidad_a_devolver + 1 };
+                            } else {
+                                console.warn("Límite alcanzado para este producto");
+                            }
+                        }
+                        return item;
+                    })
+                );
+            }
+            setBarcodeInput("");
+        }
+    };
 
     const handleCantidadChange = (id, valor) => {
-        // BLOQUEO DE SEGURIDAD: Si la orden está liquidada, no permite cambios en el estado
         if (esLiquidado) return;
 
         const numValor = Number(valor) || 0;
         setItemsDevolver(prev => prev.map(item => {
             if (item.product_id === id) {
-                // Validar que no devuelva más de lo que lleva
                 const cantidadValidada = numValor > item.despachado ? item.despachado : numValor;
                 return { ...item, cantidad_a_devolver: cantidadValidada };
             }
@@ -138,103 +157,165 @@ export default function DevolucionesPage() {
     };
 
     const handleLiquidacion = async () => {
-        if (esLiquidado) return; //
-        setProcesando(true); //
+        if (esLiquidado) return;
+
+        const confirmed = await alertConfirmUsers(
+            "¿Estás seguro?",
+            "¿Estás seguro que quieres guardar/actualizar la devolución?"
+        );
+
+        if (!confirmed) return;
+
+        setProcesando(true);
 
         try {
-            const devolucionesParaEnviar = itemsDevolver
-                .filter(item => item.cantidad_a_devolver > 0) //[cite: 1]
-                .map(item => {
-                    const despachado = Number(item.despachado) || 0; //[cite: 1]
-                    const trae = Number(item.cantidad_a_devolver) || 0; //[cite: 1]
-                    const venta = despachado - trae; // Lo que realmente se vendió[cite: 1]
+            // Mapeamos todos los ítems para que el backend maneje inserción y actualización limpia
+            const devolucionesParaEnviar = itemsDevolver.map(item => {
+                const despachado = Number(item.despachado) || 0;
+                const trae = Number(item.cantidad_a_devolver) || 0;
+                const venta = despachado - trae;
 
-                    return {
-                        order_id: orderId, //[cite: 1]
-                        product_id: item.product_id, //[cite: 1]
-                        quantity: trae, // Cantidad devuelta[cite: 1]
-                        sold_quantity: venta // <--- NUEVO: Cantidad vendida de este producto
-                    };
-                });
+                return {
+                    order_id: orderId,
+                    product_id: item.product_id,
+                    quantity: trae,
+                    sold_quantity: venta
+                };
+            });
 
-            // 1. Procesar los items devueltos (si hay alguno)
-            if (devolucionesParaEnviar.length > 0) {
-                await returnsService.processReturn({ //[cite: 1]
-                    order_id: orderId, //[cite: 1]
-                    items: devolucionesParaEnviar //[cite: 1]
-                });
-            }
+            // 1. Procesar devolución en Backend
+            await returnsService.processReturn({
+                order_id: orderId,
+                items: devolucionesParaEnviar
+            });
 
-            // 2. Aseguramos el cambio de estado a 'DEVOLUCION'
-            await returnsService.updateOrderStatus(orderId, 'DEVOLUCION'); //[cite: 1]
+            // 2. Actualizar estado de la orden a 'DEVOLUCION'
+            await returnsService.updateOrderStatus(orderId, 'DEVOLUCION');
 
-            navigate("/historial-devoluciones"); //[cite: 1]
+            navigate("/historial-devoluciones");
 
         } catch (error) {
-            console.error(error); //[cite: 1]
-            alertError("Error", "No se pudo completar el proceso de devolución"); //[cite: 1]
+            console.error(error);
+            alertError("Error", "No se pudo completar el proceso de devolución");
         } finally {
-            setProcesando(false); //[cite: 1]
+            setProcesando(false);
         }
     };
 
-    // Filtramos los ítems y luego los ordenamos para que los que tienen "TRAE" > 0 suban al principio
     const itemsFiltrados = itemsDevolver
         .filter(item =>
             item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             item.codg_barras.includes(searchTerm)
         )
         .sort((a, b) => {
-            // Si 'b' tiene cantidad y 'a' no, 'b' sube (devoluciones primero)
             const aTieneDevolucion = a.cantidad_a_devolver > 0 ? 1 : 0;
             const bTieneDevolucion = b.cantidad_a_devolver > 0 ? 1 : 0;
-
             return bTieneDevolucion - aTieneDevolucion;
         });
 
-    // CAMBIO AQUÍ: Reduce acumulando (venta * precio) de cada ítem
     const totalSuma = itemsDevolver.reduce((acc, item) => {
-        const venta = Number(item.vendido) || 0; // Tomamos la cantidad vendida
-        const precio = Number(item.precio_base) || 0; // Tomamos el precio base
+        const venta = Number(item.vendido) || 0;
+        const precio = Number(item.precio_base) || 0;
         return acc + (venta * precio);
     }, 0);
-
-    // Función para disparar la impresión del navegador
-    const handlePrint = () => {
-        window.print();
-    };
 
     if (loading) return <div className="loading-state">Cargando...</div>;
 
     return (
         <div className="devoluciones-container">
-            <div className="header-actions">
-                <button className="btn-back" onClick={() => navigate(-1)}>← Volver</button>
+            {/* CONTENEDOR SUPERIOR */}
+            <div className="header-actions" style={{
+                display: 'grid',
+                gridTemplateColumns: 'auto 1fr auto',
+                alignItems: 'center',
+                marginBottom: '20px',
+                backgroundColor: '#fff',
+                padding: '12px 20px',
+                borderRadius: '8px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+            }}>
+                <div>
+                    <button
+                        className="btn-back"
+                        onClick={() => navigate(-1)}
+                        style={{
+                            margin: 0,
+                            backgroundColor: '#9b111e',
+                            color: '#ffffff',
+                            border: 'none',
+                            padding: '8px 16px',
+                            borderRadius: '6px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            transition: 'background-color 0.2s ease'
+                        }}
+                    >
+                        ← Volver
+                    </button>
+                </div>
 
-                <h3 style={{ margin: 0, color: '#333', textTransform: 'uppercase', }}>
-                    HOJA DE DEVOLUCIÓN
-                </h3>
+                <div style={{ textAlign: 'center', color: '#333' }}>
+                    <h3 style={{ margin: 0, textTransform: 'uppercase', fontSize: '1.2rem', fontWeight: 'bold', color: '#1e293b' }}>
+                        ID ORDEN: #{orderId}
+                    </h3>
+                    <p style={{ margin: '4px 0 0', fontSize: '0.88rem', color: '#64748b' }}>
+                        <strong>VENDEDOR:</strong> {nombreVendedor} &nbsp;
+                    </p>
+                </div>
+
+                <div style={{ width: '80px' }}></div>
             </div>
 
-            <div className="search-container" style={{ marginBottom: '20px' }}>
-                <input
-                    type="text"
-                    placeholder={esLiquidado ? "MODO CONSULTA - ORDEN CERRADA" : "Buscar por nombre..."}
-                    className="input-search"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    // Solo deshabilitamos si ya está liquidado
-                    disabled={esLiquidado}
-                    style={{
-                        width: '100%',
-                        padding: '10px',
-                        backgroundColor: esLiquidado ? '#e9ecef' : '#fff',
-                        cursor: esLiquidado ? 'not-allowed' : 'text'
-                    }}
-                />
+            {/* CONTENEDOR DE INPUTS */}
+            <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
+                <div style={{ flex: '1' }}>
+                    <input
+                        ref={barcodeInputRef}
+                        type="text"
+                        placeholder={esLiquidado ? "MODO CONSULTA - ORDEN LIQUIDADA" : "📷 Pistolea el código aquí..."}
+                        className="input-search"
+                        value={barcodeInput}
+                        onChange={(e) => setBarcodeInput(e.target.value)}
+                        onKeyDown={handleBarcodeScan}
+                        disabled={esLiquidado}
+                        style={{
+                            width: '100%',
+                            padding: '10px 14px',
+                            fontSize: '0.95rem',
+                            border: '2px solid #1e293b',
+                            borderRadius: '6px',
+                            backgroundColor: esLiquidado ? '#e9ecef' : '#fff',
+                            cursor: esLiquidado ? 'not-allowed' : 'text',
+                            outline: 'none',
+                            boxSizing: 'border-box'
+                        }}
+                    />
+                </div>
+
+                <div style={{ flex: '1' }}>
+                    <input
+                        type="text"
+                        placeholder={esLiquidado ? "MODO CONSULTA - ORDEN LIQUIDADA" : "🔍 Buscar por nombre..."}
+                        className="input-search"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        disabled={esLiquidado}
+                        style={{
+                            width: '100%',
+                            padding: '10px 14px',
+                            fontSize: '0.95rem',
+                            border: '1px solid #ccc',
+                            borderRadius: '6px',
+                            backgroundColor: esLiquidado ? '#e9ecef' : '#fff',
+                            cursor: esLiquidado ? 'not-allowed' : 'text',
+                            outline: 'none',
+                            boxSizing: 'border-box'
+                        }}
+                    />
+                </div>
             </div>
 
-            {/* El wrapper solo bloquea los clicks si esLiquidado es true */}
+            {/* TABLA DE DEVOLUCIONES */}
             <div className="planilla-wrapper" style={{
                 pointerEvents: esLiquidado ? 'none' : 'auto',
                 opacity: esLiquidado ? 0.9 : 1
@@ -249,22 +330,15 @@ export default function DevolucionesPage() {
                             <th>VENTA</th>
                             <th>PRECIO</th>
                             <th>TOTAL</th>
-                            <th>DESCAUDRE</th>
+                            <th>DESCUADRE</th>
                         </tr>
                     </thead>
                     <tbody>
                         {itemsFiltrados.map((item) => {
-                            // 1. Cálculos
                             const despachado = Number(item.despachado) || 0;
                             const trae = Number(item.cantidad_a_devolver) || 0;
-
-                            // Toma el valor real vendido desde la base de datos
                             const venta = Number(item.vendido) || 0;
-
-                            // El descuadre se calcula en base a lo que devolvió físicamente vs lo que debería haber sobrado
                             const descuadre = trae - (despachado - venta);
-
-                            // CAMBIO AQUÍ: Ahora multiplica VENTA por el precio base
                             const total = venta * item.precio_base;
 
                             return (
@@ -273,7 +347,6 @@ export default function DevolucionesPage() {
                                     <td>{item.product_name}</td>
                                     <td className="text-center">{despachado}</td>
 
-                                    {/* Campo TRAE (Input) */}
                                     <td className="text-center">
                                         <input
                                             type="number"
@@ -292,13 +365,9 @@ export default function DevolucionesPage() {
                                         />
                                     </td>
 
-                                    {/* Campo VENTA (Mostrará los "5" artículos vendidos de tu base de datos) */}
                                     <td className="text-center">{venta}</td>
-
                                     <td className="text-right">{item.precio_base.toLocaleString()}</td>
                                     <td className="text-right">{total.toLocaleString()}</td>
-
-                                    {/* Campo DESCAUDRE */}
                                     <td className="text-center" style={{ fontWeight: 'bold', color: descuadre !== 0 ? 'red' : 'inherit' }}>
                                         {descuadre}
                                     </td>
@@ -333,8 +402,6 @@ export default function DevolucionesPage() {
                 </div>
             </div>
 
-
-
             <div className="footer-actions" style={{ marginTop: '30px' }}>
                 {!esLiquidado ? (
                     <button
@@ -342,10 +409,9 @@ export default function DevolucionesPage() {
                         onClick={handleLiquidacion}
                         disabled={procesando}
                     >
-                        {procesando ? "PROCESANDO..." : "🚀 FINALIZAR DEVOLUCIÓN"}
+                        {procesando ? "PROCESANDO..." : "🚀 FINALIZAR / ACTUALIZAR DEVOLUCIÓN"}
                     </button>
                 ) : (
-                    /* BOTÓN EN ESTADO CERRADO */
                     <button
                         className="btn-liquidar"
                         style={{
@@ -355,7 +421,7 @@ export default function DevolucionesPage() {
                         }}
                         disabled
                     >
-                        ✅ ESTA ORDEN DEVUELTA
+                        ✅ ORDEN LIQUIDADA (CERRADA)
                     </button>
                 )}
             </div>

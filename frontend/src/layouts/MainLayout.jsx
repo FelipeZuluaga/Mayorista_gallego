@@ -32,12 +32,12 @@ function MainLayout({ children }) {
         { to: "/AdminDashboard/users", label: "Creación Usuarios", icon: <Lucide.Users size={18} />, roles: ["ADMINISTRADOR"] },
         { to: "/Inventory", label: "Ingreso Productos / Inventario", icon: <Lucide.Package size={18} />, roles: ["ADMINISTRADOR"] },
         { to: "/despacho", label: "Despachos", icon: <Lucide.Truck size={18} />, roles: ["ADMINISTRADOR"] },
-        { to: "/pedidos", label: "Informe de Despachos cargados", icon: <Lucide.ClipboardList size={18} />, roles: ["ADMINISTRADOR"] },
+        { to: "/historialDespachos", label: "Historial de Despachos cargados", icon: <Lucide.ClipboardList size={18} />, roles: ["ADMINISTRADOR"] },
         { to: "/historial-devoluciones", label: "Informe y proc. Devolución", icon: <Lucide.RotateCcw size={18} />, roles: ["ADMINISTRADOR"] },
     
         //DESPACHADOR
         { to: "/despacho", label: "Mis Despachos", icon: <Lucide.Truck size={18} />, roles: ["DESPACHADOR"] },
-        { to: "/pedidos", label: "Informe de Mis Despachos cargadas", icon: <Lucide.ClipboardList size={18} />, roles: ["DESPACHADOR"] },
+        { to: "/historialDespachos", label: "Historial de Mis Despachos cargadas", icon: <Lucide.ClipboardList size={18} />, roles: ["DESPACHADOR"] },
         { to: "/historial-devoluciones", label: "Informe y proc. de Mis Devolución", icon: <Lucide.RotateCcw size={18} />, roles: ["DESPACHADOR"] },
 
 

@@ -34,8 +34,16 @@ const settleOrder = async (req, res) => {
             WHERE id IN (SELECT DISTINCT customer_id FROM sales WHERE order_id = ?)
         `, [orderId]);
 
-        // 3. OBTENER USER_ID DE LA ORDEN
-        const [orderInfo] = await db.query("SELECT user_id FROM orders WHERE id = ?", [orderId]);
+        // 3. OBTENER INFORMACIÓN DE LA ORDEN (USER_ID, SELLER_NAME, CREATED_AT, STATUS)
+        const [orderInfo] = await db.query(
+            "SELECT user_id, seller_name, created_at, status FROM orders WHERE id = ?",
+            [orderId]
+        );
+
+        const info = orderInfo[0] || {};
+        const sellerName = info.seller_name || "VENDEDOR NO IDENTIFICADO";
+        const createdAt = info.created_at || null;
+        const status = info.status || 'PENDIENTE';
 
         // 4. NUEVO: CALCULAR EL SURTIDO REAL BASADO EN DEVOLUCIONES
         // Restamos lo devuelto (order_returns) de lo despachado originalmente (order_items)
@@ -55,10 +63,12 @@ const settleOrder = async (req, res) => {
         // 5. FLUJO DE CONSULTA (Si no hay efectivo_fisico enviado)
         if (efectivo_fisico === undefined) {
             return res.json({
-                user_id: orderInfo[0]?.user_id,
+                user_id: info.user_id,
+                seller_name: sellerName,      // <--- Trae el vendedor directamente
+                created_at: createdAt,        // <--- Trae la fecha directamente
+                status: status,
                 total_recaudado: cashData[0].total_recaudado,
-                // Retornamos el cálculo real basado en las devoluciones registradas
-                ventas_totales_hoy: totalSurtidoReal, 
+                ventas_totales_hoy: totalSurtidoReal,
                 cartera_anterior: carteraData[0].cartera_anterior
             });
         }
@@ -139,7 +149,7 @@ const processReturn = async (req, res) => {
 
         // 4. APLICAR LAS NUEVAS DEVOLUCIONES FÍSICAS ACTUALIZADAS
         for (const item of items) {
-            const cantADevolver = parseInt(item.quantity); 
+            const cantADevolver = parseInt(item.quantity);
             const productId = item.product_id;
 
             if (!isNaN(cantADevolver) && cantADevolver >= 0) {

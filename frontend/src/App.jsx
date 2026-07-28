@@ -29,6 +29,9 @@ import SettlementModule from "./components/SettlementModule.jsx";
 import HistorialPayments from "./pages/HistorialPayments.jsx";
 import Payments from "./components/Payments.jsx";
 
+//GANANCIAS
+import Ganancias from "./components/Ganancias.jsx";
+
 
 export default function AppRouter() {
   return (
@@ -173,6 +176,16 @@ export default function AppRouter() {
             <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO", "NO_SOCIO"]}>
               <MainLayout>
                 <Payments />
+              </MainLayout>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/ganancias"
+          element={
+            <RoleRoute allowedRoles={["ADMINISTRADOR", "SOCIO", "NO_SOCIO"]}>
+              <MainLayout>
+                <Ganancias />
               </MainLayout>
             </RoleRoute>
           }

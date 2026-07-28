@@ -10,7 +10,7 @@ export default function HistDevolucionesPage() {
     const [filtroId, setFiltroId] = useState("");
     const [filtroVendedor, setFiltroVendedor] = useState("");
     const navigate = useNavigate();
-    const DIAS_SEMANA = ["","","Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const DIAS_SEMANA = ["", "", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     const [diaSeleccionado, setDiaSeleccionado] = useState(new Date().getDay());
     const user = JSON.parse(localStorage.getItem("user"));
     const [modalOpen, setModalOpen] = useState(false);
@@ -68,7 +68,14 @@ export default function HistDevolucionesPage() {
             setLoadingDetalle(false);
         }
     };
+    const role = user?.role?.toUpperCase();
 
+    // Permisos según tus requerimientos:
+    // - SOCIO y NO_SOCIO (o cualquier rol distinto a ADMIN/DESPACHADOR) no pueden hacer devoluciones.
+    const canReturn = ["ADMINISTRADOR", "DESPACHADOR"].includes(role);
+
+    // - Solo el ADMINISTRADOR puede liquidar (DESPACHADOR, SOCIO y NO_SOCIO tienen prohibido liquidar).
+    const canLiquidate = role === "ADMINISTRADOR";
     return (
         <div className="p-6">
             <header className="ruta-header-main">
@@ -153,34 +160,39 @@ export default function HistDevolucionesPage() {
                                         </span>
                                     </td>
                                     <td style={{ width: '300px' }}>
-                                        <div style={{
-                                            display: 'flex',
-                                            gap: '6px',
-                                            justifyContent: 'center'
-                                        }}>
+                                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+
+                                            {/* 1. BOTÓN DEVOLUCIÓN */}
                                             <button
                                                 onClick={() => navigate("/devoluciones", { state: { orderId: orden.id } })}
-                                                disabled={user.role !== 'ADMINISTRADOR' && (status === 'LIQUIDADO' || status === 'DEVOLUCION')}
-                                                title="Iniciar Devolución"
+                                                /* Se deshabilita solo si NO tiene permisos o si la orden ya está LIQUIDADA */
+                                                disabled={!canReturn || status === 'LIQUIDADO'}
+                                                title={
+                                                    status === 'LIQUIDADO'
+                                                        ? "La orden ya fue liquidada"
+                                                        : !canReturn
+                                                            ? "No tienes permisos para realizar devoluciones"
+                                                            : "Realizar/Actualizar Devolución"
+                                                }
                                                 style={{
-                                                    backgroundColor: (user.role !== 'ADMINISTRADOR' && (status === 'LIQUIDADO' || status === 'DEVOLUCION')) ? '#ccc' : '#9b111e',
+                                                    backgroundColor: (!canReturn || status === 'LIQUIDADO') ? '#ccc' : '#9b111e',
                                                     color: 'white',
                                                     border: 'none',
                                                     padding: '8px 12px',
                                                     borderRadius: '5px',
-                                                    cursor: (user.role !== 'ADMINISTRADOR' && (status === 'LIQUIDADO' || status === 'DEVOLUCION')) ? 'not-allowed' : 'pointer',
+                                                    cursor: (!canReturn || status === 'LIQUIDADO') ? 'not-allowed' : 'pointer',
                                                     fontSize: '12px',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     gap: '4px',
-                                                    opacity: (user.role !== 'ADMINISTRADOR' && (status === 'LIQUIDADO' || status === 'DEVOLUCION')) ? 0.6 : 1,
+                                                    opacity: (!canReturn || status === 'LIQUIDADO') ? 0.6 : 1,
                                                     flex: 1
                                                 }}
                                             >
                                                 🔄 Devolución
                                             </button>
 
-                                            {/* 2. BOTÓN VER */}
+                                            {/* 2. BOTÓN VER DETALLE */}
                                             <button
                                                 onClick={() => verDetalle(orden)}
                                                 disabled={status !== 'DEVOLUCION' && status !== 'LIQUIDADO'}
@@ -202,27 +214,31 @@ export default function HistDevolucionesPage() {
                                             >
                                                 👁️ Ver
                                             </button>
+
+                                            {/* 3. BOTÓN LIQUIDAR */}
+                                            {/* Restricción: Exclusivo para ADMINISTRADOR. Deshabilitado para Despachador, Socio y No Socio */}
                                             <button
                                                 onClick={() => navigate(`/liquidacion-ruta/${orden.id}`)}
-                                                disabled={user.role !== 'ADMINISTRADOR' && status !== 'DEVOLUCION'}
-                                                title="Realizar Liquidación"
+                                                disabled={!canLiquidate || status !== 'DEVOLUCION'}
+                                                title={!canLiquidate ? "Solo el Administrador puede liquidar" : "Realizar Liquidación"}
                                                 style={{
-                                                    backgroundColor: (user.role !== 'ADMINISTRADOR' && status !== 'DEVOLUCION') ? '#ccc' : '#166534',
+                                                    backgroundColor: (!canLiquidate || status !== 'DEVOLUCION') ? '#ccc' : '#166534',
                                                     color: 'white',
                                                     border: 'none',
                                                     padding: '8px 12px',
                                                     borderRadius: '5px',
-                                                    cursor: (user.role !== 'ADMINISTRADOR' && status !== 'DEVOLUCION') ? 'not-allowed' : 'pointer',
+                                                    cursor: (!canLiquidate || status !== 'DEVOLUCION') ? 'not-allowed' : 'pointer',
                                                     fontSize: '12px',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     gap: '4px',
-                                                    opacity: (user.role !== 'ADMINISTRADOR' && status !== 'DEVOLUCION') ? 0.6 : 1,
+                                                    opacity: (!canLiquidate || status !== 'DEVOLUCION') ? 0.6 : 1,
                                                     flex: 1
                                                 }}
                                             >
                                                 💰 Liquidar
                                             </button>
+
                                         </div>
                                     </td>
                                 </tr>

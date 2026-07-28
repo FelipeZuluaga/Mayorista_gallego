@@ -21,6 +21,8 @@ export const modulesByRole = {
         { title: "Informe y proc. de Mis Devolución", path: "/historial-devoluciones", iconName: "RotateCcw" },
     ],
     SOCIO: [
+
+        //{ title: "Mis Productos Cargados a la Ruta", path: "/historialDespachos", iconName: "ClipboardList" },
         { title: "Informe de Mis Clientes", path: "/clientes", iconName: "UserCheck" }, // Cambiado a UserCheck (antes repetía BarChart3)
         { title: "Mis Rutas Cargadas", path: "/ventas", iconName: "Navigation" },
         { title: "Venta y liquidación de Mis Rutas", path: "/historial-ventas", iconName: "TrendingUp" },
