@@ -32,8 +32,6 @@ function MainLayout({ children }) {
         { to: "/AdminDashboard/users", label: "Creación Usuarios", icon: <Lucide.Users size={18} />, roles: ["ADMINISTRADOR"] },
         { to: "/Inventory", label: "Ingreso Productos / Inventario", icon: <Lucide.Package size={18} />, roles: ["ADMINISTRADOR"] },
         { to: "/despacho", label: "Despachos", icon: <Lucide.Truck size={18} />, roles: ["ADMINISTRADOR"] },
-        { to: "/historialDespachos", label: "Historial de Despachos cargados", icon: <Lucide.ClipboardList size={18} />, roles: ["ADMINISTRADOR"] },
-        { to: "/historial-devoluciones", label: "Informe y proc. Devolución", icon: <Lucide.RotateCcw size={18} />, roles: ["ADMINISTRADOR"] },
     
         //DESPACHADOR
         { to: "/despacho", label: "Mis Despachos", icon: <Lucide.Truck size={18} />, roles: ["DESPACHADOR"] },
@@ -45,9 +43,7 @@ function MainLayout({ children }) {
         //SOCIO Y NO SOCIO
         { to: "/ventas", label: "Mis Rutas Cargadas", icon: <Lucide.Map size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
         { to: "/historial-ventas", label: "Venta y liquidación de Mis Rutas", icon: <Lucide.BarChart3 size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
-        { to: "/historial-devoluciones", label: "Informe y proc. de Mis Devolución", icon: <Lucide.RotateCcw size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
-        { to: "/clientes", label: "Informe de Mis Clientes", icon: <Lucide.UserCheck size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
-        { to: "/historial-pagos", label: "Historial y proceso de Mis pagos", icon: <Lucide.Wallet size={18} />, roles: ["SOCIO", "NO_SOCIO"] },
+        
     ];
 
     return (

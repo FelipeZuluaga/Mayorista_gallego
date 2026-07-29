@@ -138,10 +138,10 @@ export default function DespachoPage() {
                     <div className="input-group">
                         <label><Truck size={14} /> Tipo de cliente</label>
                         <select value={customerTypeId} onChange={(e) => setCustomerTypeId(e.target.value)}>
-                            <option value="1">CLIENTE</option>        {/* ID 1 en BD es CLIENTE */}
+                           {/* <option value="1"></option>        {/* ID 1 en BD es CLIENTE */}
                             <option value="2">SOCIO</option>          {/* ID 2 en BD es SOCIO */}
                             <option value="3">NO SOCIO</option>       {/* ID 3 en BD es NO_SOCIO */}
-                            <option value="4">DESPACHO MAYOR</option> {/* ID 4 en BD es DESPACHO_MAYOR */}
+                            {/*<option value="4"></option> {/* ID 4 en BD es DESPACHO_MAYOR */}
                         </select>
                     </div>
 
