@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { inventoryService } from "../services/inventoryService";
 import { orderService } from "../services/orderService";
 import { alertSuccess, alertError, alertConfirm } from "../services/alertService";
-import { User, Truck, ChevronLeft, Search } from "lucide-react";
+import { User, Truck, ChevronLeft, Search, Warehouse } from "lucide-react";
 
 export default function DespachoPage() {
     const navigate = useNavigate();
@@ -14,12 +14,16 @@ export default function DespachoPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(false);
 
-    // Formulario de despacho simplificado
-    const [customerTypeId, setCustomerTypeId] = useState("4"); // 4: Despacho Mayorista
+    // Formulario de despacho
+    const [customerTypeId, setCustomerTypeId] = useState("2"); // 1: CLIENTE, 2: SOCIO, 3: NO_SOCIO, 4: MAYORISTA
     const [sellerName, setSellerName] = useState("");
+    const [warehouseCode, setWarehouseCode] = useState(""); // NUEVO: Código de bodega
     const [quantities, setQuantities] = useState({});
-    // 1. Nuevo estado para el valor del escáner
     const [scannerInput, setScannerInput] = useState("");
+
+    // Determina si el tipo seleccionado requiere liquidación/bodega directa (Ej: ID 1 = CLIENTE, ID 4 = MAYORISTA)
+    const esVentaDirecta = customerTypeId === "1" || customerTypeId === "4";
+
     useEffect(() => {
         loadProducts();
     }, []);
@@ -35,13 +39,9 @@ export default function DespachoPage() {
 
     const getUnitPrice = (product) => {
         if (!product || !product.prices) return 0;
-
-        // Buscamos el precio usando el ID que seleccionaste en el select
         const priceObj = product.prices.find(p =>
             Number(p.customer_type_id) === Number(customerTypeId)
         );
-
-        // Retorna el precio encontrado o 0 si no existe (evita el NaN)
         return priceObj ? Math.trunc(priceObj.unit_price) : 0;
     };
 
@@ -59,9 +59,13 @@ export default function DespachoPage() {
     }, 0);
 
     const handleConfirmar = async () => {
-        // Validación: Ahora solo pedimos el nombre del receptor (vendedor o cliente)
         if (!sellerName.trim()) {
-            return alertError("Campo vacío", "Ingresa el codigo de usuario asignado.");
+            return alertError("Campo vacío", "Ingresa el código/nombre del receptor.");
+        }
+
+        // Si es Venta Directa, validamos obligatoriamente la bodega
+        if (esVentaDirecta && !warehouseCode.trim()) {
+            return alertError("Campo requerido", "Ingresa el código de la bodega para liquidar de inmediato.");
         }
 
         const items = Object.keys(quantities)
@@ -73,23 +77,29 @@ export default function DespachoPage() {
 
         if (items.length === 0) return alertError("Pedido vacío", "No has seleccionado productos.");
 
-        const confirm = await alertConfirm(
-            "¿Confirmar Despacho?",
-            `Se restará el stock y se registrará un total de $${totalDespacho.toLocaleString()} a nombre de ${sellerName}.`
-        );
+        const titulo = esVentaDirecta ? "¿Liquidar Venta Directa?" : "¿Confirmar Despacho?";
+        const mensaje = esVentaDirecta
+            ? `Se liquidará la venta inmediatamente en la bodega ${warehouseCode} por un total de $${totalDespacho.toLocaleString()}.`
+            : `Se restará el stock y se registrará un total de $${totalDespacho.toLocaleString()} a nombre de ${sellerName}.`;
+
+        const confirm = await alertConfirm(titulo, mensaje);
 
         if (confirm.isConfirmed) {
             try {
                 setLoading(true);
-                // Enviamos los datos según la nueva estructura del controlador
                 await orderService.createOrder({
                     user_id: user?.id,
-                    receptor_name: sellerName, // En el backend esto se guarda en seller_name
+                    receptor_name: sellerName,
                     customer_type_id: Number(customerTypeId),
+                    warehouse_code: esVentaDirecta ? warehouseCode : null, // Se envía la bodega si aplica
+                    auto_liquidate: esVentaDirecta, // Flag opcional para que el backend liquide de una vez
                     items
                 });
 
-                await alertSuccess("Despacho Exitoso", "El stock ha sido actualizado correctamente.");
+                await alertSuccess(
+                    esVentaDirecta ? "Venta Liquidada" : "Despacho Exitoso",
+                    "El stock y la transacción se procesaron correctamente."
+                );
                 navigate("/historialDespachos");
             } catch (err) {
                 alertError("Error de Proceso", err);
@@ -98,15 +108,13 @@ export default function DespachoPage() {
             }
         }
     };
-    // 2. Función para manejar el pistoleo
+
     const handleBarcodeScan = (e) => {
         if (e.key === 'Enter') {
             const barcode = scannerInput.trim();
-            // Buscamos el producto por código (asegúrate de tener un campo 'barcode' en tus productos)
             const product = products.find(p => p.barcode === barcode);
 
             if (product) {
-                // Si existe, incrementamos la cantidad actual en +1
                 const currentQty = Number(quantities[product.id] || 0);
                 if (currentQty < product.stock) {
                     setQuantities(prev => ({
@@ -119,7 +127,7 @@ export default function DespachoPage() {
             } else {
                 alertError("No encontrado", "Producto no registrado con ese código.");
             }
-            setScannerInput(""); // Limpiamos para el siguiente escaneo
+            setScannerInput("");
         }
     };
 
@@ -138,71 +146,56 @@ export default function DespachoPage() {
                     <div className="input-group">
                         <label><Truck size={14} /> Tipo de cliente</label>
                         <select value={customerTypeId} onChange={(e) => setCustomerTypeId(e.target.value)}>
-                           {/* <option value="1"></option>        {/* ID 1 en BD es CLIENTE */}
-                            <option value="2">SOCIO</option>          {/* ID 2 en BD es SOCIO */}
-                            <option value="3">NO SOCIO</option>       {/* ID 3 en BD es NO_SOCIO */}
-                            {/*<option value="4"></option> {/* ID 4 en BD es DESPACHO_MAYOR */}
+                            <option value="1">CLIENTE</option>
+                            <option value="2">SOCIO</option>
+                            <option value="3">NO SOCIO</option>
+                            <option value="4">MAYORISTA</option>
                         </select>
                     </div>
 
                     <div className="input-group">
-                        <label><User size={14} /> Codigo vendedor </label>
+                        <label><User size={14} /> Código vendedor / Receptor</label>
                         <input
                             value={sellerName}
                             onChange={e => setSellerName(e.target.value)}
+                            placeholder="Ej: VENDEDOR01"
                         />
                     </div>
+
+                    {/* CAMPO DINÁMICO: Solo se muestra si se requiere bodega / liquidación directa */}
+                    {esVentaDirecta && (
+                        <div className="input-group">
+                            <label><Warehouse size={14} /> Código de Bodega *</label>
+                            <input
+                                value={warehouseCode}
+                                onChange={e => setWarehouseCode(e.target.value)}
+                                placeholder="Ej: BOD-001"
+                                className="input-highlight"
+                            />
+                        </div>
+                    )}
                 </div>
 
-                <div className="search-controls-wrapper" style={{
-                    display: 'flex',
-                    gap: '15px',
-                    margin: '25px 0',
-                    alignItems: 'center'
-                }}>
-                    {/* Buscador por Nombre */}
+                <div className="search-controls-wrapper" style={{ display: 'flex', gap: '15px', margin: '25px 0', alignItems: 'center' }}>
                     <div style={{ position: 'relative', flex: '2' }}>
-                        <Search size={18} style={{
-                            position: 'absolute',
-                            left: '15px',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            color: '#94a3b8'
-                        }} />
+                        <Search size={18} style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                         <input
                             className="input-group-field"
-                            style={{
-                                width: '100%',
-                                padding: '12px 15px 12px 45px',
-                                borderRadius: '8px',
-                                border: '1px solid #e2e8f0',
-                                fontSize: '14px',
-                                outline: 'none'
-                            }}
+                            style={{ width: '100%', padding: '12px 15px 12px 45px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none' }}
                             placeholder="Filtrar productos por nombre..."
                             onChange={e => setSearchTerm(e.target.value)}
                         />
                     </div>
 
-                    {/* Buscador por Pistola (Escáner) */}
                     <div style={{ position: 'relative', flex: '1' }}>
                         <input
                             type="text"
-                            autoFocus // Para que siempre esté listo para recibir el código
+                            autoFocus
                             placeholder="Pistolea el código aquí..."
                             value={scannerInput}
                             onChange={(e) => setScannerInput(e.target.value)}
                             onKeyDown={handleBarcodeScan}
-                            style={{
-                                width: '100%',
-                                padding: '12px 15px',
-                                borderRadius: '8px',
-                                border: '2px solid #0d2a4d', // Mantenemos el rojo pero más sutil
-                                backgroundColor: '#fffcfc',
-                                fontSize: '14px',
-                                fontWeight: '500',
-                                outline: 'none'
-                            }}
+                            style={{ width: '100%', padding: '12px 15px', borderRadius: '8px', border: '2px solid #0d2a4d', backgroundColor: '#fffcfc', fontSize: '14px', fontWeight: '500', outline: 'none' }}
                         />
                     </div>
                 </div>
@@ -261,23 +254,13 @@ export default function DespachoPage() {
                         </tbody>
                     </table>
                 </div>
-                <div className="form-actions" style={{
-                    marginTop: '30px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    position: 'sticky',
-                    bottom: '0',
-                    backgroundColor: 'white',
-                    padding: '20px 0',
-                    borderTop: '2px solid #eee',
-                    zIndex: 10
-                }}>
+
+                <div className="form-actions" style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', bottom: '0', backgroundColor: 'white', padding: '20px 0', borderTop: '2px solid #eee', zIndex: 10 }}>
                     <div style={{ fontSize: '22px', fontWeight: '800' }}>
                         TOTAL: <span style={{ color: 'var(--primary)' }}>${totalDespacho.toLocaleString()}</span>
                     </div>
                     <button className="btn-primary-main" onClick={handleConfirmar} disabled={loading || totalDespacho === 0}>
-                        {loading ? "Registrando..." : "Confirmar y Descontar Stock"}
+                        {loading ? "Procesando..." : esVentaDirecta ? "Liquidar Venta Directa" : "Confirmar y Descontar Stock"}
                     </button>
                 </div>
             </div>

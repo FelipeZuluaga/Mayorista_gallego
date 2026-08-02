@@ -8,9 +8,6 @@ export const modulesByRole = {
         { title: "Historial y Proceso de Devolucion y Descuadres", path: "/historial-devoluciones", iconName: "RotateCcw" },
         { title: "Rutas", path: "/ventas", iconName: "Map" }, 
         { title: "Historial de Rutas y Liquidación Diaria", path: "/historial-ventas", iconName: "BarChart3" },
-
-
-        
         { title: "Historial y Proceso de Pagos Semanal", path: "/historial-pagos", iconName: "Wallet" },
         { title: "Ganancias de la Empresa", path: "/ganancias", iconName: "DollarSign" },
     ],

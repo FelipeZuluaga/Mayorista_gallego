@@ -25,7 +25,8 @@ const ModalProductos = ({
     updatePrecioVenta,
     handleCantidadChange,
     confirmarVentaModal,
-    calcularTotalFila
+    calcularTotalFila,
+    obtenerStockDisponible // <--- AGREGAR AQUÍ TAMBIÉN
 }) => {
     // ESTADO PARA EL BUSCADOR DE PRODUCTOS
     const [searchTerm, setSearchTerm] = useState("");
@@ -76,7 +77,10 @@ const ModalProductos = ({
 
                                 const cant = cliente.productos[item.product_id] || 0;
                                 const precioVenta = cliente.preciosPersonalizados?.[item.product_id] ?? "";
-                                const stockDisponible = item.quantity;
+
+
+                                // Stock real disponible en camión + la cantidad que ya tiene este cliente apartado
+                                const stockDisponibleReal = obtenerStockDisponible(item.product_id) + cant;
                                 const tieneVenta = cant > 0;
 
                                 return (
@@ -85,8 +89,8 @@ const ModalProductos = ({
                                             <span className="p-name">{item.product_name}</span>
                                         </td>
                                         <td>
-                                            <span className={`stock-pill ${stockDisponible <= 5 ? 'low' : ''}`}>
-                                                {stockDisponible}
+                                            <span className={`stock-pill ${stockDisponibleReal <= 5 ? 'low' : ''}`}>
+                                                {stockDisponibleReal}
                                             </span>
                                         </td>
                                         <td>
@@ -117,10 +121,10 @@ const ModalProductos = ({
                                         <td>
                                             <input
                                                 type="number"
-                                                className={`input-modern qty ${cant > stockDisponible ? "error" : ""}`}
+                                                className={`input-modern qty ${cant > stockDisponibleReal ? "error" : ""}`}
                                                 placeholder="0"
                                                 value={cant === 0 ? "" : cant}
-                                                onChange={(e) => handleCantidadChange(item.product_id, e.target.value, stockDisponible)}
+                                                onChange={(e) => handleCantidadChange(item.product_id, e.target.value, stockDisponibleReal)}
                                             />
                                         </td>
                                         <td className={`subtotal-cell ${tieneVenta ? "active-amount" : ""}`}>
@@ -156,7 +160,7 @@ export default function VentasPage() {
     const [loading, setLoading] = useState(true);
     const [orderItems, setOrderItems] = useState([]);
     const [planilla, setPlanilla] = useState([]);
-    const DIAS_SEMANA = ["", "", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const DIAS_SEMANA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     const [diaSeleccionado, setDiaSeleccionado] = useState(new Date().getDay());
     // ESTADOS PARA FILTRADO DINÁMICO
     const [filterID, setFilterID] = useState("");
@@ -200,15 +204,17 @@ export default function VentasPage() {
         loadPendingOrders();
     }, []);
 
-    // 2. NUEVO: Efecto para PERSISTIR cambios automáticamente
+    // --- DESPUÉS (GUARDAR AMBOS ESTADOS) ---
     useEffect(() => {
-        // Solo guardamos si hay una orden seleccionada y la planilla tiene datos
-        if (selectedOrder && planilla.length > 0) {
-            localStorage.setItem(`planilla_${selectedOrder.id}`, JSON.stringify(planilla));
-            console.log("Cambios guardados en local.");
+        if (selectedOrder) {
+            if (planilla.length > 0) {
+                localStorage.setItem(`planilla_${selectedOrder.id}`, JSON.stringify(planilla));
+            }
+            if (orderItems.length > 0) {
+                localStorage.setItem(`orderItems_${selectedOrder.id}`, JSON.stringify(orderItems));
+            }
         }
-    }, [planilla, selectedOrder]); // Se ejecuta cada vez que 'planilla' o 'selectedOrder' cambien
-    //PARA CONTROL PARA PERMISOS SEGUN EL TIPO DE ROL DE USUARIO
+    }, [planilla, orderItems, selectedOrder]);
     // Por esto:
     const user = useMemo(() => {
         const savedUser = localStorage.getItem("user");
@@ -265,29 +271,32 @@ export default function VentasPage() {
             return [];
         }
     };
+
     const handleSelectOrder = async (order) => {
         try {
             setLoading(true);
-            const items = await orderService.getOrderDetail(order.id);
-            setOrderItems(items);
 
+            // 1. Revisamos si hay stock/items guardados localmente
+            const itemsGuardados = localStorage.getItem(`orderItems_${order.id}`);
+
+            if (itemsGuardados && itemsGuardados !== "undefined") {
+                setOrderItems(JSON.parse(itemsGuardados));
+            } else {
+                // Si no hay guardado local, lo traemos de la BD
+                const items = await orderService.getOrderDetail(order.id);
+                setOrderItems(items);
+            }
+
+            // 2. Cargar Planilla (mantén tu lógica actual)
             const guardado = localStorage.getItem(`planilla_${order.id}`);
 
             if (guardado && guardado !== "undefined") {
                 setPlanilla(JSON.parse(guardado));
             } else {
-                // --- SOLUCIÓN AL UNDEFINED ---
-                // 1. Intentamos sacar el día de la orden. 
-                // 2. Si no existe, usamos el día seleccionado en los botones de arriba (diaSeleccionado)
                 let diaParaFiltrar = order.visit_day || DIAS_SEMANA[diaSeleccionado];
-
                 if (typeof diaParaFiltrar === 'number') {
                     diaParaFiltrar = DIAS_SEMANA[diaParaFiltrar];
                 }
-
-                console.log("Día recuperado con éxito:", diaParaFiltrar);
-
-                // Pasamos el ID del vendedor y el día garantizado
                 const inicializarPlanilla = await fetchPlanilla(order.seller_id || user.id, diaParaFiltrar);
                 setPlanilla(inicializarPlanilla);
             }
@@ -567,21 +576,9 @@ export default function VentasPage() {
         return doc.output('blob');
     };
     const confirmarVentaModal = () => {
-        // 1. Obtener los datos actuales del cliente y la venta
         const cliente = planilla[clienteActualIdx];
         const totalVenta = calcularTotalFila(cliente);
 
-        // 2. ACTUALIZACIÓN DE STOCK DEL CAMIÓN
-        const stockActualizado = orderItems.map(item => {
-            const cantidadVendida = cliente.productos[item.product_id] || 0;
-            return {
-                ...item,
-                quantity: Math.max(0, item.quantity - cantidadVendida)
-            };
-        });
-        setOrderItems(stockActualizado);
-
-        // 3. LÓGICA DEL PDF Y ACTUALIZACIÓN DE PLANILLA
         if (totalVenta > 0 || Number(cliente.amount_paid) > 0) {
             try {
                 const pdfBlob = generarPDFVenta(cliente);
@@ -590,23 +587,41 @@ export default function VentasPage() {
                 const nuevaPlanilla = [...planilla];
                 nuevaPlanilla[clienteActualIdx].facturaBlob = pdfUrl;
 
-                // Si hubo venta, marcamos automáticamente como VISITADO para que se vea el cambio
                 if (totalVenta > 0) {
                     nuevaPlanilla[clienteActualIdx].visit_status = 'VISITADO';
                 }
 
                 setPlanilla(nuevaPlanilla);
-                alertSuccess("Éxito", `Venta de ${cliente.name} procesada.`);
+                alertSuccess("Éxito", `Venta de ${cliente.name} actualizada.`);
             } catch (error) {
                 console.error("Error al generar PDF:", error);
                 alertError("Error", "La venta se registró pero hubo un error con el PDF.");
             }
         }
 
-        // --- EL CAMBIO CLAVE AQUÍ ---
-        setShowModalProductos(false); // Cerramos el modal de productos
-        setClienteActualIdx(null);    // Limpiamos el cliente seleccionado
+        setShowModalProductos(false);
+        setClienteActualIdx(null);
     };
+
+    // Obtiene el stock disponible descontando las ventas de TODOS los clientes en la planilla
+    const obtenerStockDisponible = (productId) => {
+        // 1. Buscamos la carga original del camión
+        const itemCarga = orderItems.find(i => String(i.product_id) === String(productId));
+        const cantidadCargaInicial = itemCarga ? itemCarga.quantity_initial || itemCarga.quantity : 0;
+
+        // 2. Sumamos todo lo que se le ha asignado a todos los clientes en la planilla
+        const totalVendidoEnRuta = planilla.reduce((total, cli) => {
+            const cantCliente = Number(cli.productos?.[productId]) || 0;
+            return total + cantCliente;
+        }, 0);
+
+        // 3. El disponible es la carga inicial menos lo comprometido en la planilla
+        return Math.max(0, cantidadCargaInicial - totalVendidoEnRuta);
+    };
+
+
+
+
     const handleConfirmarTodo = async () => {
         // 1. Validación de seguridad
         if (!selectedOrder || planilla.length === 0) return;
@@ -698,6 +713,7 @@ export default function VentasPage() {
 
                 // 5. Limpieza post-guardado
                 localStorage.removeItem(`planilla_${selectedOrder.id}`);
+                localStorage.removeItem(`orderItems_${selectedOrder.id}`);
                 setSelectedOrder(null); // Volver a la lista de rutas
                 loadPendingOrders();    // Refrescar la lista de despachos
             }
@@ -817,6 +833,7 @@ export default function VentasPage() {
                     handleCantidadChange={handleCantidadChange}
                     confirmarVentaModal={confirmarVentaModal}
                     calcularTotalFila={calcularTotalFila}
+                    obtenerStockDisponible={obtenerStockDisponible} // <--- AGREGAR ESTA LÍNEA
                 />
             )}
             {/* MODAL DE REGISTRO DE CLIENTES */}
@@ -965,12 +982,12 @@ export default function VentasPage() {
                         <h1>{user.role === 'ADMINISTRADOR' ? '🚀 Control de Rutas' : '🚚 Mis Rutas'}</h1>
                         <p>Selecciona un día para ver la ruta asignada</p>
                     </header>
-
                     {/* MOSTRAR PANEL DE DIAS*/}
                     <div className="dias-selector-container">
                         {DIAS_SEMANA.map((dia, index) => (
                             <button
                                 key={dia}
+                                type="button"
                                 onClick={() => setDiaSeleccionado(index)}
                                 className={`btn-dia ${diaSeleccionado === index ? 'selected' : ''}`}
                             >
@@ -978,7 +995,6 @@ export default function VentasPage() {
                             </button>
                         ))}
                     </div>
-
                     {/* --- SECCIÓN DE FILTROS DINÁMICOS --- */}
                     <div className="filters-card">
                         <div className="filters-grid">

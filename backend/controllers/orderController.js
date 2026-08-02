@@ -9,13 +9,15 @@ const createOrder = async (req, res) => {
 
     try {
         await connection.beginTransaction();
-        // --- NUEVA LÓGICA: Obtener el nombre real del vendedor ---
-        // receptor_name viene como el ID (ej: 15023) desde el frontend
+
+        // 1. Obtener el nombre real del vendedor/receptor
         const [userData] = await connection.query("SELECT name FROM users WHERE id = ?", [receptor_name]);
-        const realSellerName = userData.length > 0 ? userData[0].name : 'Desconocido';
+        const realSellerName = userData.length > 0 ? userData[0].name : receptor_name;
+
         let totalOrderAmount = 0;
         const processedItems = [];
 
+        // 2. Calcular precios y armar items procesados
         for (const item of items) {
             const [priceData] = await connection.query(
                 "SELECT unit_price FROM product_prices WHERE product_id = ? AND customer_type_id = ?",
@@ -36,14 +38,21 @@ const createOrder = async (req, res) => {
             });
         }
 
+        // 3. DETERMINAR EL ESTADO SEGÚN EL TIPO DE CLIENTE
+        //    IDs habituales: 1 = CLIENTE, 4 = DESPACHO_MAYOR (Ajusta los IDs si en tu BD son distintos)
+        const typeId = Number(customer_type_id);
+        const orderStatus = (typeId === 1 || typeId === 4) ? 'LIQUIDADO' : 'DESPACHADO';
+
+        // 4. Insertar la orden con el estado calculado dinámicamente
         const [orderRes] = await connection.query(
             `INSERT INTO orders (user_id, seller_name, customer_type_id, total_amount, status, created_at) 
-             VALUES (?, ?, ?, ?, 'DESPACHADO', NOW())`,
-            [user_id, realSellerName, customer_type_id, totalOrderAmount]
+             VALUES (?, ?, ?, ?, ?, NOW())`,
+            [user_id, realSellerName, customer_type_id, totalOrderAmount, orderStatus]
         );
 
         const orderId = orderRes.insertId;
 
+        // 5. Insertar items y descontar stock
         for (const item of processedItems) {
             await connection.query(
                 "INSERT INTO order_items (order_id, product_id, quantity, unit_price, total_price) VALUES (?, ?, ?, ?, ?)",
@@ -57,7 +66,11 @@ const createOrder = async (req, res) => {
         }
 
         await connection.commit();
-        res.status(201).json({ success: true, message: "Despacho realizado con éxito", order_id: orderId });
+        res.status(201).json({ 
+            success: true, 
+            message: `Despacho registrado como ${orderStatus}`, 
+            order_id: orderId 
+        });
 
     } catch (error) {
         await connection.rollback();

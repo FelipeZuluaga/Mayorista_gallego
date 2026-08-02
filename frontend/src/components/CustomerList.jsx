@@ -2,6 +2,7 @@ import { customerService } from '../services/customerService';
 import { useEffect, useState, useMemo } from "react";
 import { Search, Trash2, Edit } from "lucide-react";
 import { alertSuccess, alertError, alertConfirmUsers } from '../services/alertService';
+import '../styles/CustomerList.css';
 
 const CustomerList = ({ sellerId }) => {
     const [customers, setCustomers] = useState([]);
@@ -10,7 +11,7 @@ const CustomerList = ({ sellerId }) => {
     const [vendedorSeleccionado, setVendedorSeleccionado] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [clienteEdicion, setClienteEdicion] = useState(null);
-    const DIAS_SEMANA = ["Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
     const [diaSeleccionado, setDiaSeleccionado] = useState(new Date().getDay());
 
     const user = JSON.parse(localStorage.getItem("user"));
@@ -35,8 +36,6 @@ const CustomerList = ({ sellerId }) => {
 
     const clientesFiltrados = useMemo(() => {
         return customers.filter(c => {
-            // 1. Filtro de Seguridad por Rol
-            // Si no es ADMINISTRADOR, solo puede ver clientes donde el seller_id coincida con su ID de usuario
             const esAdmin = user.role === "ADMINISTRADOR";
             const esDueñoDelCliente = String(c.seller_id) === String(user.id);
 
@@ -44,12 +43,10 @@ const CustomerList = ({ sellerId }) => {
                 return false;
             }
 
-            // 2. Filtro de búsqueda (Nombre o ID)
             const coincideBusqueda =
                 c.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 c.id.toString().includes(searchTerm);
 
-            // 3. Filtro de vendedor (solo para el select del Admin)
             const coincideVendedor =
                 vendedorSeleccionado === "" ||
                 c.seller_name === vendedorSeleccionado;
@@ -63,7 +60,6 @@ const CustomerList = ({ sellerId }) => {
         return [...new Set(nombres)];
     }, [customers]);
 
-    // Extrae una lista única de IDs y Nombres para el select de asignación
     const vendedoresParaAsignar = useMemo(() => {
         return customers.reduce((acc, curr) => {
             if (curr.seller_id && !acc.find(v => v.id === curr.seller_id)) {
@@ -116,7 +112,6 @@ const CustomerList = ({ sellerId }) => {
     };
 
     const handleSave = async () => {
-        // VALIDACIÓN CRÍTICA: seller_id es obligatorio
         if (!clienteEdicion.seller_id) {
             return alertError("Campo requerido", "Debes asignar un vendedor para poder guardar el cliente.");
         }
@@ -151,70 +146,70 @@ const CustomerList = ({ sellerId }) => {
     return (
         <>
             {isModalOpen && (
-                <div style={styles.overlay}>
-                    <div style={styles.modal}>
-                        <div style={styles.header}>
+                <div className="modal-overlay">
+                    <div className="modal-container">
+                        <div className="modal-header">
                             <div>
-                                <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Gestionar Cliente</h3>
+                                <h3>Gestionar Cliente</h3>
                                 {clienteEdicion.id && (
-                                    <p style={{ margin: 0, fontSize: '0.75rem', opacity: 0.8 }}>
+                                    <p>
                                         ID: {clienteEdicion.id} • Deuda: ${parseFloat(clienteEdicion.total_debt).toLocaleString()}
                                     </p>
                                 )}
                             </div>
-                            <button onClick={() => setIsModalOpen(false)} style={styles.closeBtn}>&times;</button>
+                            <button onClick={() => setIsModalOpen(false)} className="modal-close-btn">&times;</button>
                         </div>
 
-                        <div style={styles.body}>
-                            <div style={styles.grid}>
-                                <div style={styles.column}>
-                                    <h4 style={styles.sectionTitle}>Información General</h4>
-                                    <div style={styles.inputGroup}>
-                                        <label style={styles.label}>Nombre del Cliente *</label>
+                        <div className="modal-body">
+                            <div className="modal-grid">
+                                <div className="modal-column">
+                                    <h4 className="modal-section-title">Información General</h4>
+                                    <div className="modal-input-group">
+                                        <label className="modal-label">Nombre del Cliente *</label>
                                         <input
-                                            style={styles.input}
+                                            className="modal-input"
                                             value={clienteEdicion.customer_name}
                                             onChange={(e) => setClienteEdicion({ ...clienteEdicion, customer_name: e.target.value })}
                                             placeholder="Nombre completo"
                                         />
                                     </div>
-                                    <div style={styles.inputGroup}>
-                                        <label style={styles.label}>Dirección *</label>
+                                    <div className="modal-input-group">
+                                        <label className="modal-label">Dirección *</label>
                                         <input
-                                            style={styles.input}
+                                            className="modal-input"
                                             value={clienteEdicion.customer_address}
                                             onChange={(e) => setClienteEdicion({ ...clienteEdicion, customer_address: e.target.value })}
                                             placeholder="Calle, Número, Barrio"
                                         />
                                     </div>
-                                    <div style={styles.inputGroup}>
-                                        <label style={styles.label}>Teléfono</label>
+                                    <div className="modal-input-group">
+                                        <label className="modal-label">Teléfono</label>
                                         <input
-                                            style={styles.input}
+                                            className="modal-input"
                                             value={clienteEdicion.phone}
                                             onChange={(e) => setClienteEdicion({ ...clienteEdicion, phone: e.target.value })}
                                         />
                                     </div>
                                 </div>
 
-                                <div style={styles.column}>
-                                    <h4 style={styles.sectionTitle}>Logística y Ruta</h4>
-                                    <div style={{ display: 'flex', gap: '10px' }}>
-                                        <div style={{ ...styles.inputGroup, flex: 1 }}>
-                                            <label style={styles.label}>Día Visita</label>
+                                <div className="modal-column">
+                                    <h4 className="modal-section-title">Logística y Ruta</h4>
+                                    <div className="modal-input-row">
+                                        <div className="modal-input-group flex-1">
+                                            <label className="modal-label">Día Visita</label>
                                             <select
-                                                style={styles.input}
+                                                className="modal-input"
                                                 value={clienteEdicion.visit_day}
                                                 onChange={(e) => setClienteEdicion({ ...clienteEdicion, visit_day: e.target.value })}
                                             >
                                                 {DIAS_SEMANA.map(d => <option key={d} value={d}>{d}</option>)}
                                             </select>
                                         </div>
-                                        <div style={{ ...styles.inputGroup, flex: 1 }}>
-                                            <label style={styles.label}>Posición</label>
+                                        <div className="modal-input-group flex-1">
+                                            <label className="modal-label">Posición</label>
                                             <input
                                                 type="number"
-                                                style={styles.input}
+                                                className="modal-input"
                                                 value={clienteEdicion.position}
                                                 onChange={(e) => setClienteEdicion({ ...clienteEdicion, position: e.target.value })}
                                             />
@@ -222,10 +217,10 @@ const CustomerList = ({ sellerId }) => {
                                     </div>
 
                                     {user.role === "ADMINISTRADOR" && (
-                                        <div style={styles.inputGroup}>
-                                            <label style={styles.label}>Asignar Vendedor *</label>
+                                        <div className="modal-input-group">
+                                            <label className="modal-label">Asignar Vendedor *</label>
                                             <select
-                                                style={{ ...styles.input, borderColor: !clienteEdicion.seller_id ? '#ef4444' : '#cbd5e1' }}
+                                                className={`modal-input ${!clienteEdicion.seller_id ? 'input-error' : ''}`}
                                                 value={clienteEdicion.seller_id}
                                                 onChange={(e) => setClienteEdicion({ ...clienteEdicion, seller_id: e.target.value })}
                                             >
@@ -237,10 +232,10 @@ const CustomerList = ({ sellerId }) => {
                                         </div>
                                     )}
 
-                                    <div style={styles.inputGroup}>
-                                        <label style={styles.label}>Estado de Visita</label>
+                                    <div className="modal-input-group">
+                                        <label className="modal-label">Estado de Visita</label>
                                         <select
-                                            style={styles.input}
+                                            className="modal-input"
                                             value={clienteEdicion.visit_status_c}
                                             onChange={(e) => setClienteEdicion({ ...clienteEdicion, visit_status_c: e.target.value })}
                                         >
@@ -249,12 +244,12 @@ const CustomerList = ({ sellerId }) => {
                                             <option value="NO_VISITADO">No Visitado</option>
                                         </select>
                                     </div>
-                                    {/* DEUDA TOTAL*/}
-                                    <div style={styles.inputGroup}>
-                                        <label style={styles.label}>Deuda Total ($)</label>
+
+                                    <div className="modal-input-group">
+                                        <label className="modal-label">Deuda Total ($)</label>
                                         <input
                                             type="number"
-                                            style={styles.input}
+                                            className="modal-input"
                                             value={clienteEdicion.total_debt}
                                             onChange={(e) => setClienteEdicion({ ...clienteEdicion, total_debt: e.target.value })}
                                             placeholder="0.00"
@@ -264,9 +259,9 @@ const CustomerList = ({ sellerId }) => {
                             </div>
                         </div>
 
-                        <div style={styles.footer}>
-                            <button onClick={() => setIsModalOpen(false)} style={styles.btnCancel}>Cancelar</button>
-                            <button style={styles.btnSave} onClick={handleSave}>
+                        <div className="modal-footer">
+                            <button onClick={() => setIsModalOpen(false)} className="btn-modal-cancel">Cancelar</button>
+                            <button className="btn-modal-save" onClick={handleSave}>
                                 {clienteEdicion.id ? "Actualizar Datos" : "Guardar Nuevo Cliente"}
                             </button>
                         </div>
@@ -281,7 +276,7 @@ const CustomerList = ({ sellerId }) => {
                     {user.role === 'ADMINISTRADOR' && (
                         <button
                             onClick={handleAddNew}
-                            style={{ ...styles.btnSave, backgroundColor: '#2563eb' }}
+                            className="btn-modal-save btn-add-customer"
                         >
                             + Agregar Nuevo Cliente
                         </button>
@@ -332,18 +327,16 @@ const CustomerList = ({ sellerId }) => {
                         </button>
                     </div>
 
-                    <div style={{ overflowX: 'auto' }}>
+                    <div className="table-responsive">
                         <table className="inv-table" style={{ width: '100%', tableLayout: 'auto' }}>
                             <thead>
-
                                 <tr>
-                                    {/* NUEVO CAMPO POSICIÓN */}
-                                    <th style={{ padding: '12px 8px', textAlign: 'center', width: '50px' }}>Pos.</th>
+                                    <th className="table-col-pos">Pos.</th>
                                     <th style={{ padding: '12px 8px' }}>Dirección</th>
                                     <th style={{ padding: '12px 8px' }}>Nombre</th>
                                     <th style={{ padding: '12px 8px' }}>Teléfono</th>
                                     <th style={{ padding: '12px 8px' }}>Día Visita</th>
-                                    <th style={{ padding: '12px 8px', textAlign: 'center', width: '100px' }}>Deuda Total</th>
+                                    <th className="table-col-debt">Deuda Total</th>
                                     <th style={{ padding: '12px 8px' }}>Nombre vendedor</th>
                                     {user.role === 'ADMINISTRADOR' && <th style={{ padding: '12px 8px', textAlign: 'center' }}>Acciones</th>}
                                 </tr>
@@ -354,8 +347,7 @@ const CustomerList = ({ sellerId }) => {
                                 ) : clientesFiltrados.length > 0 ? (
                                     clientesFiltrados.map((c) => (
                                         <tr key={c.id} className="border-b hover:bg-gray-50">
-                                            {/* NUEVA CELDA POSICIÓN */}
-                                            <td className="p-3 text-center font-bold text-gray-500" style={{ width: '50px' }}>
+                                            <td className="p-3 text-center font-bold text-gray-500 table-col-pos">
                                                 {c.position || '-'}
                                             </td>
                                             <td className="p-3 text-sm">{c.customer_address}</td>
@@ -364,7 +356,7 @@ const CustomerList = ({ sellerId }) => {
                                             <td className="p-3 text-center">
                                                 <span className="badge-dia">{c.visit_day}</span>
                                             </td>
-                                            <td className="p-3 text-red-600 font-bold text-center" style={{ width: '100px', whiteSpace: 'nowrap' }}>
+                                            <td className="p-3 text-red-600 font-bold text-center table-col-debt">
                                                 ${parseFloat(c.total_debt).toLocaleString()}
                                             </td>
                                             <td className="p-3 text-sm font-medium text-blue-700 italic">
@@ -372,12 +364,20 @@ const CustomerList = ({ sellerId }) => {
                                             </td>
                                             {user.role === 'ADMINISTRADOR' && (
                                                 <td className="p-3">
-                                                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                                                        <button onClick={() => handleEdit(c)} className="text-blue-600 hover:text-blue-800" title="Editar">
-                                                            <Edit size={18} />
+                                                    <div className="actions-cell-container">
+                                                        <button
+                                                            onClick={() => handleEdit(c)}
+                                                            className="btn-action btn-action-edit"
+                                                            title="Editar cliente"
+                                                        >
+                                                            <Edit size={16} />
                                                         </button>
-                                                        <button onClick={() => handleDelete(c.id)} className="text-red-600 hover:text-red-800" title="Eliminar">
-                                                            <Trash2 size={18} />
+                                                        <button
+                                                            onClick={() => handleDelete(c.id)}
+                                                            className="btn-action btn-action-delete"
+                                                            title="Eliminar cliente"
+                                                        >
+                                                            <Trash2 size={16} />
                                                         </button>
                                                     </div>
                                                 </td>
@@ -394,109 +394,6 @@ const CustomerList = ({ sellerId }) => {
             </div>
         </>
     );
-};
-
-const styles = {
-    // Dentro de CustomerList.jsx en el objeto styles
-    overlay: {
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000, // <--- Baja esto de 2000 a 1000
-        padding: '20px'
-    },
-    modal: {
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        width: '100%',
-        maxWidth: '700px',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-        overflow: 'hidden',
-    },
-    header: {
-        backgroundColor: '#2563eb',
-        color: 'white',
-        padding: '20px 25px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-    },
-    closeBtn: {
-        background: 'none',
-        border: 'none',
-        color: 'white',
-        fontSize: '2rem',
-        cursor: 'pointer',
-        lineHeight: 1
-    },
-    body: {
-        padding: '25px',
-    },
-    grid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: '30px'
-    },
-    sectionTitle: {
-        fontSize: '0.85rem',
-        textTransform: 'uppercase',
-        color: '#64748b',
-        borderBottom: '1px solid #e2e8f0',
-        paddingBottom: '8px',
-        marginBottom: '15px',
-        fontWeight: 'bold'
-    },
-    inputGroup: {
-        marginBottom: '15px'
-    },
-    label: {
-        display: 'block',
-        fontSize: '0.75rem',
-        fontWeight: '600',
-        color: '#475569',
-        marginBottom: '5px'
-    },
-    input: {
-        width: '100%',
-        padding: '10px',
-        border: '1px solid #cbd5e1',
-        borderRadius: '6px',
-        fontSize: '0.9rem',
-        boxSizing: 'border-box'
-    },
-    footer: {
-        backgroundColor: '#f8fafc',
-        padding: '15px 25px',
-        display: 'flex',
-        justifyContent: 'flex-end',
-        gap: '12px',
-        borderTop: '1px solid #e2e8f0'
-    },
-    btnCancel: {
-        padding: '10px 20px',
-        backgroundColor: '#e2e8f0',
-        border: 'none',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        fontWeight: '600',
-        color: '#475569'
-    },
-    btnSave: {
-        padding: '10px 30px',
-        backgroundColor: '#16a34a',
-        color: 'white',
-        border: 'none',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        fontWeight: '700',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-    }
 };
 
 export default CustomerList;
