@@ -6,6 +6,7 @@ import {
     ClipboardList, ShoppingBag,
     X, Eye, Edit3, Save, Trash2, Plus, Minus,
 } from "lucide-react";
+import "../styles/HistorialDespachos.css"; // <-- IMPORTACIÓN DEL CSS APARTE
 
 export default function HistorialDespachos() {
     const [orders, setOrders] = useState([]);
@@ -15,7 +16,7 @@ export default function HistorialDespachos() {
     const [isPasscodeModalOpen, setIsPasscodeModalOpen] = useState(false);
     const [passcode, setPasscode] = useState("");
     const [orderToDelete, setOrderToDelete] = useState(null);
-    const SECURITY_CODE = "9988"; // Define aquí el código que desees
+    const SECURITY_CODE = "9988";
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [orderItems, setOrderItems] = useState([]);
 
@@ -61,7 +62,6 @@ export default function HistorialDespachos() {
         } catch (err) { alertError("Error", "No se pudo cargar el detalle."); }
     };
 
-    // --- Función para abrir el modal de edición ---
     const handleOpenEdit = async (order) => {
         try {
             const detail = await orderService.getOrderDetail(order.id);
@@ -72,7 +72,6 @@ export default function HistorialDespachos() {
                 customer_type_id: order.customer_type_id,
                 items: detail.map(i => ({
                     product_id: i.product_id,
-                    // BUSCAMOS EL NOMBRE: Intentamos varias opciones según lo que envíe el SQL
                     product_name: i.product_name || i.name || "Producto desconocido",
                     quantity: Number(i.quantity),
                     unit_price: Number(i.unit_price)
@@ -94,7 +93,6 @@ export default function HistorialDespachos() {
     };
 
     const handleRemoveItem = async (index) => {
-        // Obtenemos el producto a eliminar para mostrar su nombre en el mensaje (opcional)
         const itemToRemove = editForm.items[index];
 
         const confirm = await alertConfirm(
@@ -127,7 +125,6 @@ export default function HistorialDespachos() {
         });
     };
 
-    // --- Función para guardar los cambios ---
     const handleSaveEdit = async () => {
         const itemsValidos = editForm.items
             .filter(it => it.product_id && !isNaN(it.product_id))
@@ -160,20 +157,18 @@ export default function HistorialDespachos() {
     };
 
     const handleDeleteOrder = async (order) => {
-        // Si es DESPACHADOR, pedimos código primero
         if (user?.role?.toUpperCase() === 'DESPACHADOR') {
             setOrderToDelete(order);
             setIsPasscodeModalOpen(true);
             return;
         }
 
-        // Si es ADMIN, sigue el flujo normal
         const confirm = await alertConfirm("¿Eliminar pedido?", "Esta acción devolverá todos los productos al inventario.");
         if (confirm.isConfirmed) {
             executeDeletion(order.id);
         }
     };
-    // Función auxiliar para no repetir código de borrado
+
     const executeDeletion = async (orderId) => {
         try {
             await orderService.deleteOrder(orderId);
@@ -185,7 +180,7 @@ export default function HistorialDespachos() {
             alertError("Error", err);
         }
     };
-    // Función para validar el código ingresado
+
     const handleVerifyCode = () => {
         if (passcode === SECURITY_CODE) {
             executeDeletion(orderToDelete.id);
@@ -201,10 +196,10 @@ export default function HistorialDespachos() {
         vendedor: "",
         despachador: ""
     });
+
     const filteredOrders = useMemo(() => {
         let baseOrders = orders;
 
-        // Solo restringimos si NO es Admin Y NO es Despachador
         if (user?.role?.toUpperCase() !== 'ADMINISTRADOR' && user?.role?.toUpperCase() !== 'DESPACHADOR') {
             baseOrders = orders.filter(o => Number(o.seller_name) === Number(user.id));
         }
@@ -218,20 +213,19 @@ export default function HistorialDespachos() {
 
             const matchesFecha = !filters.fecha || orderDateFormatted === filters.fecha;
             const matchesTipo = !filters.tipoCliente || o.customer_type_name?.toLowerCase() === filters.tipoCliente.toLowerCase();
-
-            // Cambiamos la lógica aquí para que sea más robusta
             const matchesVendedor = !filters.vendedor || o.seller_name?.toString().toLowerCase().includes(filters.vendedor.toLowerCase());
+            
+            const dispatcherField = o.dispatcher_name || o.dispatcher || o.created_by_name || "";
+            const matchesDespachador = !filters.despachador || dispatcherField.toLowerCase().includes(filters.despachador.toLowerCase());
 
-            // Si es Admin o Despachador, permitimos ver según los filtros de búsqueda
             if (user?.role?.toUpperCase() === 'ADMINISTRADOR' || user?.role?.toUpperCase() === 'DESPACHADOR') {
-                return matchesSearch && matchesFecha && matchesTipo && matchesVendedor;
+                return matchesSearch && matchesFecha && matchesTipo && matchesVendedor && matchesDespachador;
             } else {
                 return matchesSearch && matchesFecha;
             }
         });
     }, [orders, searchTerm, user, filters]);
 
-    // 2. SEGUNDO: Definir las estadísticas (Dependen de filteredOrders)
     const stats = useMemo(() => {
         const role = user?.role?.toUpperCase();
         const totalPedidos = filteredOrders.length;
@@ -257,26 +251,18 @@ export default function HistorialDespachos() {
 
         return config[role] || config.DEFAULT;
     }, [filteredOrders, user]);
-    // LÓGICA DE TÍTULOS DINÁMICOS
+
     const pageHeader = useMemo(() => {
         switch (user?.role?.toUpperCase()) {
             case 'ADMINISTRADOR':
-                return {
-                    title: "Historial de Despachos cargados",
-                    subtitle: "Supervisión total de despachos"
-                };
+                return { title: "Historial de Despachos cargados", subtitle: "Supervisión total de despachos" };
             case 'DESPACHADOR':
-                return {
-                    title: "Historial de Mis Despachos cargados",
-                    subtitle: "Control de salida de mercancía y pedidos activos"
-                };
+                return { title: "Historial de Mis Despachos cargados", subtitle: "Control de salida de mercancía y pedidos activos" };
             default:
-                return {
-                    title: "Mis Pedidos Realizados",
-                    subtitle: "Historial personal de ventas y seguimiento"
-                };
+                return { title: "Mis Pedidos Realizados", subtitle: "Historial personal de ventas y seguimiento" };
         }
     }, [user]);
+
     if (loading) return <div className="inv-page">Cargando panel de control...</div>;
 
     const formatFechaConDia = (fechaStr) => {
@@ -289,98 +275,48 @@ export default function HistorialDespachos() {
 
         return `${fechaNum} - ${nombreDia.charAt(0).toUpperCase() + nombreDia.slice(1)}`;
     };
+
     return (
         <div className="inv-page full-layout">
-            <div className="module-intro" style={{ marginBottom: '30px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    <div style={{ background: 'var(--primary)', color: 'white', padding: '12px', borderRadius: '12px' }}>
+            <div className="module-intro historial-header-container">
+                <div className="historial-header-content">
+                    <div className="historial-header-icon">
                         <ClipboardList size={28} />
                     </div>
                     <div>
-                        {/* APLICACIÓN DE TÍTULOS DINÁMICOS */}
-                        <h1 style={{ margin: 0, fontSize: '1.8rem' }}>{pageHeader.title}</h1>
-                        <p style={{ margin: 0, opacity: 0.8 }}>{pageHeader.subtitle}</p>
+                        <h1 className="historial-header-title">{pageHeader.title}</h1>
+                        <p className="historial-header-subtitle">{pageHeader.subtitle}</p>
                     </div>
                 </div>
             </div>
 
-            <div className="inventory-stats" style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                gap: '20px',
-                marginBottom: '30px'
-            }}>
+            {/* ESTADÍSTICAS */}
+            <div className="inventory-stats inventory-stats-grid">
                 {stats.map((stat, index) => (
-                    <div key={index} style={{
-                        background: 'white',
-                        padding: '20px',
-                        borderRadius: '16px',
-                        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-                        borderLeft: `5px solid ${stat.color}`,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'flex-start',
-                        position: 'relative'
-                    }}>
+                    <div key={index} className="stat-card" style={{ borderLeft: `5px solid ${stat.color}` }}>
                         <div>
-                            <span style={{
-                                fontSize: '0.75rem',
-                                fontWeight: '700',
-                                color: '#64748b',
-                                display: 'block',
-                                marginBottom: '8px',
-                                letterSpacing: '0.05em'
-                            }}>
-                                {stat.label}
-                            </span>
-                            <h2 style={{
-                                margin: 0,
-                                fontSize: '1.6rem',
-                                fontWeight: '800',
-                                color: '#1e293b'
-                            }}>
-                                {stat.value}
-                            </h2>
-                            <p style={{
-                                margin: '5px 0 0 0',
-                                fontSize: '0.7rem',
-                                color: stat.color,
-                                fontWeight: '600',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                            }}>
-                                {stat.sub}
-                            </p>
+                            <span className="stat-label">{stat.label}</span>
+                            <h2 className="stat-value">{stat.value}</h2>
+                            <p className="stat-sub" style={{ color: stat.color }}>{stat.sub}</p>
                         </div>
-
-                        {/* Círculo del Icono */}
-                        <div style={{
-                            background: `${stat.color}15`, // Color con 15% opacidad
-                            color: stat.color,
-                            padding: '10px',
-                            borderRadius: '12px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
+                        <div className="stat-icon-wrapper" style={{ background: `${stat.color}15`, color: stat.color }}>
                             {stat.icon}
                         </div>
                     </div>
                 ))}
             </div>
-            {/* SECCIÓN DE FILTROS DINÁMICOS */}
-            <div className="inv-card" style={{ marginBottom: '20px', padding: '20px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '80px' }}>
+
+            {/* SECCIÓN DE FILTROS */}
+            <div className="inv-card filters-card">
+                <div className="filters-grid">
 
                     {/* FECHA */}
                     <div className="filter-group">
-                        <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b' }}>FECHA</label>
+                        <label className="filter-group-label">FECHA</label>
                         <input
                             type="date"
-                            className="input"
-                            style={{ width: '80%', marginTop: '5px' }}
-                            value={filters.fecha} // IMPORTANTE
+                            className="input filter-input-full"
+                            value={filters.fecha}
                             onChange={(e) => setFilters({ ...filters, fecha: e.target.value })}
                         />
                     </div>
@@ -389,11 +325,10 @@ export default function HistorialDespachos() {
                         <>
                             {/* TIPO CLIENTE */}
                             <div className="filter-group">
-                                <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b' }}>TIPO CLIENTE</label>
+                                <label className="filter-group-label">TIPO CLIENTE</label>
                                 <select
-                                    className="input"
-                                    style={{ width: '100%', marginTop: '5px' }}
-                                    value={filters.tipoCliente} // IMPORTANTE
+                                    className="input filter-input-full"
+                                    value={filters.tipoCliente}
                                     onChange={(e) => setFilters({ ...filters, tipoCliente: e.target.value })}
                                 >
                                     <option value="">Todos</option>
@@ -403,27 +338,36 @@ export default function HistorialDespachos() {
                                     <option value="DESPACHO_MAYOR">Despacho Mayor</option>
                                 </select>
                             </div>
-                            {/* VENDEDOR */}
-                            {(user?.role === 'ADMINISTRADOR' || user?.role === 'DESPACHADOR') && (
-                                <div className="filter-group">
-                                    <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b' }}>NOMBRE A QUIEN SE LE ENTREGA</label>
-                                    <input
-                                        type="text"
-                                        placeholder="Buscar por nombre..."
-                                        className="input"
-                                        style={{ width: '80%', marginTop: '5px' }}
-                                        value={filters.vendedor}
-                                        onChange={(e) => setFilters({ ...filters, vendedor: e.target.value })}
-                                    />
-                                </div>
-                            )}
+
+                            {/* RECEPTOR */}
+                            <div className="filter-group">
+                                <label className="filter-group-label">A QUIEN SE LE ENTREGA</label>
+                                <input
+                                    type="text"
+                                    placeholder="Buscar por cliente..."
+                                    className="input filter-input-full"
+                                    value={filters.vendedor}
+                                    onChange={(e) => setFilters({ ...filters, vendedor: e.target.value })}
+                                />
+                            </div>
+
+                            {/* DESPACHADOR */}
+                            <div className="filter-group">
+                                <label className="filter-group-label">DESPACHADO POR</label>
+                                <input
+                                    type="text"
+                                    placeholder="Buscar despachador..."
+                                    className="input filter-input-full"
+                                    value={filters.despachador}
+                                    onChange={(e) => setFilters({ ...filters, despachador: e.target.value })}
+                                />
+                            </div>
                         </>
                     )}
 
-                    <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                    <div className="filter-btn-container">
                         <button
-                            className="btn-edit"
-                            style={{ width: '100%', height: '40px', background: '#f1f5f9', color: '#475569' }}
+                            className="btn-edit btn-clear-filters"
                             onClick={() => setFilters({ fecha: "", tipoCliente: "", vendedor: "", despachador: "" })}
                         >
                             Limpiar Filtros
@@ -431,22 +375,24 @@ export default function HistorialDespachos() {
                     </div>
                 </div>
             </div>
-            <div className="inv-card">
 
+            {/* TABLA DE RESULTADOS */}
+            <div className="inv-card">
                 <div style={{ overflowX: 'auto' }}>
                     <table className="inv-table">
                         <thead>
                             <tr>
                                 <th>ID Pedido</th>
                                 <th>Fecha</th>
-                                {/* ID PEDIDO */}
                                 {(user?.role === 'ADMINISTRADOR' || user?.role === 'DESPACHADOR') && (
-                                    <th>nombre a quien se le entrega</th>
+                                    <>
+                                        <th>Nombre a quien se le entrega</th>
+                                        <th>Despachado Por</th>
+                                    </>
                                 )}
                                 {user?.role === 'ADMINISTRADOR' && (
                                     <th>Tipo Cliente</th>
                                 )}
-
                                 <th style={{ textAlign: 'right' }}>Total</th>
                                 <th style={{ textAlign: 'center' }}>Estado</th>
                                 <th style={{ textAlign: 'center' }}>Gestión</th>
@@ -455,15 +401,20 @@ export default function HistorialDespachos() {
                         <tbody>
                             {filteredOrders.map(o => (
                                 <tr key={o.id}>
-                                    {/* ID PEDIDO */}
-                                    <td className="font-bold" style={{ color: '#6366f1' }}>#{o.id}</td>
-                                    {/* FECHA */}
+                                    <td className="table-order-id">#{o.id}</td>
                                     <td>{formatFechaConDia(o.created_at)}</td>
-                                    {/* NOMBRE A QUIEN SE LE ENTREGA */}
-                                    <td style={{ fontWeight: '500' }}>{o.seller_name}</td>
-                                    {/* TYPO DE */}
+                                    
+                                    {(user?.role === 'ADMINISTRADOR' || user?.role === 'DESPACHADOR') && (
+                                        <>
+                                            <td className="table-text-medium">{o.seller_name}</td>
+                                            <td className="table-text-muted">
+                                                {o.dispatcher_name || o.dispatcher || o.created_by_name || "N/A"}
+                                            </td>
+                                        </>
+                                    )}
+
                                     {user?.role === 'ADMINISTRADOR' && (
-                                        <td style={{ fontWeight: '500' }}>{o.customer_type_name}</td>
+                                        <td className="table-text-medium">{o.customer_type_name}</td>
                                     )}
 
                                     <td style={{ textAlign: 'right', fontWeight: '700' }}>
@@ -474,26 +425,22 @@ export default function HistorialDespachos() {
                                             {o.status}
                                         </span>
                                     </td>
-                                    <td style={{ textAlign: 'center', display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                    <td className="table-cell-actions">
                                         <button className="btn-edit" onClick={() => handleViewDetail(o)} title="Ver Detalle">
                                             <Eye size={14} />
                                         </button>
-                                        {/* Verificamos que tenga permisos Y que el pedido NO esté liquidado */}
                                         {canManage && o.status?.toUpperCase() !== 'LIQUIDADO' && (
                                             <>
                                                 <button
-                                                    className="btn-edit"
-                                                    style={{ background: '#f59e0b', color: 'white' }}
+                                                    className="btn-edit btn-edit-warning"
                                                     onClick={() => handleOpenEdit(o)}
                                                     title="Editar Pedido"
                                                 >
                                                     <Edit3 size={14} />
                                                 </button>
-                                                {/* CAMBIO AQUÍ: Permitir a ADMIN o DESPACHADOR */}
                                                 {(user?.role === 'ADMINISTRADOR' || user?.role === 'DESPACHADOR') && (
                                                     <button
-                                                        className="btn-edit"
-                                                        style={{ background: '#ef4444', color: 'white' }}
+                                                        className="btn-edit btn-edit-danger"
                                                         onClick={() => handleDeleteOrder(o)}
                                                         title="Eliminar"
                                                     >
@@ -513,7 +460,7 @@ export default function HistorialDespachos() {
             {/* MODAL EDITAR */}
             {isEditModalOpen && (
                 <div className="modal-overlay">
-                    <div className="modal-content" style={{ maxWidth: '700px', borderRadius: '16px' }}>
+                    <div className="modal-content modal-content-rounded" style={{ maxWidth: '700px' }}>
                         <div className="modal-header">
                             <h2>Editar Pedido #{editingOrder.id}</h2>
                             <button onClick={() => setIsEditModalOpen(false)}><X /></button>
@@ -522,10 +469,9 @@ export default function HistorialDespachos() {
                             <div className="input-group" style={{ marginBottom: '20px' }}>
                                 <label style={{ fontWeight: '600', display: 'block', marginBottom: '8px' }}>Nombre del Receptor</label>
                                 <input
-                                    className="input"
+                                    className="input filter-input-full"
                                     value={editForm.seller_name}
                                     onChange={(e) => setEditForm({ ...editForm, seller_name: e.target.value })}
-                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
                                 />
                             </div>
 
@@ -533,9 +479,9 @@ export default function HistorialDespachos() {
                                 <ShoppingBag size={18} /> Productos en el Pedido
                             </h4>
 
-                            <div style={{ maxHeight: '250px', overflowY: 'auto', border: '1px solid #f1f5f9', borderRadius: '12px', padding: '5px' }}>
+                            <div className="edit-items-scroll">
                                 {editForm.items.map((item, idx) => (
-                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
+                                    <div key={idx} className="edit-item-row">
                                         <div style={{ flex: 2 }}>
                                             <p style={{ margin: 0, fontWeight: '600', fontSize: '0.95rem' }}>{item.product_name}</p>
                                         </div>
@@ -551,17 +497,16 @@ export default function HistorialDespachos() {
                                 ))}
                             </div>
 
-                            <div style={{ marginTop: '20px', padding: '15px', background: '#f8fafc', borderRadius: '12px' }}>
+                            <div className="edit-add-product-box">
                                 <label style={{ fontWeight: '600', display: 'block', marginBottom: '8px' }}>Agregar Nuevo Producto</label>
                                 <select
-                                    className="input"
+                                    className="input filter-input-full"
                                     onChange={(e) => handleAddItem(e.target.value)}
                                     defaultValue=""
-                                    style={{ width: '100%', padding: '10px', borderRadius: '8px' }}
                                 >
                                     <option value="" disabled>Seleccione para añadir...</option>
                                     {allProducts
-                                        .filter(p => p.stock > 0) // <--- ESTA ES LA LÍNEA CLAVE
+                                        .filter(p => p.stock > 0)
                                         .map(p => (
                                             <option key={p.id} value={p.id}>
                                                 {p.name} (Stock: {p.stock})
@@ -584,40 +529,31 @@ export default function HistorialDespachos() {
             {/* MODAL DETALLE */}
             {selectedOrder && (
                 <div className="modal-overlay">
-                    <div className="modal-content" style={{ borderRadius: '16px', maxWidth: '650px', width: '90%' }}>
-                        <div className="modal-header" style={{ borderBottom: '1px solid #e2e8f0', padding: '20px' }}>
+                    <div className="modal-content modal-content-rounded" style={{ maxWidth: '650px', width: '90%' }}>
+                        <div className="modal-header modal-header-bordered">
                             <h2 style={{ margin: 0, color: '#1e293b' }}>Orden #{selectedOrder.id}</h2>
-                            <button
-                                onClick={() => setSelectedOrder(null)}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
-                            >
+                            <button onClick={() => setSelectedOrder(null)} className="modal-close-btn">
                                 <X size={24} />
                             </button>
                         </div>
 
-                        <div className="modal-body" style={{ padding: '25px' }}>
-                            {/* Info del Cliente y Fecha */}
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                marginBottom: '25px',
-                                padding: '18px',
-                                background: '#f8fafc',
-                                borderRadius: '12px',
-                                border: '1px solid #e2e8f0'
-                            }}>
+                        <div className="modal-body modal-body-padded">
+                            {/* Info General */}
+                            <div className="detail-grid-info">
                                 <div>
-                                    <p style={{ margin: '0 0 5px 0', fontSize: '0.75rem', fontWeight: 'bold', color: '#94a3b8', letterSpacing: '0.05em' }}>NOMBRE A QUIEN SE LE ENTREGA</p>
-                                    <p style={{ margin: 0, fontWeight: '700', fontSize: '1.1rem', color: '#1e293b' }}>
-                                        {selectedOrder.seller_name || 'Sin nombre'}
+                                    <p className="detail-info-label">A QUIEN SE LE ENTREGA</p>
+                                    <p className="detail-info-value">{selectedOrder.seller_name || 'Sin nombre'}</p>
+                                </div>
+                                <div>
+                                    <p className="detail-info-label">DESPACHADO POR</p>
+                                    <p className="detail-info-value">
+                                        {selectedOrder.dispatcher_name || selectedOrder.dispatcher || selectedOrder.created_by_name || 'N/A'}
                                     </p>
                                 </div>
                                 <div style={{ textAlign: 'right' }}>
-                                    <p style={{ margin: '0 0 5px 0', fontSize: '0.75rem', fontWeight: 'bold', color: '#94a3b8', letterSpacing: '0.05em' }}>FECHA DEL PEDIDO</p>
-                                    <p style={{ margin: 0, fontWeight: '600', color: '#334155' }}>
-                                        {selectedOrder.created_at
-                                            ? formatFechaConDia(selectedOrder.created_at)
-                                            : '10/02/2026' /* Fecha de ejemplo si no viene de la DB */}
+                                    <p className="detail-info-label">FECHA DEL PEDIDO</p>
+                                    <p className="detail-info-value" style={{ fontSize: '0.9rem' }}>
+                                        {selectedOrder.created_at ? formatFechaConDia(selectedOrder.created_at) : 'N/A'}
                                     </p>
                                 </div>
                             </div>
@@ -635,7 +571,6 @@ export default function HistorialDespachos() {
                                     </thead>
                                     <tbody>
                                         {orderItems.map((item, idx) => {
-                                            // Forzamos conversión a número para evitar el $NaN
                                             const price = Number(item.unit_price || 0);
                                             const qty = Number(item.quantity || 0);
                                             const subtotal = price * qty;
@@ -658,19 +593,9 @@ export default function HistorialDespachos() {
                             </div>
 
                             {/* Total Final */}
-                            <div style={{
-                                marginTop: '25px',
-                                textAlign: 'right',
-                                borderTop: '3px solid #f1f5f9',
-                                paddingTop: '20px'
-                            }}>
+                            <div className="detail-total-section">
                                 <p style={{ margin: '0 0 5px 0', fontSize: '0.9rem', color: '#64748b', fontWeight: '600' }}>TOTAL A PAGAR</p>
-                                <span style={{
-                                    fontSize: '1.8rem',
-                                    fontWeight: '900',
-                                    color: '#b91c1c', // Rojo elegante para el total
-                                    display: 'block'
-                                }}>
+                                <span className="detail-total-amount">
                                     ${Number(selectedOrder.total_amount || 0).toLocaleString('es-CO')}
                                 </span>
                             </div>
@@ -678,12 +603,13 @@ export default function HistorialDespachos() {
                     </div>
                 </div>
             )}
-            {/* MODAL DE CÓDIGO DE SEGURIDAD PARA DESPACHADOR */}
+
+            {/* MODAL CÓDIGO DESPACHADOR */}
             {isPasscodeModalOpen && (
                 <div className="modal-overlay">
-                    <div className="modal-content" style={{ maxWidth: '400px', textAlign: 'center', padding: '30px' }}>
+                    <div className="modal-content security-modal-content">
                         <div style={{ marginBottom: '20px' }}>
-                            <div style={{ background: '#fee2e2', color: '#ef4444', width: '60px', height: '60px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px' }}>
+                            <div className="security-icon-circle">
                                 <Trash2 size={30} />
                             </div>
                             <h2 style={{ margin: 0 }}>Confirmación de Seguridad</h2>
@@ -697,17 +623,7 @@ export default function HistorialDespachos() {
                             placeholder="****"
                             value={passcode}
                             onChange={(e) => setPasscode(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '15px',
-                                fontSize: '24px',
-                                textAlign: 'center',
-                                letterSpacing: '10px',
-                                borderRadius: '12px',
-                                border: '2px solid #e2e8f0',
-                                outline: 'none',
-                                marginBottom: '20px'
-                            }}
+                            className="security-input-passcode"
                             autoFocus
                             onKeyDown={(e) => e.key === 'Enter' && handleVerifyCode()}
                         />
