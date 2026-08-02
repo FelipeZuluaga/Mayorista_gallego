@@ -10,7 +10,15 @@ export default function HistDevolucionesPage() {
     const [filtroId, setFiltroId] = useState("");
     const [filtroVendedor, setFiltroVendedor] = useState("");
     const navigate = useNavigate();
-    const DIAS_SEMANA = ["", "", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const DIAS_SEMANA = [
+        { label: "Domingo", id: 0 },
+        { label: "Lunes", id: 1 },
+        { label: "Martes", id: 2 },
+        { label: "Miércoles", id: 3 },
+        { label: "Jueves", id: 4 },
+        { label: "Viernes", id: 5 },
+        { label: "Sábado", id: 6 },
+    ];
     const [diaSeleccionado, setDiaSeleccionado] = useState(new Date().getDay());
     const user = JSON.parse(localStorage.getItem("user"));
     const [modalOpen, setModalOpen] = useState(false);
@@ -27,9 +35,10 @@ export default function HistDevolucionesPage() {
     };
 
     const ordenesFiltradas = ordenes.filter((o) => {
-        const coincideDia = new Date(o.created_at).getDay() === diaSeleccionado;
+        const fechaOrden = new Date(o.created_at);
+        const coincideDia = fechaOrden.getDay() === diaSeleccionado;
         const coincideId = o.id.toString().includes(filtroId);
-        const nombreVendedor = o.seller_name;
+        const nombreVendedor = o.seller_name || "";
         const coincideVendedor = nombreVendedor.toLowerCase().includes(filtroVendedor.toLowerCase());
 
         return coincideDia && coincideId && coincideVendedor;
@@ -80,17 +89,20 @@ export default function HistDevolucionesPage() {
         <div className="p-6">
             <header className="ruta-header-main">
                 <h1>{user.role === 'ADMINISTRADOR' ? '🚀 Historial y proceso de Devolucion y Descuadres' : '🚚 Historial y proceso de mis Devolucion y Descuadres'}</h1>
-                <p>Viendo rutas del día: <strong>{DIAS_SEMANA[diaSeleccionado]}</strong></p>
+                <p>
+                    Viendo rutas del día: <strong>{DIAS_SEMANA.find(d => d.id === diaSeleccionado)?.label}</strong>
+                </p>
             </header>
 
+            {/* BARRA DE DÍAS CENTRADA Y POSICIONADA */}
             <div className="dias-selector-container">
-                {DIAS_SEMANA.map((dia, index) => (
+                {DIAS_SEMANA.map((dia) => (
                     <button
-                        key={index} //   Solución rápida y segura para arrays estáticos
-                        onClick={() => setDiaSeleccionado(index)}
-                        className={`btn-dia ${diaSeleccionado === index ? 'selected' : ''}`}
+                        key={dia.id}
+                        onClick={() => setDiaSeleccionado(dia.id)}
+                        className={`btn-dia ${diaSeleccionado === dia.id ? 'selected' : ''}`}
                     >
-                        {dia}
+                        {dia.label}
                     </button>
                 ))}
             </div>
