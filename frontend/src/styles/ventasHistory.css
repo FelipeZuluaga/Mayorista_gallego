@@ -138,3 +138,95 @@
         overflow: visible !important;
     }
 }
+/* ============================================================
+   BARRA DE FILTROS Y BÚSQUEDA
+   ============================================================ */
+
+.card-header.filters-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap; /* Para respuesta adaptativa en móviles */
+}
+
+.filters-group-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 280px;
+}
+
+/* Contenedor del buscador con icono integrado */
+.search-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 8px 12px;
+    max-width: 280px;
+    width: 100%;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-box:focus-within {
+    border-color: #e51d48;
+    box-shadow: 0 0 0 3px rgba(229, 29, 72, 0.15);
+}
+
+.search-box input {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: 0.9rem;
+    color: #334155;
+    background: transparent;
+}
+
+/* Selector de Vendedor */
+.admin-select-vendedor {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    outline: none;
+    background-color: #ffffff;
+    font-size: 0.9rem;
+    color: #334155;
+    cursor: pointer;
+    min-width: 200px;
+    height: 40px;
+    transition: border-color 0.2s;
+}
+
+.admin-select-vendedor:focus {
+    border-color: #e51d48;
+}
+
+/* Botón Limpiar Filtros */
+.btn-clear-filters {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    height: 40px;
+    transition: all 0.2s ease;
+}
+
+.btn-clear-filters:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #94a3b8;
+}

@@ -222,6 +222,9 @@ export default function VentasDetalleReadOnly() {
                     </tbody>
                 </table>
             </div>
+
+
+            
             {/* TABLA DE LIQUIDACIÓN */}
             <div className="resumen-liquidacion" style={{ marginTop: '30px', display: 'flex', justifyContent: 'flex-end' }}>
                 <table className="excel-table summary-table" style={{ width: '400px' }}>

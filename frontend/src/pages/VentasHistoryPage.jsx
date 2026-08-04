@@ -12,7 +12,7 @@ export default function VentasHistoryPage() {
     const [vendedorSeleccionado, setVendedorSeleccionado] = useState("");
     
     const navigate = useNavigate();
-    const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+    const DIAS_SEMANA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     const [diaSeleccionado, setDiaSeleccionado] = useState(new Date().getDay());
     const user = JSON.parse(localStorage.getItem("user"));
 
